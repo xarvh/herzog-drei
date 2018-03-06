@@ -1,0 +1,35 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>SVG Scaffold</title>
+        <style>
+            html,head,body { padding:0; margin:0; }
+            body { font-family: calibri, helvetica, arial, sans-serif; }
+        </style>
+        <script type="text/javascript" src="build/app.js"></script>
+        <!--
+        <link rel="stylesheet" type="text/css" href="src/index.css" />
+        <script type="text/javascript" src="src/Ports/gamepadPort.js"></script>
+        <script type="text/javascript" src="src/Ports/localStoragePort.js"></script>
+        <script type="text/javascript" src="src/Ports/mousePort.js"></script>
+        <script type="text/javascript" src="src/Ports/Sound.js"></script>
+        -->
+    </head>
+    <body>
+        <script type="text/javascript">
+            var gamepadDatabaseKey = "gamepadDatabase"
+            var elmApp = Elm.Main.fullscreen({
+                dateNow: Date.now(),
+                gamepadDatabaseKey: gamepadDatabaseKey,
+                gamepadDatabaseAsString: localStorage[gamepadDatabaseKey] || "",
+            });
+            /*
+            addGamepadPort(elmApp);
+            addMousePort(elmApp);
+            addLocalStoragePort(elmApp);
+            playSoundPort(elmApp);
+            */
+        </script>
+    </body>
+</html>
