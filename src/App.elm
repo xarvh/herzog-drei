@@ -1,10 +1,111 @@
 module App exposing (..)
 
+import AStar exposing (Position)
 import AnimationFrame
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
-import Svg exposing (..)
+import Set exposing (Set)
+import Svg exposing (Svg)
 import Svg.Attributes exposing (..)
 import Time exposing (Time)
+
+
+--
+
+
+getAvailableMoves : Position -> Set Position
+getAvailableMoves ( x, y ) =
+    [ if x > 0 then
+        [ ( x - 1, y ) ]
+      else
+        []
+    , if x < 9 then
+        [ ( x + 1, y ) ]
+      else
+        []
+    , if y > 0 then
+        [ ( x, y - 1 ) ]
+      else
+        []
+    , if y < 9 then
+        [ ( x, y + 1 ) ]
+      else
+        []
+    ]
+        |> List.concat
+        |> Set.fromList
+
+
+
+--
+
+
+clampToRadius : Float -> Vec2 -> Vec2
+clampToRadius radius v =
+    let
+        ll =
+            Vec2.lengthSquared v
+    in
+    if ll <= radius * radius then
+        v
+    else
+        Vec2.scale (radius / sqrt ll) v
+
+
+vec2Tile : Vec2 -> ( Int, Int )
+vec2Tile v =
+    let
+        ( x, y ) =
+            Vec2.toTuple v
+    in
+    ( floor x, floor y )
+
+
+tile2Vec : ( Int, Int ) -> Vec2
+tile2Vec ( x, y ) =
+    vec2 (toFloat x) (toFloat y)
+
+
+moveUnit : Float -> Model -> Model
+moveUnit dt model =
+    let
+        unitTile =
+            vec2Tile model.position
+
+        targetTile =
+            vec2Tile model.target
+    in
+    case AStar.findPath AStar.straightLineCost getAvailableMoves unitTile targetTile of
+        Nothing ->
+            let
+                q =
+                    Debug.log "No Path" ( unitTile, targetTile )
+            in
+            model
+
+        Just path ->
+            let
+                idealDelta =
+                    case path of
+                        [] ->
+                            Vec2.sub model.target model.position
+
+                        head :: tail ->
+                            Vec2.sub (tile2Vec head) (tile2Vec unitTile)
+
+                speed =
+                    1
+
+                maxLength =
+                    speed * dt / 1000
+
+                viableDelta =
+                    clampToRadius maxLength idealDelta
+
+                newPosition =
+                    Vec2.add model.position viableDelta
+            in
+            { model | position = newPosition }
+
 
 
 -- Msg
@@ -19,7 +120,9 @@ type Msg
 
 
 type alias Model =
-    String
+    { position : Vec2
+    , target : Vec2
+    }
 
 
 
@@ -28,7 +131,10 @@ type alias Model =
 
 init : ( Model, Cmd Msg )
 init =
-    noCmd ""
+    noCmd
+        { position = vec2 -2 -5
+        , target = vec2 2 4
+        }
 
 
 
@@ -44,18 +150,18 @@ update : Vec2 -> Msg -> Model -> ( Model, Cmd Msg )
 update mousePosition msg model =
     case msg of
         OnAnimationFrame dt ->
-            noCmd model
+            noCmd (moveUnit dt model)
 
 
 
 -- View
 
 
-checkersBackground : Int -> Svg a
-checkersBackground numberOfSquaresPerSide =
+checkersBackground : Float -> Svg a
+checkersBackground size =
     let
         squareSize =
-            1.0 / toFloat numberOfSquaresPerSide
+            1.0
 
         s =
             toString squareSize
@@ -63,17 +169,17 @@ checkersBackground numberOfSquaresPerSide =
         s2 =
             toString (squareSize * 2)
     in
-    g
+    Svg.g
         []
-        [ defs
+        [ Svg.defs
             []
-            [ pattern
+            [ Svg.pattern
                 [ id "grid"
                 , width s2
                 , height s2
                 , patternUnits "userSpaceOnUse"
                 ]
-                [ rect
+                [ Svg.rect
                     [ x "0"
                     , y "0"
                     , width s
@@ -81,7 +187,7 @@ checkersBackground numberOfSquaresPerSide =
                     , fill "#eee"
                     ]
                     []
-                , rect
+                , Svg.rect
                     [ x s
                     , y s
                     , width s
@@ -91,26 +197,40 @@ checkersBackground numberOfSquaresPerSide =
                     []
                 ]
             ]
-        , rect
+        , Svg.rect
             [ fill "url(#grid)"
-            , x "-0.5"
-            , y "-0.5"
-            , width "1"
-            , height "1"
+            , x <| toString <| -size / 2
+            , y <| toString <| -size / 2
+            , width <| toString size
+            , height <| toString size
             ]
             []
         ]
 
 
+circle : Vec2 -> String -> Float -> Svg a
+circle pos color size =
+    Svg.circle
+        [ Vec2.getX pos + 0.5 |> toString |> cx
+        , Vec2.getY pos + 0.5 |> toString |> cy
+        , size |> toString |> r
+        , fill color
+        ]
+        []
+
+
 view : Model -> Svg Msg
 view model =
-    g
-        []
+    Svg.g
+        [ transform "scale(0.1, 0.1)" ]
         [ checkersBackground 10
-        , circle [ cx "-0.5", cy "-0.5", r "0.1", fill "red" ] []
-        , circle [ cx "-0.5", cy "0.5", r "0.1", fill "red" ] []
-        , circle [ cx "0.5", cy "0.5", r "0.1", fill "red" ] []
-        , circle [ cx "0.5", cy "-0.5", r "0.1", fill "red" ] []
+        , circle model.position "blue" 0.5
+        , circle model.target "red" 0.5
+        , Svg.g
+            []
+            []
+
+        --(List.map (\pos -> circle pos "green" 0.2) path)
         ]
 
 
