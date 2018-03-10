@@ -13,6 +13,16 @@ import Time exposing (Time)
 --
 
 
+obstacles =
+    [ ( 0, 0 )
+    , ( 1, 0 )
+    , ( 2, 0 )
+    , ( 3, 0 )
+    , ( 3, 1 )
+    ]
+        |> Set.fromList
+
+
 getAvailableMoves : Position -> Set Position
 getAvailableMoves ( x, y ) =
     [ if x > -5 then
@@ -33,6 +43,7 @@ getAvailableMoves ( x, y ) =
         []
     ]
         |> List.concat
+        |> List.filter (\pos -> not <| Set.member pos obstacles)
         |> Set.fromList
 
 
@@ -223,6 +234,17 @@ circle pos color size =
         ]
         []
 
+square : Vec2 -> String -> Float -> Svg a
+square pos color size =
+    Svg.rect
+        [ Vec2.getX pos |> toString |> x
+        , Vec2.getY pos |> toString |> y
+        , size |> toString |> width
+        , size |> toString |> height
+        , fill color
+        ]
+        []
+
 
 view : Model -> Svg Msg
 view model =
@@ -231,11 +253,10 @@ view model =
         [ checkersBackground 10
         , circle model.position "blue" 0.5
         , circle model.target "red" 0.5
-        , Svg.g
-            []
-            []
-
-        --(List.map (\pos -> circle pos "green" 0.2) path)
+        , obstacles
+            |> Set.toList
+            |> List.map (\( x, y ) -> square (vec2 x y) "black" 1)
+            |> Svg.g []
         ]
 
 
