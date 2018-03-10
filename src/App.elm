@@ -3,6 +3,7 @@ module App exposing (..)
 import AStar exposing (Position)
 import AnimationFrame
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Mouse
 import Set exposing (Set)
 import Svg exposing (Svg)
 import Svg.Attributes exposing (..)
@@ -14,19 +15,19 @@ import Time exposing (Time)
 
 getAvailableMoves : Position -> Set Position
 getAvailableMoves ( x, y ) =
-    [ if x > 0 then
+    [ if x > -5 then
         [ ( x - 1, y ) ]
       else
         []
-    , if x < 9 then
+    , if x < 4 then
         [ ( x + 1, y ) ]
       else
         []
-    , if y > 0 then
+    , if y > -5 then
         [ ( x, y - 1 ) ]
       else
         []
-    , if y < 9 then
+    , if y < 4 then
         [ ( x, y + 1 ) ]
       else
         []
@@ -113,6 +114,7 @@ moveUnit dt model =
 
 type Msg
     = OnAnimationFrame Time
+    | OnClick
 
 
 
@@ -149,6 +151,9 @@ noCmd model =
 update : Vec2 -> Msg -> Model -> ( Model, Cmd Msg )
 update mousePosition msg model =
     case msg of
+        OnClick ->
+            noCmd { model | target = Vec2.scale 10 mousePosition }
+
         OnAnimationFrame dt ->
             noCmd (moveUnit dt model)
 
@@ -211,8 +216,8 @@ checkersBackground size =
 circle : Vec2 -> String -> Float -> Svg a
 circle pos color size =
     Svg.circle
-        [ Vec2.getX pos + 0.5 |> toString |> cx
-        , Vec2.getY pos + 0.5 |> toString |> cy
+        [ Vec2.getX pos |> toString |> cx
+        , Vec2.getY pos |> toString |> cy
         , size |> toString |> r
         , fill color
         ]
@@ -236,4 +241,7 @@ view model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    AnimationFrame.diffs OnAnimationFrame
+    Sub.batch
+        [ AnimationFrame.diffs OnAnimationFrame
+        , Mouse.clicks (always OnClick)
+        ]
