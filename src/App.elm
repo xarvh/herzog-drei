@@ -1,6 +1,7 @@
 module App exposing (..)
 
 import AnimationFrame
+import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Time exposing (Time)
@@ -39,8 +40,8 @@ noCmd model =
     ( model, Cmd.none )
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : Vec2 -> Msg -> Model -> ( Model, Cmd Msg )
+update mousePosition msg model =
     case msg of
         OnAnimationFrame dt ->
             noCmd model

@@ -3,6 +3,8 @@ module Main exposing (..)
 import App
 import Html exposing (Html, div)
 import Html.Attributes exposing (style)
+import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Mouse
 import Svg exposing (g, svg)
 import Svg.Attributes exposing (transform)
 import Task
@@ -18,12 +20,14 @@ type alias Flags =
 
 type alias Model =
     { windowSize : Window.Size
+    , mousePosition : Mouse.Position
     , app : App.Model
     }
 
 
 type Msg
     = OnWindowResizes Window.Size
+    | OnMouseMoves Mouse.Position
     | OnAppMsg App.Msg
 
 
@@ -33,7 +37,11 @@ init flags =
         ( appModel, appCmd ) =
             App.init
     in
-    ( { windowSize = { width = 1, height = 1 }
+    ( { windowSize =
+            { width = 1
+            , height = 1
+            }
+      , mousePosition = Mouse.Position 0 0
       , app = appModel
       }
     , Cmd.batch
@@ -49,12 +57,40 @@ update msg model =
         OnWindowResizes windowSize ->
             ( { model | windowSize = windowSize }, Cmd.none )
 
+        OnMouseMoves mousePosition ->
+            ( { model | mousePosition = mousePosition }, Cmd.none )
+
         OnAppMsg nestedMsg ->
             let
                 ( appModel, appCmd ) =
-                    App.update nestedMsg model.app
+                    App.update (transformMousePosition model) nestedMsg model.app
             in
             ( { model | app = appModel }, Cmd.map OnAppMsg appCmd )
+
+
+
+-- Transformations
+
+
+transformMousePosition : Model -> Vec2
+transformMousePosition model =
+    let
+        pixelW =
+            toFloat model.windowSize.width
+
+        pixelH =
+            toFloat model.windowSize.height
+
+        minSize =
+            min pixelW pixelH
+
+        pixelX =
+            toFloat model.mousePosition.x - pixelW / 2
+
+        pixelY =
+            pixelH / 2 + 1 - toFloat model.mousePosition.y
+    in
+    vec2 (pixelX / minSize) (pixelY / minSize)
 
 
 viewBox : Window.Size -> Svg.Attribute a
@@ -105,6 +141,7 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Window.resizes OnWindowResizes
+        , Mouse.moves OnMouseMoves
         , App.subscriptions model.app |> Sub.map OnAppMsg
         ]
 
