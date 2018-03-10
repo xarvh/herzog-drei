@@ -23,8 +23,14 @@ obstacles =
         |> Set.fromList
 
 
-getAvailableMoves : Position -> Set Position
-getAvailableMoves ( x, y ) =
+getAvailableMoves : List Position -> Position -> Set Position
+getAvailableMoves occupiedPositions ( x, y ) =
+    let
+        allObstacles =
+            occupiedPositions
+                |> Set.fromList
+                |> Set.union obstacles
+    in
     [ if x > -5 then
         [ ( x - 1, y ) ]
       else
@@ -43,7 +49,7 @@ getAvailableMoves ( x, y ) =
         []
     ]
         |> List.concat
-        |> List.filter (\pos -> not <| Set.member pos obstacles)
+        |> List.filter (\pos -> not <| Set.member pos allObstacles)
         |> Set.fromList
 
 
@@ -85,8 +91,13 @@ moveUnit dt model unit =
 
         targetTile =
             vec2Tile model.target
+
+        occupiedPositions =
+            model.units
+                |> List.filter ((/=) unit)
+                |> List.map (.position >> vec2Tile)
     in
-    case AStar.findPath AStar.straightLineCost getAvailableMoves unitTile targetTile of
+    case AStar.findPath AStar.straightLineCost (getAvailableMoves occupiedPositions) unitTile targetTile of
         Nothing ->
             let
                 q =
