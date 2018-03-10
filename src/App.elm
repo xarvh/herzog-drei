@@ -77,11 +77,11 @@ tile2Vec ( x, y ) =
     vec2 (toFloat x) (toFloat y)
 
 
-moveUnit : Float -> Model -> Model
-moveUnit dt model =
+moveUnit : Float -> Model -> Unit -> Unit
+moveUnit dt model unit =
     let
         unitTile =
-            vec2Tile model.position
+            vec2Tile unit.position
 
         targetTile =
             vec2Tile model.target
@@ -92,14 +92,14 @@ moveUnit dt model =
                 q =
                     Debug.log "No Path" ( unitTile, targetTile )
             in
-            model
+            unit
 
         Just path ->
             let
                 idealDelta =
                     case path of
                         [] ->
-                            Vec2.sub model.target model.position
+                            Vec2.sub model.target unit.position
 
                         head :: tail ->
                             Vec2.sub (tile2Vec head) (tile2Vec unitTile)
@@ -114,9 +114,9 @@ moveUnit dt model =
                     clampToRadius maxLength idealDelta
 
                 newPosition =
-                    Vec2.add model.position viableDelta
+                    Vec2.add unit.position viableDelta
             in
-            { model | position = newPosition }
+            { unit | position = newPosition }
 
 
 
@@ -132,8 +132,13 @@ type Msg
 -- Model
 
 
-type alias Model =
+type alias Unit =
     { position : Vec2
+    }
+
+
+type alias Model =
+    { units : List Unit
     , target : Vec2
     }
 
@@ -145,7 +150,10 @@ type alias Model =
 init : ( Model, Cmd Msg )
 init =
     noCmd
-        { position = vec2 -2 -5
+        { units =
+            [ Unit (vec2 -2 -5)
+            , Unit (vec2 2 -4)
+            ]
         , target = vec2 2 4
         }
 
@@ -166,7 +174,12 @@ update mousePosition msg model =
             noCmd { model | target = Vec2.scale 10 mousePosition }
 
         OnAnimationFrame dt ->
-            noCmd (moveUnit dt model)
+            let
+                newUnits =
+                    model.units
+                        |> List.map (moveUnit dt model)
+            in
+            noCmd { model | units = newUnits }
 
 
 
@@ -234,6 +247,7 @@ circle pos color size =
         ]
         []
 
+
 square : Vec2 -> String -> Float -> Svg a
 square pos color size =
     Svg.rect
@@ -251,12 +265,14 @@ view model =
     Svg.g
         [ transform "scale(0.1, 0.1)" ]
         [ checkersBackground 10
-        , circle model.position "blue" 0.5
-        , circle model.target "red" 0.5
+        , model.units
+            |> List.map (\unit -> circle unit.position "blue" 0.5)
+            |> Svg.g []
         , obstacles
             |> Set.toList
             |> List.map (\( x, y ) -> square (vec2 x y) "black" 1)
             |> Svg.g []
+        , circle model.target "red" 0.5
         ]
 
 
