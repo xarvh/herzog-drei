@@ -56,13 +56,27 @@ tile2Vec ( x, y ) =
 type alias Base =
     { id : Id
     , containedUnits : Int
-    , position : Vec2
+    , position : TilePosition
     }
 
 
-addBase : Id -> Vec2 -> Dict Id Base -> Dict Id Base
+addBase : Id -> TilePosition -> Dict Id Base -> Dict Id Base
 addBase id position =
     Dict.insert id (Base id 0 position)
+
+
+baseTiles : Base -> Set TilePosition
+baseTiles base =
+    let
+        ( x, y ) =
+            base.position
+    in
+    [ ( x + 0, y - 1 )
+    , ( x - 1, y - 1 )
+    , ( x - 1, y + 0 )
+    , ( x + 0, y + 0 )
+    ]
+        |> Set.fromList
 
 
 
@@ -236,20 +250,11 @@ applyGameDelta delta game =
 init : ( Model, Cmd Msg )
 init =
     let
-        terrainObstacles =
-            [ ( 0, 0 )
-            , ( 1, 0 )
-            , ( 2, 0 )
-            , ( 3, 0 )
-            , ( 3, 1 )
-            ]
-                |> Set.fromList
-    in
-    noCmd
-        { baseById =
+        baseById =
             Dict.empty
-                |> addBase 99 (vec2 3 2)
-        , unitById =
+                |> addBase 99 ( 0, 0 )
+
+        unitById =
             Dict.empty
                 |> addUnit 0 (vec2 -2 -5)
                 |> addUnit 1 (vec2 2 -4.1)
@@ -258,13 +263,28 @@ init =
                 |> addUnit 4 (vec2 2 -4.11)
                 |> addUnit 5 (vec2 2 -4.3)
                 |> addUnit 6 (vec2 2 -4.02)
+
+        terrainObstacles =
+            [ ( 0, 0 )
+            , ( 1, 0 )
+            , ( 2, 0 )
+            , ( 3, 0 )
+            , ( 3, 1 )
+            ]
+                |> Set.fromList
+
+        staticObstacles =
+            baseById
+                |> Dict.values
+                |> List.map baseTiles
+                |> List.foldl Set.union terrainObstacles
+    in
+    noCmd
+        { baseById = baseById
+        , unitById = unitById
         , target = vec2 2 4
         , selectedUnitId = 99
-
-        -- TODO: Add bases
-        , staticObstacles = terrainObstacles
-
-        --
+        , staticObstacles = staticObstacles
         , unpassableTiles = Set.empty
         }
 
@@ -383,18 +403,38 @@ square pos color size =
         []
 
 
+viewBase : Base -> Svg a
+viewBase base =
+    let
+        v =
+            Vec2.add (tile2Vec base.position) (vec2 -1 -1)
+    in
+    square v "purple" 2
+
+
+viewUnit : Unit -> Svg Msg
+viewUnit unit =
+    Svg.g
+        [ Svg.Events.onClick (OnUnitClick unit.id) ]
+        [ circle unit.position "blue" 0.5 ]
+
+
 view : Model -> Svg Msg
 view game =
     Svg.g
         [ transform "scale(0.1, 0.1)" ]
         [ checkersBackground 10
-        , game.unitById
-            |> Dict.values
-            |> List.map (\unit -> Svg.g [ Svg.Events.onClick (OnUnitClick unit.id) ] [ circle unit.position "blue" 0.5 ])
-            |> Svg.g []
         , game.staticObstacles
             |> Set.toList
             |> List.map (\pos -> square (tile2Vec pos) "gray" 1)
+            |> Svg.g []
+        , game.baseById
+            |> Dict.values
+            |> List.map viewBase
+            |> Svg.g []
+        , game.unitById
+            |> Dict.values
+            |> List.map viewUnit
             |> Svg.g []
         , circle game.target "red" 0.5
         ]
