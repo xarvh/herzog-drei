@@ -19,6 +19,25 @@ type alias TilePosition =
     AStar.Position
 
 
+tileDistance : TilePosition -> TilePosition -> Float
+tileDistance =
+    -- Manhattan distance
+    AStar.straightLineCost
+
+
+vectorDistance : Vec2 -> Vec2 -> Float
+vectorDistance v1 v2 =
+    -- Manhattan distance
+    let
+        ( x1, y1 ) =
+            Vec2.toTuple v1
+
+        ( x2, y2 ) =
+            Vec2.toTuple v2
+    in
+    abs (x1 - x2) + abs (y1 - y2)
+
+
 
 -- Helpers
 
@@ -85,13 +104,25 @@ baseTiles base =
 
 type alias Unit =
     { id : Id
+    , order : UnitOrder
     , position : Vec2
     }
 
 
+type UnitOrder
+    = OrderStay
+    | OrderMoveTo Vec2
+    | OrderEnterBase Id
+
+
 addUnit : Id -> Vec2 -> Dict Id Unit -> Dict Id Unit
 addUnit id position =
-    Dict.insert id (Unit id position)
+    Dict.insert
+        id
+        { id = id
+        , order = OrderStay
+        , position = position
+        }
 
 
 getAvailableMoves : Set TilePosition -> TilePosition -> Set TilePosition
@@ -118,34 +149,31 @@ getAvailableMoves occupiedPositions ( x, y ) =
         |> Set.fromList
 
 
-unitThink : Float -> Game -> Unit -> Maybe Delta
-unitThink dt game unit =
+unitMove : Float -> Game -> Vec2 -> Unit -> Maybe Delta
+unitMove dt game targetPosition unit =
     let
         targetDistance =
             0
-
-        unitTile =
-            vec2Tile unit.position
-
-        targetTile =
-            vec2Tile game.target
     in
-    if AStar.straightLineCost unitTile targetTile <= targetDistance then
+    if vectorDistance unit.position targetPosition <= targetDistance then
         Nothing
     else
         let
+            unitTile =
+                vec2Tile unit.position
+
             path =
                 AStar.findPath
-                    AStar.straightLineCost
+                    tileDistance
                     (getAvailableMoves game.unpassableTiles)
                     unitTile
-                    targetTile
+                    (vec2Tile targetPosition)
                     targetDistance
 
             idealDelta =
                 case path of
                     [] ->
-                        Vec2.sub game.target unit.position
+                        Vec2.sub targetPosition unit.position
 
                     head :: tail ->
                         Vec2.sub (tile2Vec head) (tile2Vec unitTile)
@@ -165,6 +193,41 @@ unitThink dt game unit =
         Just (MoveUnit unit.id newPosition)
 
 
+unitThink : Float -> Game -> Unit -> Maybe Delta
+unitThink dt game unit =
+    case unit.order of
+        OrderStay ->
+            Nothing
+
+        OrderEnterBase baseId ->
+            case Dict.get baseId game.baseById of
+                Nothing ->
+                    Nothing
+
+                Just base ->
+                    if vectorDistance unit.position (tile2Vec base.position) > 2.1 then
+                        unitMove dt game (tile2Vec base.position) unit
+                    else
+                        Just (UnitEntersBase unit.id base.id)
+
+        OrderMoveTo targetPosition ->
+            unitMove dt game targetPosition unit
+
+
+orderUnit : UnitOrder -> Game -> Game
+orderUnit order game =
+    case Dict.get game.selectedUnitId game.unitById of
+        Nothing ->
+            game
+
+        Just unit ->
+            let
+                unitById =
+                    game.unitById |> Dict.insert unit.id { unit | order = order }
+            in
+            { game | unitById = unitById }
+
+
 
 -- Game
 
@@ -181,7 +244,6 @@ type Delta
 type alias Game =
     { baseById : Dict Id Base
     , unitById : Dict Id Unit
-    , target : Vec2
     , selectedUnitId : Int
 
     -- includes terrain and bases
@@ -240,7 +302,22 @@ applyGameDelta delta game =
                         }
 
         UnitEntersBase unitId baseId ->
-            game
+            case ( Dict.get unitId game.unitById, Dict.get baseId game.baseById ) of
+                ( Just unit, Just base ) ->
+                    if base.containedUnits < 4 then
+                        let
+                            unitById =
+                                Dict.remove unit.id game.unitById
+
+                            baseById =
+                                Dict.insert base.id { base | containedUnits = base.containedUnits + 1 } game.baseById
+                        in
+                        { game | unitById = unitById, baseById = baseById }
+                    else
+                        game
+
+                ( _, _ ) ->
+                    game
 
 
 
@@ -282,7 +359,6 @@ init =
     noCmd
         { baseById = baseById
         , unitById = unitById
-        , target = vec2 2 4
         , selectedUnitId = 99
         , staticObstacles = staticObstacles
         , unpassableTiles = Set.empty
@@ -297,6 +373,7 @@ type Msg
     = OnAnimationFrame Time
     | OnTerrainClick
     | OnUnitClick Id
+    | OnBaseClick Id
 
 
 type alias Model =
@@ -316,10 +393,17 @@ update : Vec2 -> Msg -> Model -> ( Model, Cmd Msg )
 update mousePosition msg model =
     case msg of
         OnTerrainClick ->
-            noCmd { model | target = Vec2.scale 10 mousePosition }
+            model
+                |> orderUnit (OrderMoveTo (Vec2.scale 10 mousePosition))
+                |> noCmd
 
         OnUnitClick unitId ->
-            noCmd { model | selectedUnitId = Debug.log "selecting" unitId }
+            noCmd { model | selectedUnitId = unitId }
+
+        OnBaseClick baseId ->
+            model
+                |> orderUnit (OrderEnterBase baseId)
+                |> noCmd
 
         OnAnimationFrame dt ->
             noCmd (updateGame dt model)
@@ -403,20 +487,34 @@ square pos color size =
         []
 
 
-viewBase : Base -> Svg a
+viewBase : Base -> Svg Msg
 viewBase base =
     let
         v =
             Vec2.add (tile2Vec base.position) (vec2 -1 -1)
     in
-    square v "purple" 2
+    Svg.g
+        [ Svg.Events.onClick (OnBaseClick base.id) ]
+        [ square v "purple" 2
+        , square v "#00c" (toFloat base.containedUnits * 0.5)
+        ]
 
 
-viewUnit : Unit -> Svg Msg
-viewUnit unit =
+viewUnit : Game -> Unit -> Svg Msg
+viewUnit game unit =
+    let
+        isSelected =
+            game.selectedUnitId == unit.id
+
+        color =
+            if isSelected then
+                "#44f"
+            else
+                "#00c"
+    in
     Svg.g
         [ Svg.Events.onClick (OnUnitClick unit.id) ]
-        [ circle unit.position "blue" 0.5 ]
+        [ circle unit.position color 0.5 ]
 
 
 view : Model -> Svg Msg
@@ -434,9 +532,8 @@ view game =
             |> Svg.g []
         , game.unitById
             |> Dict.values
-            |> List.map viewUnit
+            |> List.map (viewUnit game)
             |> Svg.g []
-        , circle game.target "red" 0.5
         ]
 
 
