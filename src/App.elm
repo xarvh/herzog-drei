@@ -23,14 +23,8 @@ obstacles =
         |> Set.fromList
 
 
-getAvailableMoves : List Position -> Position -> Set Position
+getAvailableMoves : Set Position -> Position -> Set Position
 getAvailableMoves occupiedPositions ( x, y ) =
-    let
-        allObstacles =
-            occupiedPositions
-                |> Set.fromList
-                |> Set.union obstacles
-    in
     [ if x > -5 then
         [ ( x - 1, y ) ]
       else
@@ -49,7 +43,7 @@ getAvailableMoves occupiedPositions ( x, y ) =
         []
     ]
         |> List.concat
-        |> List.filter (\pos -> not <| Set.member pos allObstacles)
+        |> List.filter (\pos -> not <| Set.member pos occupiedPositions)
         |> Set.fromList
 
 
@@ -83,50 +77,55 @@ tile2Vec ( x, y ) =
     vec2 (toFloat x) (toFloat y)
 
 
-moveUnit : Float -> Model -> Unit -> Unit
-moveUnit dt model unit =
+unitThink : Float -> Vec2 -> List Unit -> Unit -> Unit
+unitThink dt target otherUnits unit =
     let
+        targetDistance =
+            0
+
         unitTile =
             vec2Tile unit.position
 
         targetTile =
-            vec2Tile model.target
-
-        occupiedPositions =
-            model.units
-                |> List.filter ((/=) unit)
-                |> List.map (.position >> vec2Tile)
+            vec2Tile target
     in
-    case AStar.findPath AStar.straightLineCost (getAvailableMoves occupiedPositions) unitTile targetTile of
-        Nothing ->
-            let
-                q =
-                    Debug.log "No Path" ( unitTile, targetTile )
-            in
+    if AStar.straightLineCost unitTile targetTile <= targetDistance then
+        unit
+    else
+        let
+            occupiedPositions =
+                otherUnits
+                    |> List.map (.position >> vec2Tile)
+                    |> Set.fromList
+                    |> Set.remove (vec2Tile unit.position)
+                    |> Set.union obstacles
+
+            path =
+                AStar.findPath AStar.straightLineCost (getAvailableMoves occupiedPositions) unitTile targetTile targetDistance
+
+            idealDelta =
+                case path of
+                    [] ->
+                        Vec2.sub target unit.position
+
+                    head :: tail ->
+                        Vec2.sub (tile2Vec head) (tile2Vec unitTile)
+
+            speed =
+                1
+
+            maxLength =
+                speed * dt / 1000
+
+            viableDelta =
+                clampToRadius maxLength idealDelta
+
+            newPosition =
+                Vec2.add unit.position viableDelta
+        in
+        if Set.member (vec2Tile newPosition) occupiedPositions then
             unit
-
-        Just path ->
-            let
-                idealDelta =
-                    case path of
-                        [] ->
-                            Vec2.sub model.target unit.position
-
-                        head :: tail ->
-                            Vec2.sub (tile2Vec head) (tile2Vec unitTile)
-
-                speed =
-                    1
-
-                maxLength =
-                    speed * dt / 1000
-
-                viableDelta =
-                    clampToRadius maxLength idealDelta
-
-                newPosition =
-                    Vec2.add unit.position viableDelta
-            in
+        else
             { unit | position = newPosition }
 
 
@@ -144,7 +143,8 @@ type Msg
 
 
 type alias Unit =
-    { position : Vec2
+    { id : Int
+    , position : Vec2
     }
 
 
@@ -162,8 +162,13 @@ init : ( Model, Cmd Msg )
 init =
     noCmd
         { units =
-            [ Unit (vec2 -2 -5)
-            , Unit (vec2 2 -4)
+            [ Unit 0 (vec2 -2 -5)
+            , Unit 1 (vec2 2 -4.1)
+            , Unit 2 (vec2 2 -4.2)
+            , Unit 3 (vec2 2 -4.3)
+            , Unit 4 (vec2 2 -4.11)
+            , Unit 5 (vec2 2 -4.3)
+            , Unit 6 (vec2 2 -4.02)
             ]
         , target = vec2 2 4
         }
@@ -178,6 +183,20 @@ noCmd model =
     ( model, Cmd.none )
 
 
+unitsThink : Float -> Vec2 -> List Unit -> List Unit -> List Unit
+unitsThink dt target unitsDone unitsTodo =
+    case unitsTodo of
+        [] ->
+            unitsDone
+
+        head :: tail ->
+            let
+                updatedUnit =
+                    unitThink dt target (unitsDone ++ tail) head
+            in
+            unitsThink dt target (updatedUnit :: unitsDone) tail
+
+
 update : Vec2 -> Msg -> Model -> ( Model, Cmd Msg )
 update mousePosition msg model =
     case msg of
@@ -185,12 +204,7 @@ update mousePosition msg model =
             noCmd { model | target = Vec2.scale 10 mousePosition }
 
         OnAnimationFrame dt ->
-            let
-                newUnits =
-                    model.units
-                        |> List.map (moveUnit dt model)
-            in
-            noCmd { model | units = newUnits }
+            noCmd { model | units = unitsThink dt model.target [] model.units }
 
 
 
@@ -285,6 +299,10 @@ view model =
             |> Svg.g []
         , circle model.target "red" 0.5
         ]
+
+
+
+-- Subscriptions
 
 
 subscriptions : Model -> Sub Msg

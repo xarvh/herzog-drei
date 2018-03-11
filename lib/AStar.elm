@@ -71,7 +71,8 @@ findPath :
     -> (Position -> Set Position)
     -> Position
     -> Position
-    -> Maybe Path
+    -> Float
+    -> Path
 findPath =
     AStar.Generalised.findPath
 

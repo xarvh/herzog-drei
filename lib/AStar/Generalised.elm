@@ -24,7 +24,7 @@ import Tuple exposing (first, second)
 
 
 {-| Find a path between the `start` and `end` `Position`s. You must
-supply a cost function and a move function.
+supply a heuristic function and a move function.
 
 See `AStar.findPath` for a getting-started guide. This is a more
 general version of that same function.
@@ -35,11 +35,11 @@ findPath :
     -> (comparable -> Set comparable)
     -> comparable
     -> comparable
-    -> Maybe (List comparable)
-findPath costFn moveFn start end =
-    initialModel start
-        |> astar costFn moveFn end
-        |> Maybe.map List.reverse
+    -> Float
+    -> List comparable
+findPath heuristicFn moveFn start end targetDistance =
+    astar heuristicFn moveFn end (initialModel start) targetDistance
+        |> List.reverse
 
 
 type alias Model comparable =
@@ -59,8 +59,8 @@ initialModel start =
     }
 
 
-cheapestOpen : (comparable -> Float) -> Model comparable -> Maybe comparable
-cheapestOpen costFn model =
+cheapestOpen : (comparable -> Float) -> Model comparable -> Maybe ( comparable, Float )
+cheapestOpen heuristicFn model =
     model.openSet
         -- TODO rewrite this with a Set.foldl
         |> Set.toList
@@ -71,10 +71,14 @@ cheapestOpen costFn model =
                         Nothing
 
                     Just cost ->
-                        Just ( position, cost + costFn position )
+                        let
+                            estimatedDistance =
+                                heuristicFn position
+                        in
+                        Just ( ( position, estimatedDistance ), cost + estimatedDistance )
             )
         |> List.Extra.minimumBy second
-        |> Maybe.map first
+        |> Maybe.map Tuple.first
 
 
 reconstructPath : Dict comparable comparable -> comparable -> List comparable
@@ -84,23 +88,22 @@ reconstructPath cameFrom goal =
             []
 
         Just next ->
-            goal :: (reconstructPath cameFrom next)
+            goal :: reconstructPath cameFrom next
 
 
 updateCost : comparable -> comparable -> Model comparable -> Model comparable
-updateCost current neighbour model =
+updateCost cheapestPosition neighbour model =
     let
         newCameFrom =
-            Dict.insert neighbour current model.cameFrom
+            Dict.insert neighbour cheapestPosition model.cameFrom
 
-        newCosts =
-            Dict.insert neighbour distanceTo model.costs
-
-        distanceTo =
-            -- TODO can we replace `List.length reconstructPath` with `Dict.size cameFrom`?
+        cost =
             reconstructPath newCameFrom neighbour
                 |> List.length
                 |> toFloat
+
+        newCosts =
+            Dict.insert neighbour cost model.costs
 
         newModel =
             { model
@@ -112,8 +115,8 @@ updateCost current neighbour model =
         Nothing ->
             newModel
 
-        Just previousDistance ->
-            if distanceTo < previousDistance then
+        Just previousCost ->
+            if cost < previousCost then
                 newModel
             else
                 model
@@ -124,25 +127,26 @@ astar :
     -> (comparable -> Set comparable)
     -> comparable
     -> Model comparable
-    -> Maybe (List comparable)
-astar costFn moveFn goal model =
-    case cheapestOpen (costFn goal) model of
+    -> Float
+    -> List comparable
+astar heuristicFn moveFn goal model targetDistance =
+    case cheapestOpen (heuristicFn goal) model of
         Nothing ->
-            Nothing
+            [] --reconstructPath model.cameFrom goal
 
-        Just current ->
-            if current == goal then
-                Just (reconstructPath model.cameFrom goal)
+        Just ( cheapestPosition, estimatedDistance ) ->
+            if estimatedDistance <= targetDistance then
+                reconstructPath model.cameFrom goal
             else
                 let
                     modelPopped =
                         { model
-                            | openSet = Set.remove current model.openSet
-                            , evaluated = Set.insert current model.evaluated
+                            | openSet = Set.remove cheapestPosition model.openSet
+                            , evaluated = Set.insert cheapestPosition model.evaluated
                         }
 
                     neighbours =
-                        moveFn current
+                        moveFn cheapestPosition
 
                     newNeighbours =
                         Set.diff neighbours modelPopped.evaluated
@@ -155,6 +159,6 @@ astar costFn moveFn goal model =
                         }
 
                     modelWithCosts =
-                        Set.foldl (updateCost current) modelWithNeighbours newNeighbours
+                        Set.foldl (updateCost cheapestPosition) modelWithNeighbours newNeighbours
                 in
-                astar costFn moveFn goal modelWithCosts
+                astar heuristicFn moveFn goal modelWithCosts targetDistance
