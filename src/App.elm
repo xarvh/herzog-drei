@@ -8,6 +8,7 @@ import Mouse
 import Set exposing (Set)
 import Svg exposing (Svg)
 import Svg.Attributes exposing (..)
+import Svg.Events
 import Time exposing (Time)
 
 
@@ -167,6 +168,7 @@ type alias Game =
     { baseById : Dict Id Base
     , unitById : Dict Id Unit
     , target : Vec2
+    , selectedUnitId : Int
 
     -- includes terrain and bases
     , staticObstacles : Set TilePosition
@@ -257,6 +259,7 @@ init =
                 |> addUnit 5 (vec2 2 -4.3)
                 |> addUnit 6 (vec2 2 -4.02)
         , target = vec2 2 4
+        , selectedUnitId = 99
 
         -- TODO: Add bases
         , staticObstacles = terrainObstacles
@@ -272,7 +275,8 @@ init =
 
 type Msg
     = OnAnimationFrame Time
-    | OnClick
+    | OnTerrainClick
+    | OnUnitClick Id
 
 
 type alias Model =
@@ -291,8 +295,11 @@ noCmd model =
 update : Vec2 -> Msg -> Model -> ( Model, Cmd Msg )
 update mousePosition msg model =
     case msg of
-        OnClick ->
+        OnTerrainClick ->
             noCmd { model | target = Vec2.scale 10 mousePosition }
+
+        OnUnitClick unitId ->
+            noCmd { model | selectedUnitId = Debug.log "selecting" unitId }
 
         OnAnimationFrame dt ->
             noCmd (updateGame dt model)
@@ -302,7 +309,7 @@ update mousePosition msg model =
 -- View
 
 
-checkersBackground : Float -> Svg a
+checkersBackground : Float -> Svg Msg
 checkersBackground size =
     let
         squareSize =
@@ -315,7 +322,7 @@ checkersBackground size =
             toString (squareSize * 2)
     in
     Svg.g
-        []
+        [ Svg.Events.onClick OnTerrainClick ]
         [ Svg.defs
             []
             [ Svg.pattern
@@ -383,7 +390,7 @@ view game =
         [ checkersBackground 10
         , game.unitById
             |> Dict.values
-            |> List.map (\unit -> circle unit.position "blue" 0.5)
+            |> List.map (\unit -> Svg.g [ Svg.Events.onClick (OnUnitClick unit.id) ] [ circle unit.position "blue" 0.5 ])
             |> Svg.g []
         , game.staticObstacles
             |> Set.toList
@@ -401,5 +408,4 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ AnimationFrame.diffs OnAnimationFrame
-        , Mouse.clicks (always OnClick)
         ]
