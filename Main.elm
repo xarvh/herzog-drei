@@ -3,6 +3,7 @@ module Main exposing (..)
 import App
 import Html exposing (Html, div)
 import Html.Attributes exposing (style)
+import Keyboard.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mouse
 import Svg exposing (g, svg)
@@ -19,16 +20,18 @@ type alias Flags =
 
 
 type alias Model =
-    { windowSize : Window.Size
+    { app : App.Model
     , mousePosition : Mouse.Position
-    , app : App.Model
+    , pressedKeys : List Keyboard.Extra.Key
+    , windowSize : Window.Size
     }
 
 
 type Msg
-    = OnWindowResizes Window.Size
+    = OnAppMsg App.Msg
+    | OnKeyboardMsg Keyboard.Extra.Msg
     | OnMouseMoves Mouse.Position
-    | OnAppMsg App.Msg
+    | OnWindowResizes Window.Size
 
 
 init : Flags -> ( Model, Cmd Msg )
@@ -41,6 +44,7 @@ init flags =
             { width = 1
             , height = 1
             }
+      , pressedKeys = []
       , mousePosition = Mouse.Position 0 0
       , app = appModel
       }
@@ -54,18 +58,21 @@ init flags =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        OnWindowResizes windowSize ->
-            ( { model | windowSize = windowSize }, Cmd.none )
+        OnAppMsg nestedMsg ->
+            let
+                ( appModel, appCmd ) =
+                    App.update (transformMousePosition model) model.pressedKeys nestedMsg model.app
+            in
+            ( { model | app = appModel }, Cmd.map OnAppMsg appCmd )
+
+        OnKeyboardMsg keyboardMsg ->
+            ( { model | pressedKeys = Keyboard.Extra.update keyboardMsg model.pressedKeys }, Cmd.none )
 
         OnMouseMoves mousePosition ->
             ( { model | mousePosition = mousePosition }, Cmd.none )
 
-        OnAppMsg nestedMsg ->
-            let
-                ( appModel, appCmd ) =
-                    App.update (transformMousePosition model) nestedMsg model.app
-            in
-            ( { model | app = appModel }, Cmd.map OnAppMsg appCmd )
+        OnWindowResizes windowSize ->
+            ( { model | windowSize = windowSize }, Cmd.none )
 
 
 
@@ -140,9 +147,10 @@ view model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ Window.resizes OnWindowResizes
+        [ App.subscriptions model.app |> Sub.map OnAppMsg
         , Mouse.moves OnMouseMoves
-        , App.subscriptions model.app |> Sub.map OnAppMsg
+        , Sub.map OnKeyboardMsg Keyboard.Extra.subscriptions
+        , Window.resizes OnWindowResizes
         ]
 
 
