@@ -212,20 +212,6 @@ unitThink dt game unit =
             unitMove dt game targetPosition unit
 
 
-orderUnit : UnitOrder -> Game -> Game
-orderUnit order game =
-    case Dict.get game.selectedUnitId game.unitById of
-        Nothing ->
-            game
-
-        Just unit ->
-            let
-                unitById =
-                    game.unitById |> Dict.insert unit.id { unit | order = order }
-            in
-            { game | unitById = unitById }
-
-
 
 -- Player
 
@@ -240,6 +226,91 @@ playerThink dt movement game =
             Vec2.scale (speed * dt / 1000) movement
     in
     [ MovePlayer dx ]
+
+
+movePlayer : Vec2 -> Game -> Game
+movePlayer dp game =
+    let
+        isObstacle tile =
+            Set.member tile game.staticObstacles
+
+        originalPosition =
+            game.playerPosition
+
+        originalTile =
+            vec2Tile originalPosition
+
+        idealPosition =
+            Vec2.add game.playerPosition dp
+
+        idealTile =
+            vec2Tile idealPosition
+
+        didNotChangeTile =
+            idealTile == originalTile
+
+        idealPositionIsObstacle =
+            isObstacle idealTile
+    in
+    if didNotChangeTile || not idealPositionIsObstacle then
+        { game | playerPosition = idealPosition }
+    else
+        let
+            ( tX, tY ) =
+                originalTile
+
+            leftTile =
+                ( tX - 1, tY )
+
+            rightTile =
+                ( tX + 1, tY )
+
+            topTile =
+                ( tX, tY + 1 )
+
+            bottomTile =
+                ( tX, tY - 1 )
+
+            oX =
+                toFloat tX
+
+            oY =
+                toFloat tY
+
+            minX =
+                if isObstacle leftTile then
+                    oX
+                else
+                    oX - 1
+
+            maxX =
+                if isObstacle rightTile then
+                    oX + 0.99
+                else
+                    oX + 1.99
+
+            minY =
+                if isObstacle bottomTile then
+                    oY
+                else
+                    oY - 1
+
+            maxY =
+                if isObstacle topTile then
+                    oY + 0.99
+                else
+                    oY + 1.99
+
+            ( iX, iY ) =
+                Vec2.toTuple idealPosition
+
+            fX =
+                clamp minX maxX iX
+
+            fY =
+                clamp minY maxY iY
+        in
+        { game | playerPosition = vec2 fX fY }
 
 
 
@@ -260,7 +331,7 @@ type alias Game =
     { baseById : Dict Id Base
     , unitById : Dict Id Unit
     , playerPosition : Vec2
-    , selectedUnitId : Int
+    , markerPosition : Vec2
 
     -- includes terrain and bases
     , staticObstacles : Set TilePosition
@@ -339,12 +410,8 @@ applyGameDelta delta game =
                 ( _, _ ) ->
                     game
 
-        MovePlayer dx ->
-            let
-                newPosition =
-                    Vec2.add game.playerPosition dx
-            in
-            { game | playerPosition = newPosition }
+        MovePlayer dp ->
+            movePlayer dp game
 
 
 
@@ -374,6 +441,7 @@ init =
             , ( 2, 0 )
             , ( 3, 0 )
             , ( 3, 1 )
+            , ( 4, 2 )
             ]
                 |> Set.fromList
 
@@ -387,7 +455,7 @@ init =
         { baseById = baseById
         , unitById = unitById
         , playerPosition = vec2 -3 -3
-        , selectedUnitId = 99
+        , markerPosition = vec2 1 -3
         , staticObstacles = staticObstacles
         , unpassableTiles = Set.empty
         }
@@ -421,17 +489,13 @@ update : Vec2 -> List Keyboard.Extra.Key -> Msg -> Model -> ( Model, Cmd Msg )
 update mousePosition pressedKeys msg model =
     case msg of
         OnTerrainClick ->
-            model
-                |> orderUnit (OrderMoveTo (Vec2.scale 10 mousePosition))
-                |> noCmd
+            noCmd model
 
         OnUnitClick unitId ->
-            noCmd { model | selectedUnitId = unitId }
+            noCmd model
 
         OnBaseClick baseId ->
-            model
-                |> orderUnit (OrderEnterBase baseId)
-                |> noCmd
+            noCmd model
 
         OnAnimationFrame dt ->
             let
@@ -537,19 +601,9 @@ viewBase base =
 
 viewUnit : Game -> Unit -> Svg Msg
 viewUnit game unit =
-    let
-        isSelected =
-            game.selectedUnitId == unit.id
-
-        color =
-            if isSelected then
-                "#44f"
-            else
-                "#00c"
-    in
     Svg.g
         [ Svg.Events.onClick (OnUnitClick unit.id) ]
-        [ circle unit.position color 0.25 ]
+        [ circle unit.position "#00c" 0.25 ]
 
 
 viewPlayer : Game -> Svg a
