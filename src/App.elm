@@ -11,6 +11,7 @@ import Svg exposing (Svg)
 import Svg.Attributes exposing (..)
 import Svg.Events
 import Time exposing (Time)
+import UnitSvg
 
 
 --
@@ -601,9 +602,13 @@ viewBase base =
 
 viewUnit : Game -> Unit -> Svg Msg
 viewUnit game unit =
+    let
+        ( x, y ) =
+            Vec2.toTuple unit.position
+    in
     Svg.g
-        [ Svg.Events.onClick (OnUnitClick unit.id) ]
-        [ circle unit.position "#00c" 0.25 ]
+        [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
+        [ UnitSvg.unit "#0c0" "#393"]
 
 
 viewPlayer : Game -> Svg a
