@@ -1,469 +1,30 @@
 module App exposing (..)
 
-import AStar
 import AnimationFrame
 import Dict exposing (Dict)
+import Game
+    exposing
+        ( Base
+        , Game
+        , Id
+        , Player
+        , Unit
+        , clampToRadius
+        , tile2Vec
+        , vec2Tile
+        )
+import Game.Init
+import Game.Update
 import Keyboard.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mouse
+import Random
 import Set exposing (Set)
 import Svg exposing (Svg)
 import Svg.Attributes exposing (..)
 import Svg.Events
 import Time exposing (Time)
 import UnitSvg
-
-
---
-
-
-type alias TilePosition =
-    AStar.Position
-
-
-tileDistance : TilePosition -> TilePosition -> Float
-tileDistance =
-    -- Manhattan distance
-    AStar.straightLineCost
-
-
-vectorDistance : Vec2 -> Vec2 -> Float
-vectorDistance v1 v2 =
-    -- Manhattan distance
-    let
-        ( x1, y1 ) =
-            Vec2.toTuple v1
-
-        ( x2, y2 ) =
-            Vec2.toTuple v2
-    in
-    abs (x1 - x2) + abs (y1 - y2)
-
-
-
--- Helpers
-
-
-clampToRadius : Float -> Vec2 -> Vec2
-clampToRadius radius v =
-    let
-        ll =
-            Vec2.lengthSquared v
-    in
-    if ll <= radius * radius then
-        v
-    else
-        Vec2.scale (radius / sqrt ll) v
-
-
-vec2Tile : Vec2 -> TilePosition
-vec2Tile v =
-    let
-        ( x, y ) =
-            Vec2.toTuple v
-    in
-    ( floor x, floor y )
-
-
-tile2Vec : TilePosition -> Vec2
-tile2Vec ( x, y ) =
-    vec2 (toFloat x) (toFloat y)
-
-
-
--- Bases
-
-
-type alias Base =
-    { id : Id
-    , containedUnits : Int
-    , position : TilePosition
-    }
-
-
-addBase : Id -> TilePosition -> Dict Id Base -> Dict Id Base
-addBase id position =
-    Dict.insert id (Base id 0 position)
-
-
-baseTiles : Base -> Set TilePosition
-baseTiles base =
-    let
-        ( x, y ) =
-            base.position
-    in
-    [ ( x + 0, y - 1 )
-    , ( x - 1, y - 1 )
-    , ( x - 1, y + 0 )
-    , ( x + 0, y + 0 )
-    ]
-        |> Set.fromList
-
-
-
--- Units
-
-
-type alias Unit =
-    { id : Id
-    , order : UnitOrder
-    , position : Vec2
-    }
-
-
-type UnitOrder
-    = OrderStay
-    | OrderMoveTo Vec2
-    | OrderEnterBase Id
-
-
-addUnit : Id -> Vec2 -> Dict Id Unit -> Dict Id Unit
-addUnit id position =
-    Dict.insert
-        id
-        { id = id
-        , order = OrderStay
-        , position = position
-        }
-
-
-getAvailableMoves : Set TilePosition -> TilePosition -> Set TilePosition
-getAvailableMoves occupiedPositions ( x, y ) =
-    [ if x > -5 then
-        [ ( x - 1, y ) ]
-      else
-        []
-    , if x < 4 then
-        [ ( x + 1, y ) ]
-      else
-        []
-    , if y > -5 then
-        [ ( x, y - 1 ) ]
-      else
-        []
-    , if y < 4 then
-        [ ( x, y + 1 ) ]
-      else
-        []
-    ]
-        |> List.concat
-        |> List.filter (\pos -> not <| Set.member pos occupiedPositions)
-        |> Set.fromList
-
-
-unitMove : Float -> Game -> Vec2 -> Unit -> Maybe Delta
-unitMove dt game targetPosition unit =
-    let
-        targetDistance =
-            0
-    in
-    if vectorDistance unit.position targetPosition <= targetDistance then
-        Nothing
-    else
-        let
-            unitTile =
-                vec2Tile unit.position
-
-            path =
-                AStar.findPath
-                    tileDistance
-                    (getAvailableMoves game.unpassableTiles)
-                    unitTile
-                    (vec2Tile targetPosition)
-                    targetDistance
-
-            idealDelta =
-                case path of
-                    [] ->
-                        Vec2.sub targetPosition unit.position
-
-                    head :: tail ->
-                        Vec2.sub (tile2Vec head) (tile2Vec unitTile)
-
-            speed =
-                1
-
-            maxLength =
-                speed * dt / 1000
-
-            viableDelta =
-                clampToRadius maxLength idealDelta
-        in
-        Just (MoveUnit unit.id viableDelta)
-
-
-unitThink : Float -> Game -> Unit -> Maybe Delta
-unitThink dt game unit =
-    case unit.order of
-        OrderStay ->
-            Nothing
-
-        OrderEnterBase baseId ->
-            case Dict.get baseId game.baseById of
-                Nothing ->
-                    Nothing
-
-                Just base ->
-                    if vectorDistance unit.position (tile2Vec base.position) > 2.1 then
-                        unitMove dt game (tile2Vec base.position) unit
-                    else
-                        Just (UnitEntersBase unit.id base.id)
-
-        OrderMoveTo targetPosition ->
-            unitMove dt game targetPosition unit
-
-
-
--- Player
-
-
-playerThink : Float -> Vec2 -> Game -> List Delta
-playerThink dt movement game =
-    let
-        speed =
-            2
-
-        dx =
-            Vec2.scale (speed * dt / 1000) movement
-    in
-    [ MovePlayer dx ]
-
-
-movePlayer : Vec2 -> Game -> Game
-movePlayer dp game =
-    let
-        isObstacle tile =
-            Set.member tile game.staticObstacles
-
-        originalPosition =
-            game.playerPosition
-
-        originalTile =
-            vec2Tile originalPosition
-
-        idealPosition =
-            Vec2.add game.playerPosition dp
-
-        idealTile =
-            vec2Tile idealPosition
-
-        didNotChangeTile =
-            idealTile == originalTile
-
-        idealPositionIsObstacle =
-            isObstacle idealTile
-    in
-    if didNotChangeTile || not idealPositionIsObstacle then
-        { game | playerPosition = idealPosition }
-    else
-        let
-            ( tX, tY ) =
-                originalTile
-
-            leftTile =
-                ( tX - 1, tY )
-
-            rightTile =
-                ( tX + 1, tY )
-
-            topTile =
-                ( tX, tY + 1 )
-
-            bottomTile =
-                ( tX, tY - 1 )
-
-            oX =
-                toFloat tX
-
-            oY =
-                toFloat tY
-
-            minX =
-                if isObstacle leftTile then
-                    oX
-                else
-                    oX - 1
-
-            maxX =
-                if isObstacle rightTile then
-                    oX + 0.99
-                else
-                    oX + 1.99
-
-            minY =
-                if isObstacle bottomTile then
-                    oY
-                else
-                    oY - 1
-
-            maxY =
-                if isObstacle topTile then
-                    oY + 0.99
-                else
-                    oY + 1.99
-
-            ( iX, iY ) =
-                Vec2.toTuple idealPosition
-
-            fX =
-                clamp minX maxX iX
-
-            fY =
-                clamp minY maxY iY
-        in
-        { game | playerPosition = vec2 fX fY }
-
-
-
--- Game
-
-
-type alias Id =
-    Int
-
-
-type Delta
-    = MoveUnit Id Vec2
-    | UnitEntersBase Id Id
-    | MovePlayer Vec2
-
-
-type alias Game =
-    { baseById : Dict Id Base
-    , unitById : Dict Id Unit
-    , playerPosition : Vec2
-    , markerPosition : Vec2
-
-    -- includes terrain and bases
-    , staticObstacles : Set TilePosition
-
-    -- this is the union between static obstacles and unit positions
-    , unpassableTiles : Set TilePosition
-    }
-
-
-updateGame : Float -> Vec2 -> Game -> Game
-updateGame dt movement oldGame =
-    let
-        units =
-            Dict.values oldGame.unitById
-
-        updatedUnpassableTiles =
-            units
-                |> List.map (.position >> vec2Tile)
-                |> Set.fromList
-                |> Set.union oldGame.staticObstacles
-
-        oldGameWithUpdatedUnpassableTiles =
-            { oldGame | unpassableTiles = updatedUnpassableTiles }
-    in
-    List.concat
-        [ List.filterMap (unitThink dt oldGameWithUpdatedUnpassableTiles) units
-        , playerThink dt movement oldGameWithUpdatedUnpassableTiles
-        ]
-        |> List.foldl applyGameDelta oldGameWithUpdatedUnpassableTiles
-
-
-applyGameDelta : Delta -> Game -> Game
-applyGameDelta delta game =
-    case delta of
-        MoveUnit unitId dx ->
-            case Dict.get unitId game.unitById of
-                Nothing ->
-                    game
-
-                Just unit ->
-                    let
-                        newPosition =
-                            Vec2.add unit.position dx
-
-                        currentTilePosition =
-                            vec2Tile unit.position
-
-                        newTilePosition =
-                            vec2Tile newPosition
-                    in
-                    if currentTilePosition /= newTilePosition && Set.member newTilePosition game.unpassableTiles then
-                        -- destination tile occupied, don't move
-                        game
-                    else
-                        -- destination tile available, mark it as occupied and move unit
-                        { game
-                            | unitById = game.unitById |> Dict.insert unitId { unit | position = newPosition }
-                            , unpassableTiles = game.unpassableTiles |> Set.insert newTilePosition
-                        }
-
-        UnitEntersBase unitId baseId ->
-            case ( Dict.get unitId game.unitById, Dict.get baseId game.baseById ) of
-                ( Just unit, Just base ) ->
-                    if base.containedUnits < 4 then
-                        let
-                            unitById =
-                                Dict.remove unit.id game.unitById
-
-                            baseById =
-                                Dict.insert base.id { base | containedUnits = base.containedUnits + 1 } game.baseById
-                        in
-                        { game | unitById = unitById, baseById = baseById }
-                    else
-                        game
-
-                ( _, _ ) ->
-                    game
-
-        MovePlayer dp ->
-            movePlayer dp game
-
-
-
--- Init
-
-
-init : ( Model, Cmd Msg )
-init =
-    let
-        baseById =
-            Dict.empty
-                |> addBase 99 ( 0, 0 )
-
-        unitById =
-            Dict.empty
-                |> addUnit 0 (vec2 -2 -5)
-                |> addUnit 1 (vec2 2 -4.1)
-                |> addUnit 2 (vec2 2 -4.2)
-                |> addUnit 3 (vec2 2 -4.3)
-                |> addUnit 4 (vec2 2 -4.11)
-                |> addUnit 5 (vec2 2 -4.3)
-                |> addUnit 6 (vec2 2 -4.02)
-
-        terrainObstacles =
-            [ ( 0, 0 )
-            , ( 1, 0 )
-            , ( 2, 0 )
-            , ( 3, 0 )
-            , ( 3, 1 )
-            , ( 4, 2 )
-            ]
-                |> Set.fromList
-
-        staticObstacles =
-            baseById
-                |> Dict.values
-                |> List.map baseTiles
-                |> List.foldl Set.union terrainObstacles
-    in
-    noCmd
-        { baseById = baseById
-        , unitById = unitById
-        , playerPosition = vec2 -3 -3
-        , markerPosition = vec2 1 -3
-        , staticObstacles = staticObstacles
-        , unpassableTiles = Set.empty
-        }
-
-
-
--- Main
 
 
 type Msg
@@ -475,6 +36,12 @@ type Msg
 
 type alias Model =
     Game
+
+
+init =
+    Random.initialSeed 0
+        |> Game.Init.init
+        |> noCmd
 
 
 
@@ -506,7 +73,7 @@ update mousePosition pressedKeys msg model =
                 movement =
                     vec2 (toFloat x) (toFloat y) |> clampToRadius 1
             in
-            noCmd (updateGame dt movement model)
+            noCmd (Game.Update.update dt movement model)
 
 
 
@@ -608,12 +175,12 @@ viewUnit game unit =
     in
     Svg.g
         [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
-        [ UnitSvg.unit "#0c0" "#393"]
+        [ UnitSvg.unit "#0c0" "#393" ]
 
 
-viewPlayer : Game -> Svg a
-viewPlayer game =
-    circle game.playerPosition "green" 0.5
+viewPlayer : Game -> Player -> Svg a
+viewPlayer game player =
+    circle player.position "green" 0.5
 
 
 view : Model -> Svg Msg
@@ -633,7 +200,10 @@ view game =
             |> Dict.values
             |> List.map (viewUnit game)
             |> Svg.g []
-        , viewPlayer game
+        , game.playerById
+            |> Dict.values
+            |> List.map (viewPlayer game)
+            |> Svg.g []
         ]
 
 
