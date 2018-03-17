@@ -161,16 +161,26 @@ square pos color size =
         []
 
 
-viewBase : Base -> Svg Msg
-viewBase base =
+viewBase : Game -> Base -> Svg Msg
+viewBase game base =
     let
+        colorPattern =
+            Game.baseColorPattern game base
+
+        color =
+            if base.isActive then
+                colorPattern.bright
+            else
+                colorPattern.dark
+
         v =
             Vec2.add (tile2Vec base.position) (vec2 -1 -1)
     in
     Svg.g
         [ Svg.Events.onClick (OnBaseClick base.id) ]
-        [ square v "purple" 2
-        , square v "#00c" (toFloat base.containedUnits * 0.5)
+        [ square v color 2
+
+        --, square v "#00c" (toFloat base.containedUnits * 0.5)
         ]
 
 
@@ -209,7 +219,7 @@ view game =
             |> Svg.g []
         , game.baseById
             |> Dict.values
-            |> List.map viewBase
+            |> List.map (viewBase game)
             |> Svg.g []
         , game.unitById
             |> Dict.values

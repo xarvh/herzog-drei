@@ -129,12 +129,21 @@ type alias Unit =
 -- Bases
 
 
+maximumDistanceForUnitToEnterBase : Float
 maximumDistanceForUnitToEnterBase =
     2.1
 
 
+baseMaxContainedUnits : Int
 baseMaxContainedUnits =
     4
+
+
+baseColorPattern : Game -> Base -> ColorPattern
+baseColorPattern game base =
+    base.maybeOwnerId
+        |> Maybe.map (playerColorPattern game)
+        |> Maybe.withDefault ColorPattern.neutral
 
 
 type alias Base =
