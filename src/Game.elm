@@ -8,9 +8,6 @@ import Random
 import Set exposing (Set)
 
 
--- TODO move these out of here or rename the module?
-
-
 tileDistance : Tile2 -> Tile2 -> Float
 tileDistance =
     -- Manhattan distance
@@ -54,6 +51,16 @@ vec2Tile v =
 tile2Vec : Tile2 -> Vec2
 tile2Vec ( x, y ) =
     vec2 (toFloat x) (toFloat y)
+
+
+playerColorPattern : Game -> Id -> ColorPattern
+playerColorPattern game playerId =
+    case Dict.get playerId game.playerById of
+        Nothing ->
+            ColorPattern.neutral
+
+        Just player ->
+            player.colorPattern
 
 
 
@@ -115,11 +122,14 @@ type alias Unit =
 
 -- Bases
 
+
 maximumDistanceForUnitToEnterBase =
-  2.1
+    2.1
+
 
 baseMaxContainedUnits =
-  4
+    4
+
 
 type alias Base =
     { id : Id

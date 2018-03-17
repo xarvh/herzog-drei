@@ -177,21 +177,25 @@ viewBase base =
 viewUnit : Game -> Unit -> Svg Msg
 viewUnit game unit =
     let
+        colorPattern =
+            Game.playerColorPattern game unit.ownerId
+
         ( x, y ) =
             Vec2.toTuple unit.position
     in
     Svg.g
         [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
-        [ UnitSvg.unit "#0c0" "#393" ]
+        [ UnitSvg.unit colorPattern.bright colorPattern.dark ]
 
 
 viewPlayer : Game -> Player -> Svg a
 viewPlayer game player =
-    circle player.position "green" 0.5
+    circle player.position player.colorPattern.bright 0.5
+
 
 viewMarker : Game -> Player -> Svg a
 viewMarker game player =
-    circle player.markerPosition "purple" 0.2
+    circle player.markerPosition player.colorPattern.dark 0.2
 
 
 view : Model -> Svg Msg
