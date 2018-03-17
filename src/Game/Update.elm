@@ -7,6 +7,7 @@ import Game
         , Game
         , Id
         , vec2Tile
+        , tile2Vec
         )
 import Game.Player
 import Game.Unit
@@ -81,17 +82,31 @@ applyGameDelta delta game =
         UnitEntersBase unitId baseId ->
             case ( Dict.get unitId game.unitById, Dict.get baseId game.baseById ) of
                 ( Just unit, Just base ) ->
-                    if base.containedUnits < 4 then
-                        let
-                            unitById =
-                                Dict.remove unit.id game.unitById
-
-                            baseById =
-                                Dict.insert base.id { base | containedUnits = base.containedUnits + 1 } game.baseById
-                        in
-                        { game | unitById = unitById, baseById = baseById }
-                    else
+                    if base.containedUnits >= Game.baseMaxContainedUnits then
                         game
+                    else
+                        let
+                            containedUnits =
+                                base.containedUnits + 1
+
+                            newUnit =
+                                { unit
+                                    | status = Game.UnitStatusInBase baseId
+                                    -- TODO: lay units at the base corners
+                                    , position = tile2Vec base.position
+                                }
+
+                            newBase =
+                                { base
+                                    | containedUnits = containedUnits
+                                    , isActive = base.isActive || containedUnits == Game.baseMaxContainedUnits
+                                    , maybeOwnerId = Just unit.ownerId
+                                }
+                        in
+                        { game
+                            | unitById = Dict.insert unitId newUnit game.unitById
+                            , baseById = Dict.insert baseId newBase game.baseById
+                        }
 
                 ( _, _ ) ->
                     game

@@ -10,6 +10,7 @@ import Game
         , Tile2
         , Unit
         , UnitOrder(..)
+        , UnitStatus(..)
         , clampToRadius
         , tile2Vec
         , tileDistance
@@ -28,6 +29,7 @@ add id ownerId position =
         { id = id
         , ownerId = ownerId
         , order = UnitOrderFollowMarker
+        , status = Game.UnitStatusFree
         , position = position
         }
 
@@ -99,54 +101,59 @@ move dt game targetPosition unit =
 
 think : Float -> Game -> Unit -> Maybe Delta
 think dt game unit =
-    case unit.order of
-        UnitOrderStay ->
+    case unit.status of
+        UnitStatusInBase baseId ->
             Nothing
 
-        UnitOrderEnterBase baseId ->
-            case Dict.get baseId game.baseById of
-                Nothing ->
+        UnitStatusFree ->
+            case unit.order of
+                UnitOrderStay ->
                     Nothing
 
-                Just base ->
-                    if vectorDistance unit.position (tile2Vec base.position) > Game.maximumDistanceForUnitToEnterBase then
-                        move dt game (tile2Vec base.position) unit
-                    else
-                        Just (UnitEntersBase unit.id base.id)
+                UnitOrderEnterBase baseId ->
+                    case Dict.get baseId game.baseById of
+                        Nothing ->
+                            Nothing
 
-        UnitOrderMoveTo targetPosition ->
-            move dt game targetPosition unit
-
-        {-
-           Movement:
-             if base nearby && can be entered -> move / enter
-             else -> move to marker
-        -}
-        UnitOrderFollowMarker ->
-            case Dict.get unit.ownerId game.playerById of
-                Nothing ->
-                    Nothing
-
-                Just player ->
-                    let
-                        conquerBaseDistanceThreshold =
-                            3.0
-
-                        baseDistance base =
-                            vectorDistance (tile2Vec base.position) unit.position
-
-                        baseIsConquerable base =
-                            baseDistance base
-                                < conquerBaseDistanceThreshold
-                                && (base.maybeOwnerId == Nothing || base.maybeOwnerId == Just unit.ownerId)
-                                && (base.containedUnits < Game.baseMaxContainedUnits)
-                    in
-                    case List.Extra.find baseIsConquerable (Dict.values game.baseById) of
                         Just base ->
-                            if baseDistance base > Game.maximumDistanceForUnitToEnterBase then
+                            if vectorDistance unit.position (tile2Vec base.position) > Game.maximumDistanceForUnitToEnterBase then
                                 move dt game (tile2Vec base.position) unit
                             else
                                 Just (UnitEntersBase unit.id base.id)
 
+                UnitOrderMoveTo targetPosition ->
+                    move dt game targetPosition unit
+
+                {-
+                   Movement:
+                     if base nearby && can be entered -> move / enter
+                     else -> move to marker
+                -}
+                UnitOrderFollowMarker ->
+                    case Dict.get unit.ownerId game.playerById of
                         Nothing ->
-                            move dt game player.markerPosition unit
+                            Nothing
+
+                        Just player ->
+                            let
+                                conquerBaseDistanceThreshold =
+                                    3.0
+
+                                baseDistance base =
+                                    vectorDistance (tile2Vec base.position) unit.position
+
+                                baseIsConquerable base =
+                                    baseDistance base
+                                        < conquerBaseDistanceThreshold
+                                        && (base.maybeOwnerId == Nothing || base.maybeOwnerId == Just unit.ownerId)
+                                        && (base.containedUnits < Game.baseMaxContainedUnits)
+                            in
+                            case List.Extra.find baseIsConquerable (Dict.values game.baseById) of
+                                Just base ->
+                                    if baseDistance base > Game.maximumDistanceForUnitToEnterBase then
+                                        move dt game (tile2Vec base.position) unit
+                                    else
+                                        Just (UnitEntersBase unit.id base.id)
+
+                                Nothing ->
+                                    move dt game player.markerPosition unit

@@ -111,11 +111,17 @@ type UnitOrder
     | UnitOrderEnterBase Id
 
 
+type UnitStatus
+    = UnitStatusFree
+    | UnitStatusInBase Id
+
+
 type alias Unit =
     { id : Id
     , order : UnitOrder
     , ownerId : Id
     , position : Vec2
+    , status : UnitStatus
     }
 
 
@@ -133,6 +139,7 @@ baseMaxContainedUnits =
 
 type alias Base =
     { id : Id
+    , isActive : Bool
     , containedUnits : Int
     , maybeOwnerId : Maybe Id
     , position : Tile2

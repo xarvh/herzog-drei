@@ -10,6 +10,7 @@ add : Id -> Tile2 -> Dict Id Base -> Dict Id Base
 add id position =
     Dict.insert id
         { id = id
+        , isActive = False
         , containedUnits = 0
         , maybeOwnerId = Nothing
         , position = position
