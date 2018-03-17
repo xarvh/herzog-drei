@@ -16,6 +16,7 @@ import Game
         , vec2Tile
         , vectorDistance
         )
+import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 
@@ -108,7 +109,7 @@ think dt game unit =
                     Nothing
 
                 Just base ->
-                    if vectorDistance unit.position (tile2Vec base.position) > 2.1 then
+                    if vectorDistance unit.position (tile2Vec base.position) > Game.maximumDistanceForUnitToEnterBase then
                         move dt game (tile2Vec base.position) unit
                     else
                         Just (UnitEntersBase unit.id base.id)
@@ -116,10 +117,36 @@ think dt game unit =
         UnitOrderMoveTo targetPosition ->
             move dt game targetPosition unit
 
+        {-
+           Movement:
+             if base nearby && can be entered -> move / enter
+             else -> move to marker
+        -}
         UnitOrderFollowMarker ->
             case Dict.get unit.ownerId game.playerById of
                 Nothing ->
                     Nothing
 
                 Just player ->
-                    move dt game player.markerPosition unit
+                    let
+                        conquerBaseDistanceThreshold =
+                            3.0
+
+                        baseDistance base =
+                            vectorDistance (tile2Vec base.position) unit.position
+
+                        baseIsConquerable base =
+                            baseDistance base
+                                < conquerBaseDistanceThreshold
+                                && (base.maybeOwnerId == Nothing || base.maybeOwnerId == Just unit.ownerId)
+                                && (base.containedUnits < Game.baseMaxContainedUnits)
+                    in
+                    case List.Extra.find baseIsConquerable (Dict.values game.baseById) of
+                        Just base ->
+                            if baseDistance base > Game.maximumDistanceForUnitToEnterBase then
+                                move dt game (tile2Vec base.position) unit
+                            else
+                                Just (UnitEntersBase unit.id base.id)
+
+                        Nothing ->
+                            move dt game player.markerPosition unit

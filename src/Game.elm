@@ -115,6 +115,11 @@ type alias Unit =
 
 -- Bases
 
+maximumDistanceForUnitToEnterBase =
+  2.1
+
+baseMaxContainedUnits =
+  4
 
 type alias Base =
     { id : Id
