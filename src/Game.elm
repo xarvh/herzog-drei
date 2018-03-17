@@ -80,12 +80,26 @@ type alias Player =
     }
 
 
+type alias PlayerInput =
+    { move : Vec2
+    , fire : Bool
+    }
+
+
+neutralPlayerInput : PlayerInput
+neutralPlayerInput =
+    { move = vec2 0 0
+    , fire = False
+    }
+
+
 
 -- Units
 
 
 type UnitOrder
     = UnitOrderStay
+    | UnitOrderFollowMarker
     | UnitOrderMoveTo Vec2
     | UnitOrderEnterBase Id
 
@@ -139,3 +153,4 @@ type Delta
     = MoveUnit Id Vec2
     | UnitEntersBase Id Id
     | MovePlayer Id Vec2
+    | RepositionMarker Id Vec2

@@ -1,15 +1,21 @@
 module Game.Update exposing (..)
 
 import Dict exposing (Dict)
+import Game
+    exposing
+        ( Delta(..)
+        , Game
+        , Id
+        , vec2Tile
+        )
 import Game.Player
-import Game exposing (Delta(..), Game, vec2Tile)
 import Game.Unit
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 
 
-update : Float -> Vec2 -> Game -> Game
-update dt movement oldGame =
+update : Float -> Dict Id Game.PlayerInput -> Game -> Game
+update dt playerInputById oldGame =
     let
         --
         units =
@@ -23,11 +29,22 @@ update dt movement oldGame =
 
         oldGameWithUpdatedUnpassableTiles =
             { oldGame | unpassableTiles = updatedUnpassableTiles }
+
+        getInputForPlayer player =
+            playerInputById
+                |> Dict.get player.id
+                |> Maybe.withDefault Game.neutralPlayerInput
+
+        playerThink player =
+            Game.Player.think dt oldGameWithUpdatedUnpassableTiles (getInputForPlayer player) player
     in
     List.concat
-        [ List.filterMap (Game.Unit.think dt oldGameWithUpdatedUnpassableTiles) units
-        -- TODO movement should depend on the input method
-        , List.filterMap (Game.Player.think dt movement oldGameWithUpdatedUnpassableTiles) (Dict.values oldGame.playerById)
+        [ units
+            |> List.filterMap (Game.Unit.think dt oldGameWithUpdatedUnpassableTiles)
+        , oldGame.playerById
+            |> Dict.values
+            |> List.map playerThink
+            |> List.concat
         ]
         |> List.foldl applyGameDelta oldGameWithUpdatedUnpassableTiles
 
@@ -81,3 +98,11 @@ applyGameDelta delta game =
 
         MovePlayer playerId dp ->
             Game.Player.move playerId dp game
+
+        RepositionMarker playerId newPosition ->
+            case Dict.get playerId game.playerById of
+                Nothing ->
+                    game
+
+                Just player ->
+                    { game | playerById = Dict.insert playerId { player | markerPosition = newPosition } game.playerById }

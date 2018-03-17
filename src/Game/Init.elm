@@ -28,13 +28,13 @@ init seed =
 
         unitById =
             Dict.empty
-                |> Game.Unit.add 0 0 (vec2 -2 -5)
-                |> Game.Unit.add 1 0 (vec2 2 -4.1)
-                |> Game.Unit.add 2 0 (vec2 2 -4.2)
-                |> Game.Unit.add 3 0 (vec2 2 -4.3)
-                |> Game.Unit.add 4 0 (vec2 2 -4.11)
-                |> Game.Unit.add 5 0 (vec2 2 -4.3)
-                |> Game.Unit.add 6 0 (vec2 2 -4.02)
+                |> Game.Unit.add 0 10 (vec2 -2 -5)
+                |> Game.Unit.add 1 10 (vec2 2 -4.1)
+                |> Game.Unit.add 2 10 (vec2 2 -4.2)
+                |> Game.Unit.add 3 10 (vec2 2 -4.3)
+                |> Game.Unit.add 4 10 (vec2 2 -4.11)
+                |> Game.Unit.add 5 10 (vec2 2 -4.3)
+                |> Game.Unit.add 6 10 (vec2 2 -4.02)
 
         terrainObstacles =
             [ ( 0, 0 )

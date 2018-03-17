@@ -26,7 +26,7 @@ add id ownerId position =
         id
         { id = id
         , ownerId = ownerId
-        , order = UnitOrderStay
+        , order = UnitOrderFollowMarker
         , position = position
         }
 
@@ -115,3 +115,11 @@ think dt game unit =
 
         UnitOrderMoveTo targetPosition ->
             move dt game targetPosition unit
+
+        UnitOrderFollowMarker ->
+            case Dict.get unit.ownerId game.playerById of
+                Nothing ->
+                    Nothing
+
+                Just player ->
+                    move dt game player.markerPosition unit

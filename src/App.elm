@@ -70,10 +70,17 @@ update mousePosition pressedKeys msg model =
                 { x, y } =
                     Keyboard.Extra.wasd pressedKeys
 
-                movement =
-                    vec2 (toFloat x) (toFloat y) |> clampToRadius 1
+                isSpace =
+                    List.member Keyboard.Extra.Space pressedKeys
+
+                input =
+                    { move = vec2 (toFloat x) (toFloat y)
+                    , fire = isSpace
+                    }
             in
-            noCmd (Game.Update.update dt movement model)
+            model
+                |> Game.Update.update dt (Dict.singleton 10 input)
+                |> noCmd
 
 
 
@@ -182,6 +189,10 @@ viewPlayer : Game -> Player -> Svg a
 viewPlayer game player =
     circle player.position "green" 0.5
 
+viewMarker : Game -> Player -> Svg a
+viewMarker game player =
+    circle player.markerPosition "purple" 0.2
+
 
 view : Model -> Svg Msg
 view game =
@@ -203,6 +214,10 @@ view game =
         , game.playerById
             |> Dict.values
             |> List.map (viewPlayer game)
+            |> Svg.g []
+        , game.playerById
+            |> Dict.values
+            |> List.map (viewMarker game)
             |> Svg.g []
         ]
 

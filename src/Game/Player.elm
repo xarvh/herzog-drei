@@ -8,6 +8,8 @@ import Game
         , Game
         , Id
         , Player
+        , PlayerInput
+        , clampToRadius
         , tile2Vec
         , vec2Tile
         )
@@ -40,16 +42,24 @@ add shuffledColorPatterns id position playerById =
         playerById
 
 
-think : Float -> Vec2 -> Game -> Player -> Maybe Delta
-think dt movement game player =
+think : Float -> Game -> PlayerInput -> Player -> List Delta
+think dt game input player =
     let
         speed =
             2
 
         dx =
-            Vec2.scale (speed * dt / 1000) movement
+            input.move
+                |> clampToRadius 1
+                |> Vec2.scale (speed * dt / 1000)
+
+        moveTarget =
+            if input.fire then
+                [ RepositionMarker player.id player.position ]
+            else
+                []
     in
-    MovePlayer player.id dx |> Just
+    MovePlayer player.id dx :: moveTarget
 
 
 move : Id -> Vec2 -> Game -> Game
