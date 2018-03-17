@@ -68,6 +68,16 @@ radiantsToDegrees r =
     r * (180 / pi)
 
 
+normalizeAngle : Float -> Float
+normalizeAngle a =
+    if a < -pi then
+        a + 2 * pi
+    else if a > pi then
+        a - 2 * pi
+    else
+        a
+
+
 playerColorPattern : Game -> Id -> ColorPattern
 playerColorPattern game playerId =
     case Dict.get playerId game.playerById of

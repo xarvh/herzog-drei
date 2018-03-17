@@ -6,6 +6,7 @@ import Game
         ( Delta(..)
         , Game
         , Id
+        , normalizeAngle
         , tile2Vec
         , vec2Tile
         )
@@ -75,8 +76,23 @@ applyGameDelta delta game =
                     else
                         -- destination tile available, mark it as occupied and move unit
                         let
+                            targetHeading =
+                                Game.vecToAngle dx
+
+                            deltaHeading =
+                                targetHeading - unit.movementAngle |> normalizeAngle
+
+                            maxTurn =
+                                0.1
+
+                            clampedDeltaAngle =
+                                clamp -maxTurn maxTurn deltaHeading
+
+                            newHeading =
+                                unit.movementAngle + clampedDeltaAngle |> normalizeAngle
+
                             newUnit =
-                                { unit | position = newPosition, movementAngle = Game.vecToAngle dx }
+                                { unit | position = newPosition, movementAngle = newHeading }
 
                             unitById =
                                 Dict.insert unitId newUnit game.unitById
