@@ -22,16 +22,24 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 
 
-add : Id -> Id -> Vec2 -> Dict Id Unit -> Dict Id Unit
-add id ownerId position =
-    Dict.insert
-        id
-        { id = id
-        , ownerId = ownerId
-        , order = UnitOrderFollowMarker
-        , status = Game.UnitStatusFree
-        , position = position
-        }
+add : Id -> Vec2 -> Game -> ( Game, Unit )
+add ownerId position game =
+    let
+        id =
+            game.lastId + 1
+
+        unit =
+            { id = id
+            , ownerId = ownerId
+            , order = UnitOrderFollowMarker
+            , status = Game.UnitStatusFree
+            , position = position
+            }
+
+        unitById =
+            Dict.insert id unit game.unitById
+    in
+    ( { game | lastId = id, unitById = unitById }, unit )
 
 
 getAvailableMoves : Set Tile2 -> Tile2 -> Set Tile2

@@ -13,7 +13,9 @@ import Game
         , tile2Vec
         , vec2Tile
         )
-import Game.Init
+import Game.Base
+import Game.Player
+import Game.Unit
 import Game.Update
 import Keyboard.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
@@ -39,8 +41,39 @@ type alias Model =
 
 
 init =
-    Random.initialSeed 0
-        |> Game.Init.init
+    let
+        terrainObstacles =
+            [ ( 0, 0 )
+            , ( 1, 0 )
+            , ( 2, 0 )
+            , ( 3, 0 )
+            , ( 3, 1 )
+            , ( 4, 2 )
+            ]
+
+        ( game, player ) =
+            Random.initialSeed 0
+                |> Game.init
+                |> Game.Base.add ( 0, 0 )
+                |> Tuple.first
+                |> Game.Player.add (vec2 -3 -3)
+    in
+    game
+        |> Game.addStaticObstacles terrainObstacles
+        |> Game.Unit.add player.id (vec2 -2 -5)
+        |> Tuple.first
+        |> Game.Unit.add player.id (vec2 2 -4.1)
+        |> Tuple.first
+        |> Game.Unit.add player.id (vec2 2 -4.2)
+        |> Tuple.first
+        |> Game.Unit.add player.id (vec2 2 -4.3)
+        |> Tuple.first
+        |> Game.Unit.add player.id (vec2 2 -4.11)
+        |> Tuple.first
+        |> Game.Unit.add player.id (vec2 2 -4.3)
+        |> Tuple.first
+        |> Game.Unit.add player.id (vec2 2 -4.02)
+        |> Tuple.first
         |> noCmd
 
 
@@ -79,7 +112,7 @@ update mousePosition pressedKeys msg model =
                     }
             in
             model
-                |> Game.Update.update dt (Dict.singleton 10 input)
+                |> Game.Update.update dt (Dict.singleton 2 input)
                 |> noCmd
 
 

@@ -5,6 +5,7 @@ import ColorPattern exposing (ColorPattern)
 import Dict exposing (Dict)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Random
+import Random.List
 import Set exposing (Set)
 
 
@@ -163,6 +164,7 @@ type alias Game =
     { baseById : Dict Id Base
     , unitById : Dict Id Unit
     , playerById : Dict Id Player
+    , lastId : Id
 
     -- includes terrain and bases
     , staticObstacles : Set Tile2
@@ -174,6 +176,28 @@ type alias Game =
     , seed : Random.Seed
     , shuffledColorPatterns : List ColorPattern
     }
+
+
+init : Random.Seed -> Game
+init seed =
+    { baseById = Dict.empty
+    , unitById = Dict.empty
+    , playerById = Dict.empty
+    , lastId = 0
+
+    --
+    , staticObstacles = Set.empty
+    , unpassableTiles = Set.empty
+
+    --
+    , seed = seed
+    , shuffledColorPatterns = Random.step (Random.List.shuffle ColorPattern.patterns) seed |> Tuple.first
+    }
+
+
+addStaticObstacles : List Tile2 -> Game -> Game
+addStaticObstacles tiles game =
+    { game | staticObstacles = Set.union (Set.fromList tiles) game.staticObstacles }
 
 
 

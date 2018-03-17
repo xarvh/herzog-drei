@@ -55,6 +55,7 @@ init seed =
     { baseById = baseById
     , unitById = unitById
     , playerById = playerById
+    , lastId = 0
 
     --
     , staticObstacles = staticObstacles
