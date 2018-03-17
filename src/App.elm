@@ -51,28 +51,34 @@ init =
             , ( 4, 2 )
             ]
 
-        ( game, player ) =
+        ( game0, player1 ) =
             Random.initialSeed 0
                 |> Game.init
                 |> Game.Base.add ( 0, 0 )
                 |> Tuple.first
                 |> Game.Player.add (vec2 -3 -3)
+
+        ( game1, player2 ) =
+            game0
+                |> Game.Player.add (vec2 3 3)
     in
-    game
+    game1
         |> Game.addStaticObstacles terrainObstacles
-        |> Game.Unit.add player.id (vec2 -2 -5)
+        |> Game.Unit.add player1.id (vec2 0 -4)
         |> Tuple.first
-        |> Game.Unit.add player.id (vec2 2 -4.1)
+        |> Game.Unit.add player1.id (vec2 1 -4)
         |> Tuple.first
-        |> Game.Unit.add player.id (vec2 2 -4.2)
+        |> Game.Unit.add player1.id (vec2 2 -4)
         |> Tuple.first
-        |> Game.Unit.add player.id (vec2 2 -4.3)
+        |> Game.Unit.add player1.id (vec2 3 -4)
         |> Tuple.first
-        |> Game.Unit.add player.id (vec2 2 -4.11)
+        |> Game.Unit.add player2.id (vec2 0 4)
         |> Tuple.first
-        |> Game.Unit.add player.id (vec2 2 -4.3)
+        |> Game.Unit.add player2.id (vec2 -1 4)
         |> Tuple.first
-        |> Game.Unit.add player.id (vec2 2 -4.02)
+        |> Game.Unit.add player2.id (vec2 -2 4)
+        |> Tuple.first
+        |> Game.Unit.add player2.id (vec2 -3 4)
         |> Tuple.first
         |> noCmd
 
