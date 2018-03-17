@@ -231,9 +231,12 @@ viewUnit game unit =
 
         ( x, y ) =
             Vec2.toTuple unit.position
+
+        angleInDegrees =
+            Game.radiantsToDegrees unit.movementAngle
     in
     Svg.g
-        [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
+        [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ") rotate(" ++ toString angleInDegrees ++ ")" ]
         [ UnitSvg.unit colorPattern.bright colorPattern.dark ]
 
 

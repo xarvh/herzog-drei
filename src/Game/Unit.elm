@@ -33,6 +33,7 @@ add ownerId position game =
             , ownerId = ownerId
             , order = UnitOrderFollowMarker
             , status = Game.UnitStatusFree
+            , movementAngle = 0
             , position = position
             }
 

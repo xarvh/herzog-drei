@@ -6,8 +6,8 @@ import Game
         ( Delta(..)
         , Game
         , Id
-        , vec2Tile
         , tile2Vec
+        , vec2Tile
         )
 import Game.Player
 import Game.Unit
@@ -74,10 +74,17 @@ applyGameDelta delta game =
                         game
                     else
                         -- destination tile available, mark it as occupied and move unit
-                        { game
-                            | unitById = game.unitById |> Dict.insert unitId { unit | position = newPosition }
-                            , unpassableTiles = game.unpassableTiles |> Set.insert newTilePosition
-                        }
+                        let
+                            newUnit =
+                                { unit | position = newPosition, movementAngle = Game.vecToAngle dx }
+
+                            unitById =
+                                Dict.insert unitId newUnit game.unitById
+
+                            unpassableTiles =
+                                Set.insert newTilePosition game.unpassableTiles
+                        in
+                        { game | unitById = unitById, unpassableTiles = unpassableTiles }
 
         UnitEntersBase unitId baseId ->
             case ( Dict.get unitId game.unitById, Dict.get baseId game.baseById ) of
@@ -92,6 +99,7 @@ applyGameDelta delta game =
                             newUnit =
                                 { unit
                                     | status = Game.UnitStatusInBase baseId
+
                                     -- TODO: lay units at the base corners
                                     , position = tile2Vec base.position
                                 }

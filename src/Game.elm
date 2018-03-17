@@ -54,6 +54,20 @@ tile2Vec ( x, y ) =
     vec2 (toFloat x) (toFloat y)
 
 
+vecToAngle : Vec2 -> Float
+vecToAngle v =
+    let
+        ( x, y ) =
+            Vec2.toTuple v
+    in
+    atan2 -x y
+
+
+radiantsToDegrees : Float -> Float
+radiantsToDegrees r =
+    r * (180 / pi)
+
+
 playerColorPattern : Game -> Id -> ColorPattern
 playerColorPattern game playerId =
     case Dict.get playerId game.playerById of
@@ -122,6 +136,7 @@ type alias Unit =
     , order : UnitOrder
     , ownerId : Id
     , position : Vec2
+    , movementAngle : Float
     , status : UnitStatus
     }
 
