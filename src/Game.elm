@@ -160,16 +160,37 @@ maximumDistanceForUnitToEnterBase =
     2.1
 
 
-baseMaxContainedUnits : Int
-baseMaxContainedUnits =
-    4
-
-
 baseColorPattern : Game -> Base -> ColorPattern
 baseColorPattern game base =
     base.maybeOwnerId
         |> Maybe.map (playerColorPattern game)
         |> Maybe.withDefault ColorPattern.neutral
+
+
+baseCorners : Base -> List Vec2
+baseCorners base =
+    let
+        ( x, y ) =
+            base.position
+                |> tile2Vec
+                |> Vec2.toTuple
+
+        r =
+            0.8
+    in
+    [ vec2 (x + r) (y + r)
+    , vec2 (x - r) (y + r)
+    , vec2 (x - r) (y - r)
+    , vec2 (x + r) (y - r)
+    ]
+
+
+baseMaxContainedUnits : Int
+baseMaxContainedUnits =
+    -- A very convoluted way to write `4`
+    Base 0 False 0 Nothing ( 0, 0 )
+        |> baseCorners
+        |> List.length
 
 
 type alias Base =

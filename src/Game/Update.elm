@@ -3,15 +3,19 @@ module Game.Update exposing (..)
 import Dict exposing (Dict)
 import Game
     exposing
-        ( Delta(..)
+        ( Base
+        , Delta(..)
         , Game
         , Id
+        , Unit
+        , UnitStatus(..)
         , normalizeAngle
         , tile2Vec
         , vec2Tile
         )
 import Game.Player
 import Game.Unit
+import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 
@@ -105,32 +109,7 @@ applyGameDelta delta game =
         UnitEntersBase unitId baseId ->
             case ( Dict.get unitId game.unitById, Dict.get baseId game.baseById ) of
                 ( Just unit, Just base ) ->
-                    if base.containedUnits >= Game.baseMaxContainedUnits then
-                        game
-                    else
-                        let
-                            containedUnits =
-                                base.containedUnits + 1
-
-                            newUnit =
-                                { unit
-                                    | status = Game.UnitStatusInBase baseId
-
-                                    -- TODO: lay units at the base corners
-                                    , position = tile2Vec base.position
-                                }
-
-                            newBase =
-                                { base
-                                    | containedUnits = containedUnits
-                                    , isActive = base.isActive || containedUnits == Game.baseMaxContainedUnits
-                                    , maybeOwnerId = Just unit.ownerId
-                                }
-                        in
-                        { game
-                            | unitById = Dict.insert unitId newUnit game.unitById
-                            , baseById = Dict.insert baseId newBase game.baseById
-                        }
+                    deltaUnitEntersBase unit base game
 
                 ( _, _ ) ->
                     game
@@ -145,3 +124,53 @@ applyGameDelta delta game =
 
                 Just player ->
                     { game | playerById = Dict.insert playerId { player | markerPosition = newPosition } game.playerById }
+
+
+
+-- Deltas
+
+
+deltaUnitEntersBase : Unit -> Base -> Game -> Game
+deltaUnitEntersBase unit base game =
+    if base.maybeOwnerId /= Nothing && base.maybeOwnerId /= Just unit.ownerId then
+        game
+    else
+        let
+            corners =
+                Game.baseCorners base
+
+            unitsInBase =
+                game.unitById
+                    |> Dict.values
+                    |> List.filter (\u -> u.status == UnitStatusInBase base.id)
+
+            takenCorners =
+                unitsInBase
+                    |> List.map .position
+        in
+        case List.Extra.find (\c -> not (List.member c takenCorners)) corners of
+            Nothing ->
+                game
+
+            Just corner ->
+                let
+                    containedUnits =
+                        1 + List.length takenCorners
+
+                    newUnit =
+                        { unit
+                            | status = Game.UnitStatusInBase base.id
+                            , position = corner
+                        }
+
+                    newBase =
+                        { base
+                            | containedUnits = containedUnits
+                            , isActive = base.isActive || containedUnits == List.length corners
+                            , maybeOwnerId = Just unit.ownerId
+                        }
+                in
+                { game
+                    | unitById = Dict.insert unit.id newUnit game.unitById
+                    , baseById = Dict.insert base.id newBase game.baseById
+                }

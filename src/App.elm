@@ -72,13 +72,13 @@ init =
         |> Tuple.first
         |> Game.Unit.add player1.id (vec2 3 -4)
         |> Tuple.first
-        |> Game.Unit.add player2.id (vec2 0 4)
+        |> Game.Unit.add player2.id (vec2 0 4.8)
         |> Tuple.first
-        |> Game.Unit.add player2.id (vec2 -1 4)
+        |> Game.Unit.add player2.id (vec2 -1 4.8)
         |> Tuple.first
-        |> Game.Unit.add player2.id (vec2 -2 4)
+        |> Game.Unit.add player2.id (vec2 -2 4.8)
         |> Tuple.first
-        |> Game.Unit.add player2.id (vec2 -3 4)
+        |> Game.Unit.add player2.id (vec2 -3 4.8)
         |> Tuple.first
         |> noCmd
 
