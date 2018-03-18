@@ -57,7 +57,7 @@ think dt game input player =
         dx =
             input.move
                 |> clampToRadius 1
-                |> Vec2.scale (speed * dt / 1000)
+                |> Vec2.scale (speed * dt)
 
         moveTarget =
             if input.fire then

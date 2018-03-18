@@ -46,65 +46,25 @@ update dt playerInputById oldGame =
     in
     List.concat
         [ units
-            |> List.filterMap (Game.Unit.think dt oldGameWithUpdatedUnpassableTiles)
+            |> List.map (Game.Unit.think dt oldGameWithUpdatedUnpassableTiles)
         , oldGame.playerById
             |> Dict.values
             |> List.map playerThink
-            |> List.concat
         ]
+        |> List.concat
         |> List.foldl applyGameDelta oldGameWithUpdatedUnpassableTiles
 
 
 applyGameDelta : Delta -> Game -> Game
 applyGameDelta delta game =
     case delta of
-        MoveUnit unitId dx ->
+        MoveUnit unitId movementAngle dx ->
             case Dict.get unitId game.unitById of
                 Nothing ->
                     game
 
                 Just unit ->
-                    let
-                        newPosition =
-                            Vec2.add unit.position dx
-
-                        currentTilePosition =
-                            vec2Tile unit.position
-
-                        newTilePosition =
-                            vec2Tile newPosition
-                    in
-                    if currentTilePosition /= newTilePosition && Set.member newTilePosition game.unpassableTiles then
-                        -- destination tile occupied, don't move
-                        game
-                    else
-                        -- destination tile available, mark it as occupied and move unit
-                        let
-                            targetHeading =
-                                Game.vecToAngle dx
-
-                            deltaHeading =
-                                targetHeading - unit.movementAngle |> normalizeAngle
-
-                            maxTurn =
-                                0.1
-
-                            clampedDeltaAngle =
-                                clamp -maxTurn maxTurn deltaHeading
-
-                            newHeading =
-                                unit.movementAngle + clampedDeltaAngle |> normalizeAngle
-
-                            newUnit =
-                                { unit | position = newPosition, movementAngle = newHeading }
-
-                            unitById =
-                                Dict.insert unitId newUnit game.unitById
-
-                            unpassableTiles =
-                                Set.insert newTilePosition game.unpassableTiles
-                        in
-                        { game | unitById = unitById, unpassableTiles = unpassableTiles }
+                    deltaUnitMoves movementAngle dx unit game
 
         UnitEntersBase unitId baseId ->
             case ( Dict.get unitId game.unitById, Dict.get baseId game.baseById ) of
@@ -128,6 +88,36 @@ applyGameDelta delta game =
 
 
 -- Deltas
+
+
+deltaUnitMoves : Float -> Vec2 -> Unit -> Game -> Game
+deltaUnitMoves movementAngle dx unit game =
+    let
+        newPosition =
+            Vec2.add unit.position dx
+
+        currentTilePosition =
+            vec2Tile unit.position
+
+        newTilePosition =
+            vec2Tile newPosition
+    in
+    if currentTilePosition /= newTilePosition && Set.member newTilePosition game.unpassableTiles then
+        -- destination tile occupied, don't move
+        game
+    else
+        -- destination tile available, mark it as occupied and move unit
+        let
+            newUnit =
+                { unit | position = newPosition, movementAngle = movementAngle }
+
+            unitById =
+                Dict.insert unit.id newUnit game.unitById
+
+            unpassableTiles =
+                Set.insert newTilePosition game.unpassableTiles
+        in
+        { game | unitById = unitById, unpassableTiles = unpassableTiles }
 
 
 deltaUnitEntersBase : Unit -> Base -> Game -> Game

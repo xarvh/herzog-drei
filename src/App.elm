@@ -118,7 +118,7 @@ update mousePosition pressedKeys msg model =
                     }
             in
             model
-                |> Game.Update.update dt (Dict.singleton 2 input)
+                |> Game.Update.update (dt / 1000) (Dict.singleton 2 input)
                 |> noCmd
 
 

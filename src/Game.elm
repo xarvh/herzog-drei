@@ -9,6 +9,9 @@ import Random.List
 import Set exposing (Set)
 
 
+-- Geometry helpers
+
+
 tileDistance : Tile2 -> Tile2 -> Float
 tileDistance =
     -- Manhattan distance
@@ -78,6 +81,19 @@ normalizeAngle a =
         a
 
 
+turnTo : Float -> Float -> Float -> Float
+turnTo maxTurn targetAngle currentAngle =
+    (targetAngle - currentAngle)
+        |> normalizeAngle
+        |> clamp -maxTurn maxTurn
+        |> (+) currentAngle
+        |> normalizeAngle
+
+
+
+-- Other stuff
+
+
 playerColorPattern : Game -> Id -> ColorPattern
 playerColorPattern game playerId =
     case Dict.get playerId game.playerById of
@@ -141,12 +157,19 @@ type UnitStatus
     | UnitStatusInBase Id
 
 
+unitAttackRange : Float
+unitAttackRange =
+    4.0
+
+
 type alias Unit =
     { id : Id
     , order : UnitOrder
     , ownerId : Id
     , position : Vec2
     , movementAngle : Float
+    , targetingAngle : Float
+    , maybeTargetId : Maybe Id
     , status : UnitStatus
     }
 
@@ -250,8 +273,11 @@ addStaticObstacles tiles game =
 -- Deltas
 
 
-type Delta
-    = MoveUnit Id Vec2
+type
+    Delta
+    -- TODO rename to `UnitMoves`
+    = MoveUnit Id Float Vec2
     | UnitEntersBase Id Id
+      -- TODO rename to `PlayerMoves`
     | MovePlayer Id Vec2
     | RepositionMarker Id Vec2

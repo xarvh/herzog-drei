@@ -34,6 +34,8 @@ add ownerId position game =
             , order = UnitOrderFollowMarker
             , status = Game.UnitStatusFree
             , movementAngle = 0
+            , targetingAngle = 0
+            , maybeTargetId = Nothing
             , position = position
             }
 
@@ -100,16 +102,52 @@ move dt game targetPosition unit =
                 1
 
             maxLength =
-                speed * dt / 1000
+                speed * dt
 
             viableDelta =
                 clampToRadius maxLength idealDelta
+
+            movementAngle =
+                Game.turnTo (2 * pi * dt) (Game.vecToAngle viableDelta) unit.movementAngle
         in
-        Just (MoveUnit unit.id viableDelta)
+        Just (MoveUnit unit.id movementAngle viableDelta)
 
 
-think : Float -> Game -> Unit -> Maybe Delta
+
+-- Think
+
+
+think : Float -> Game -> Unit -> List Delta
 think dt game unit =
+    [ thinkTarget dt game unit
+    , thinkMovement dt game unit
+    ]
+        |> List.filterMap identity
+
+
+unitSearchForTargets : Game -> Unit -> Maybe Delta
+unitSearchForTargets game unit =
+    Nothing
+
+
+thinkTarget : Float -> Game -> Unit -> Maybe Delta
+thinkTarget dt game unit =
+    case unit.maybeTargetId |> Maybe.andThen (\id -> Dict.get id game.unitById) of
+        Just target ->
+            if vectorDistance unit.position target.position > Game.unitAttackRange then
+                -- if target is too far, search for targets
+                unitSearchForTargets game unit
+            else
+                -- TODO shoot!
+                -- otherwise turn towards target
+                Nothing
+
+        Nothing ->
+            unitSearchForTargets game unit
+
+
+thinkMovement : Float -> Game -> Unit -> Maybe Delta
+thinkMovement dt game unit =
     case unit.status of
         UnitStatusInBase baseId ->
             Nothing
