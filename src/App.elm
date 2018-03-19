@@ -1,6 +1,7 @@
 module App exposing (..)
 
 import AnimationFrame
+import ColorPattern exposing (neutral)
 import Dict exposing (Dict)
 import Game
     exposing
@@ -37,7 +38,9 @@ type Msg
 
 
 type alias Model =
-    Game
+    { game : Game
+    , mousePosition : Vec2
+    }
 
 
 init =
@@ -80,6 +83,7 @@ init =
         |> Tuple.first
         |> Game.Unit.add player2.id (vec2 -3 4.8)
         |> Tuple.first
+        |> (\g -> Model g (vec2 0 0))
         |> noCmd
 
 
@@ -116,10 +120,14 @@ update mousePosition pressedKeys msg model =
                     { move = vec2 (toFloat x) (toFloat y)
                     , fire = isSpace
                     }
+
+                game =
+                    Game.Update.update (dt / 1000) (Dict.singleton 2 input) model.game
             in
-            model
-                |> Game.Update.update (dt / 1000) (Dict.singleton 2 input)
-                |> noCmd
+            noCmd
+                { game = game
+                , mousePosition = mousePosition
+                }
 
 
 
@@ -247,8 +255,22 @@ viewMarker game player =
     circle player.markerPosition player.colorPattern.dark 0.2
 
 
+
+{-
+   view : Model -> Svg a
+   view model =
+       let
+           ( x, y ) =
+               Vec2.toTuple model.mousePosition
+       in
+       Svg.g
+           [ transform "scale(0.1, 0.1)" ]
+           [ UnitSvg.unit 0 (atan2 -x y) neutral.bright neutral.dark ]
+-}
+
+
 view : Model -> Svg Msg
-view game =
+view { game } =
     Svg.g
         [ transform "scale(0.1, 0.1)" ]
         [ checkersBackground 10

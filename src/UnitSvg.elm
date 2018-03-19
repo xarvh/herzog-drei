@@ -1,6 +1,6 @@
 module UnitSvg exposing (..)
 
-import Game
+import Game exposing (normalizeAngle)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
@@ -15,24 +15,50 @@ path =
 
 
 unit : Float -> Float -> String -> String -> Svg a
-unit movementAngleInRadians aimAngleInRadians brightColor darkColor =
+unit moveAngle aimAngle brightColor darkColor =
     let
-        moveAngleInDegrees =
-            Game.radiantsToDegrees movementAngleInRadians
+        -- aimAngle - moveAngle
+        am =
+            normalizeAngle (aimAngle - moveAngle)
 
-        aimAngleInDegrees =
-            Game.radiantsToDegrees aimAngleInRadians
+        -- near threshold
+        thn =
+            pi / 4
 
-        -- cannon origin coordinates
+        -- far threshold
+        thf =
+            pi / 2
+
+        torsoDelta =
+            if am < -thf then
+                am + thf
+            else if am < -thn then
+                (am + thn) / 2
+            else
+                0
+
+        {- TODO
+           torsoAngle =
+               normalizeAngle (moveAngle + torsoDelta)
+        -}
+        torsoAngle =
+            moveAngle
+
+        a2s angle =
+            -angle
+                |> Game.radiantsToDegrees
+                |> toString
+
+        -- gun origin coordinates
         ( qx, qy ) =
             vec2 0.6 0
-                |> Game.rotateVector -movementAngleInRadians
+                |> Game.rotateVector -torsoAngle
                 |> Vec2.toTuple
     in
     g
         [ transform "scale(0.5,-0.5)" ]
         [ rect
-            [ transform <| "translate(" ++ toString qx ++ "," ++ toString qy ++ ") rotate(" ++ toString -aimAngleInDegrees ++ ")"
+            [ transform <| "translate(" ++ toString qx ++ "," ++ toString qy ++ ") rotate(" ++ a2s aimAngle ++ ")"
             , styles
                 [ "fill:#808080"
                 , "stroke:" ++ darkColor
@@ -44,12 +70,12 @@ unit movementAngleInRadians aimAngleInRadians brightColor darkColor =
             , y "-1.5"
             ]
             []
-        , ellipse
-            [ transform <| "rotate(" ++ toString -moveAngleInDegrees ++ ")"
-            , ry "0.57400334"
-            , rx "0.89938557"
-            , cy "-0.05889999999999418"
-            , cx "-0.00096507149"
+        , rect
+            [ transform <| "rotate(" ++ a2s torsoAngle ++ ")"
+            , height "0.8"
+            , width "1.8"
+            , y "-0.4"
+            , x "-0.9"
             , styles
                 [ "fill:" ++ brightColor
                 , "stroke:" ++ darkColor
@@ -63,11 +89,11 @@ unit movementAngleInRadians aimAngleInRadians brightColor darkColor =
                 , "stroke-width:1"
                 ]
             , d "m 13.630746,283.43605 -5.7519528,-0.10121 -1.6812025,-5.5017 4.7129133,-3.29904 4.593943,3.46279 z"
-            , transform <| "rotate(" ++ toString -aimAngleInDegrees ++ ") translate(0,-272.13998) matrix(0.11036153,0,0,0.17636706,-1.1985001,222.90086)"
+            , transform <| "rotate(" ++ a2s aimAngle ++ ") translate(0,-272.13998) matrix(0.11036153,0,0,0.17636706,-1.1985001,222.90086)"
             ]
             []
         , ellipse
-            [ transform <| "rotate(" ++ toString -aimAngleInDegrees ++ ")"
+            [ transform <| "rotate(" ++ a2s aimAngle ++ ")"
             , styles
                 [ "fill:#f00"
                 , "stroke-width:0.07"

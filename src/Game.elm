@@ -72,13 +72,13 @@ radiantsToDegrees r =
 
 
 normalizeAngle : Float -> Float
-normalizeAngle a =
-    if a < -pi then
-        a + 2 * pi
-    else if a > pi then
-        a - 2 * pi
+normalizeAngle angle =
+    if angle < -pi then
+        normalizeAngle (angle + 2 * pi)
+    else if angle >= pi then
+        normalizeAngle (angle - 2 * pi)
     else
-        a
+        angle
 
 
 turnTo : Float -> Float -> Float -> Float
