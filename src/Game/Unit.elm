@@ -119,7 +119,7 @@ move dt game targetPosition unit =
 
 think : Float -> Game -> Unit -> List Delta
 think dt game unit =
-    [ thinkTarget dt game unit
+    [ Just <| thinkTarget dt game unit
     , thinkMovement dt game unit
     ]
         |> List.filterMap identity
@@ -142,27 +142,33 @@ unitSearchForTargets game unit =
         |> Maybe.andThen ifCloseEnough
 
 
-thinkTarget : Float -> Game -> Unit -> Maybe Delta
+unitAlignsAimToMovement : Float -> Unit -> Delta
+unitAlignsAimToMovement dt unit =
+    UnitAims unit.id (Game.turnTo (2 * pi * dt) unit.movementAngle unit.targetingAngle)
+
+
+thinkTarget : Float -> Game -> Unit -> Delta
 thinkTarget dt game unit =
     case unit.maybeTargetId |> Maybe.andThen (\id -> Dict.get id game.unitById) of
         Just target ->
             if vectorDistance unit.position target.position > Game.unitAttackRange then
                 -- if target is too far, search for targets
                 unitSearchForTargets game unit
+                    |> Maybe.withDefault (unitAlignsAimToMovement dt unit)
             else
-              let
-                dp =
-                  Vec2.sub target.position unit.position
+                let
+                    dp =
+                        Vec2.sub target.position unit.position
 
-                targetingAngle =
-                    Game.turnTo (2 * pi * dt) (Game.vecToAngle dp) unit.targetingAngle
-              in
+                    targetingAngle =
+                        Game.turnTo (2 * pi * dt) (Game.vecToAngle dp) unit.targetingAngle
+                in
                 -- TODO shoot!
                 UnitAims unit.id targetingAngle
-                  |> Just
 
         Nothing ->
             unitSearchForTargets game unit
+                |> Maybe.withDefault (unitAlignsAimToMovement dt unit)
 
 
 thinkMovement : Float -> Game -> Unit -> Maybe Delta
