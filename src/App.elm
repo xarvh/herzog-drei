@@ -231,16 +231,10 @@ viewUnit game unit =
 
         ( x, y ) =
             Vec2.toTuple unit.position
-
-        moveAngleInDegrees =
-            Game.radiantsToDegrees unit.movementAngle
-
-        aimAngleInDegrees =
-            Game.radiantsToDegrees unit.targetingAngle
     in
     Svg.g
         [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
-        [ UnitSvg.unit moveAngleInDegrees aimAngleInDegrees colorPattern.bright colorPattern.dark ]
+        [ UnitSvg.unit unit.movementAngle unit.targetingAngle colorPattern.bright colorPattern.dark ]
 
 
 viewPlayer : Game -> Player -> Svg a

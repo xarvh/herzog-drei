@@ -90,6 +90,23 @@ turnTo maxTurn targetAngle currentAngle =
         |> normalizeAngle
 
 
+rotateVector : Float -> Vec2 -> Vec2
+rotateVector angle v =
+    let
+        ( x, y ) =
+            Vec2.toTuple v
+
+        sinA =
+            sin angle
+
+        cosA =
+            cos angle
+    in
+    vec2
+        (x * cosA - y * sinA)
+        (x * sinA + y * cosA)
+
+
 
 -- Other stuff
 
