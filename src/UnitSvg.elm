@@ -1,6 +1,7 @@
 module UnitSvg exposing (..)
 
 import Game
+import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
 
@@ -23,14 +24,15 @@ unit movementAngleInRadians aimAngleInRadians brightColor darkColor =
             Game.radiantsToDegrees aimAngleInRadians
 
         -- cannon origin coordinates
-
-
-
+        ( qx, qy ) =
+            vec2 0.6 0
+                |> Game.rotateVector -movementAngleInRadians
+                |> Vec2.toTuple
     in
     g
         [ transform "scale(0.5,-0.5)" ]
         [ rect
-            [ transform <| "rotate(" ++ toString -aimAngleInDegrees ++ ")"
+            [ transform <| "translate(" ++ toString qx ++ "," ++ toString qy ++ ") rotate(" ++ toString -aimAngleInDegrees ++ ")"
             , styles
                 [ "fill:#808080"
                 , "stroke:" ++ darkColor
@@ -38,8 +40,8 @@ unit movementAngleInRadians aimAngleInRadians brightColor darkColor =
                 ]
             , width "0.42"
             , height "2.2"
-            , x "0.60"
-            , y "-1.26"
+            , x "-0.21"
+            , y "-1.5"
             ]
             []
         , ellipse
