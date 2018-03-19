@@ -127,7 +127,19 @@ think dt game unit =
 
 unitSearchForTargets : Game -> Unit -> Maybe Delta
 unitSearchForTargets game unit =
-    Nothing
+    let
+        ifCloseEnough ( u, distance ) =
+            if distance > Game.unitAttackRange then
+                Nothing
+            else
+                Just (SetUnitTarget unit.id u.id)
+    in
+    game.unitById
+        |> Dict.values
+        |> List.filter (\u -> u.ownerId /= unit.ownerId)
+        |> List.map (\u -> ( u, Game.vectorDistance unit.position u.position ))
+        |> List.Extra.minimumBy Tuple.second
+        |> Maybe.andThen ifCloseEnough
 
 
 thinkTarget : Float -> Game -> Unit -> Maybe Delta
@@ -138,9 +150,16 @@ thinkTarget dt game unit =
                 -- if target is too far, search for targets
                 unitSearchForTargets game unit
             else
+              let
+                dp =
+                  Vec2.sub target.position unit.position
+
+                targetingAngle =
+                    Game.turnTo (2 * pi * dt) (Game.vecToAngle dp) unit.targetingAngle
+              in
                 -- TODO shoot!
-                -- otherwise turn towards target
-                Nothing
+                UnitAims unit.id targetingAngle
+                  |> Just
 
         Nothing ->
             unitSearchForTargets game unit

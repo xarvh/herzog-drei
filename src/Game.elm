@@ -281,3 +281,5 @@ type
       -- TODO rename to `PlayerMoves`
     | MovePlayer Id Vec2
     | RepositionMarker Id Vec2
+    | SetUnitTarget Id Id
+    | UnitAims Id Float

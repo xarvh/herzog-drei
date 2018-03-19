@@ -85,6 +85,22 @@ applyGameDelta delta game =
                 Just player ->
                     { game | playerById = Dict.insert playerId { player | markerPosition = newPosition } game.playerById }
 
+        SetUnitTarget unitId targetId ->
+            case Dict.get unitId game.unitById of
+                Nothing ->
+                    game
+
+                Just unit ->
+                    { game | unitById = Dict.insert unitId { unit | maybeTargetId = Just targetId } game.unitById }
+
+        UnitAims unitId targetingAngle ->
+            case Dict.get unitId game.unitById of
+                Nothing ->
+                    game
+
+                Just unit ->
+                    { game | unitById = Dict.insert unitId { unit | targetingAngle = targetingAngle } game.unitById }
+
 
 
 -- Deltas
