@@ -63,7 +63,7 @@ vecToAngle v =
         ( x, y ) =
             Vec2.toTuple v
     in
-    atan2 -x y
+    atan2 x y
 
 
 radiantsToDegrees : Float -> Float
@@ -169,9 +169,9 @@ type UnitOrder
     | UnitOrderEnterBase Id
 
 
-type UnitStatus
-    = UnitStatusFree
-    | UnitStatusInBase Id
+type UnitMode
+    = UnitModeFree
+    | UnitModeBase Id
 
 
 unitAttackRange : Float
@@ -183,11 +183,16 @@ type alias Unit =
     { id : Id
     , order : UnitOrder
     , ownerId : Id
+    , mode : UnitMode
+
+    --
     , position : Vec2
     , movementAngle : Float
-    , targetingAngle : Float
+
+    --
     , maybeTargetId : Maybe Id
-    , status : UnitStatus
+    , timeToReload : Float
+    , targetingAngle : Float
     }
 
 
@@ -290,13 +295,12 @@ addStaticObstacles tiles game =
 -- Deltas
 
 
-type
-    Delta
-    -- TODO rename to `UnitMoves`
-    = MoveUnit Id Float Vec2
+type Delta
+    = PlayerMoves Id Vec2
+    | MarkerMoves Id Vec2
+    | UnitMoves Id Float Vec2
     | UnitEntersBase Id Id
-      -- TODO rename to `PlayerMoves`
-    | MovePlayer Id Vec2
-    | RepositionMarker Id Vec2
-    | SetUnitTarget Id Id
+    | UnitAttackCooldown Id Float
+    | UnitAcquiresTarget Id Id
     | UnitAims Id Float
+    | UnitShoots Id Float Id

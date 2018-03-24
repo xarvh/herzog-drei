@@ -61,11 +61,11 @@ think dt game input player =
 
         moveTarget =
             if input.fire then
-                [ RepositionMarker player.id player.position ]
+                [ MarkerMoves player.id player.position ]
             else
                 []
     in
-    MovePlayer player.id dx :: moveTarget
+    PlayerMoves player.id dx :: moveTarget
 
 
 move : Id -> Vec2 -> Game -> Game

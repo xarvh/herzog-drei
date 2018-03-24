@@ -17,42 +17,40 @@ path =
 unit : Float -> Float -> String -> String -> Svg a
 unit moveAngle aimAngle brightColor darkColor =
     let
-        -- aimAngle - moveAngle
-        am =
-            normalizeAngle (aimAngle - moveAngle)
+        {-
+           -- aimAngle - moveAngle
+           am =
+               normalizeAngle (aimAngle - moveAngle)
 
-        -- near threshold
-        thn =
-            pi / 4
+           -- near threshold
+           thn =
+               pi / 4
 
-        -- far threshold
-        thf =
-            pi / 2
+           -- far threshold
+           thf =
+               pi / 2
 
-        torsoDelta =
-            if am < -thf then
-                am + thf
-            else if am < -thn then
-                (am + thn) / 2
-            else
-                0
-
+           torsoDelta =
+               if am < -thf then
+                   am + thf
+               else if am < -thn then
+                   (am + thn) / 2
+               else
+                   0
+        -}
         {- TODO
            torsoAngle =
                normalizeAngle (moveAngle + torsoDelta)
         -}
-        torsoAngle =
-            moveAngle
-
         a2s angle =
-            -angle
+            angle
                 |> Game.radiantsToDegrees
                 |> toString
 
         -- gun origin coordinates
         ( qx, qy ) =
             vec2 0.6 0
-                |> Game.rotateVector -torsoAngle
+                |> Game.rotateVector moveAngle
                 |> Vec2.toTuple
     in
     g
@@ -71,7 +69,7 @@ unit moveAngle aimAngle brightColor darkColor =
             ]
             []
         , rect
-            [ transform <| "rotate(" ++ a2s torsoAngle ++ ")"
+            [ transform <| "rotate(" ++ a2s moveAngle ++ ")"
             , height "0.8"
             , width "1.8"
             , y "-0.4"

@@ -255,22 +255,19 @@ viewMarker game player =
     circle player.markerPosition player.colorPattern.dark 0.2
 
 
-
-{-
-   view : Model -> Svg a
-   view model =
-       let
-           ( x, y ) =
-               Vec2.toTuple model.mousePosition
-       in
-       Svg.g
-           [ transform "scale(0.1, 0.1)" ]
-           [ UnitSvg.unit 0 (atan2 -x y) neutral.bright neutral.dark ]
--}
+view =
+    gameView
 
 
-view : Model -> Svg Msg
-view { game } =
+testView : Model -> Svg a
+testView model =
+    Svg.g
+        [ transform "scale(0.1, 0.1)" ]
+        [ UnitSvg.unit (turns 0.1) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark ]
+
+
+gameView : Model -> Svg Msg
+gameView { game } =
     Svg.g
         [ transform "scale(0.1, 0.1)" ]
         [ checkersBackground 10

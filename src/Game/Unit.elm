@@ -9,8 +9,8 @@ import Game
         , Id
         , Tile2
         , Unit
+        , UnitMode(..)
         , UnitOrder(..)
-        , UnitStatus(..)
         , clampToRadius
         , tile2Vec
         , tileDistance
@@ -22,6 +22,23 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 
 
+-- Constants
+
+
+unitReloadTime : Float
+unitReloadTime =
+    5.0
+
+
+unitShootRange : Float
+unitShootRange =
+    4.0
+
+
+
+-- Add
+
+
 add : Id -> Vec2 -> Game -> ( Game, Unit )
 add ownerId position game =
     let
@@ -30,19 +47,116 @@ add ownerId position game =
 
         unit =
             { id = id
+            , mode = Game.UnitModeFree
             , ownerId = ownerId
             , order = UnitOrderFollowMarker
-            , status = Game.UnitStatusFree
+
+            --
             , movementAngle = 0
-            , targetingAngle = 0
-            , maybeTargetId = Nothing
             , position = position
+
+            --
+            , maybeTargetId = Nothing
+            , targetingAngle = 0
+            , timeToReload = 0
             }
 
         unitById =
             Dict.insert id unit game.unitById
     in
     ( { game | lastId = id, unitById = unitById }, unit )
+
+
+
+-- Think
+
+
+think : Float -> Game -> Unit -> List Delta
+think dt game unit =
+    List.concat
+        [ [ thinkTarget dt game unit ]
+        , thinkReload dt game unit
+        , thinkMovement dt game unit
+        ]
+
+
+
+-- Reloading
+
+
+thinkReload : Float -> Game -> Unit -> List Delta
+thinkReload dt game unit =
+    if unit.timeToReload > 0 then
+        unit.timeToReload
+            - dt
+            |> max 0
+            |> UnitAttackCooldown unit.id
+            |> List.singleton
+    else
+        []
+
+
+
+-- Targeting
+
+
+searchForTargets : Game -> Unit -> Maybe Delta
+searchForTargets game unit =
+    let
+        ifCloseEnough ( u, distance ) =
+            if distance > Game.unitAttackRange then
+                Nothing
+            else
+                Just (UnitAcquiresTarget unit.id u.id)
+    in
+    game.unitById
+        |> Dict.values
+        |> List.filter (\u -> u.ownerId /= unit.ownerId)
+        |> List.map (\u -> ( u, Game.vectorDistance unit.position u.position ))
+        |> List.Extra.minimumBy Tuple.second
+        |> Maybe.andThen ifCloseEnough
+
+
+unitAlignsAimToMovement : Float -> Unit -> Delta
+unitAlignsAimToMovement dt unit =
+    UnitAims unit.id (Game.turnTo (2 * pi * dt) unit.movementAngle unit.targetingAngle)
+
+
+searchForTargetOrAlignToMovement : Float -> Game -> Unit -> Delta
+searchForTargetOrAlignToMovement dt game unit =
+    case searchForTargets game unit of
+        Just delta ->
+            delta
+
+        Nothing ->
+            unitAlignsAimToMovement dt unit
+
+
+thinkTarget : Float -> Game -> Unit -> Delta
+thinkTarget dt game unit =
+    case unit.maybeTargetId |> Maybe.andThen (\id -> Dict.get id game.unitById) of
+        Just target ->
+            if vectorDistance unit.position target.position > Game.unitAttackRange then
+                searchForTargetOrAlignToMovement dt game unit
+            else
+                let
+                    dp =
+                        Vec2.sub target.position unit.position
+
+                    targetingAngle =
+                        Game.turnTo (2 * pi * dt) (Game.vecToAngle dp) unit.targetingAngle
+                in
+                if unit.timeToReload > 0 || Vec2.lengthSquared dp > unitShootRange ^ 2 then
+                    UnitAims unit.id targetingAngle
+                else
+                    UnitShoots unit.id unitReloadTime target.id
+
+        Nothing ->
+            searchForTargetOrAlignToMovement dt game unit
+
+
+
+-- Movement
 
 
 getAvailableMoves : Set Tile2 -> Tile2 -> Set Tile2
@@ -69,14 +183,14 @@ getAvailableMoves occupiedPositions ( x, y ) =
         |> Set.fromList
 
 
-move : Float -> Game -> Vec2 -> Unit -> Maybe Delta
+move : Float -> Game -> Vec2 -> Unit -> List Delta
 move dt game targetPosition unit =
     let
         targetDistance =
             0
     in
     if vectorDistance unit.position targetPosition <= targetDistance then
-        Nothing
+        []
     else
         let
             unitTile =
@@ -110,88 +224,30 @@ move dt game targetPosition unit =
             movementAngle =
                 Game.turnTo (2 * pi * dt) (Game.vecToAngle viableDelta) unit.movementAngle
         in
-        Just (MoveUnit unit.id movementAngle viableDelta)
+        [ UnitMoves unit.id movementAngle viableDelta ]
 
 
-
--- Think
-
-
-think : Float -> Game -> Unit -> List Delta
-think dt game unit =
-    [ Just <| thinkTarget dt game unit
-    , thinkMovement dt game unit
-    ]
-        |> List.filterMap identity
-
-
-unitSearchForTargets : Game -> Unit -> Maybe Delta
-unitSearchForTargets game unit =
-    let
-        ifCloseEnough ( u, distance ) =
-            if distance > Game.unitAttackRange then
-                Nothing
-            else
-                Just (SetUnitTarget unit.id u.id)
-    in
-    game.unitById
-        |> Dict.values
-        |> List.filter (\u -> u.ownerId /= unit.ownerId)
-        |> List.map (\u -> ( u, Game.vectorDistance unit.position u.position ))
-        |> List.Extra.minimumBy Tuple.second
-        |> Maybe.andThen ifCloseEnough
-
-
-unitAlignsAimToMovement : Float -> Unit -> Delta
-unitAlignsAimToMovement dt unit =
-    UnitAims unit.id (Game.turnTo (2 * pi * dt) unit.movementAngle unit.targetingAngle)
-
-
-thinkTarget : Float -> Game -> Unit -> Delta
-thinkTarget dt game unit =
-    case unit.maybeTargetId |> Maybe.andThen (\id -> Dict.get id game.unitById) of
-        Just target ->
-            if vectorDistance unit.position target.position > Game.unitAttackRange then
-                -- if target is too far, search for targets
-                unitSearchForTargets game unit
-                    |> Maybe.withDefault (unitAlignsAimToMovement dt unit)
-            else
-                let
-                    dp =
-                        Vec2.sub target.position unit.position
-
-                    targetingAngle =
-                        Game.turnTo (2 * pi * dt) (Game.vecToAngle dp) unit.targetingAngle
-                in
-                -- TODO shoot!
-                UnitAims unit.id targetingAngle
-
-        Nothing ->
-            unitSearchForTargets game unit
-                |> Maybe.withDefault (unitAlignsAimToMovement dt unit)
-
-
-thinkMovement : Float -> Game -> Unit -> Maybe Delta
+thinkMovement : Float -> Game -> Unit -> List Delta
 thinkMovement dt game unit =
-    case unit.status of
-        UnitStatusInBase baseId ->
-            Nothing
+    case unit.mode of
+        UnitModeBase baseId ->
+            []
 
-        UnitStatusFree ->
+        UnitModeFree ->
             case unit.order of
                 UnitOrderStay ->
-                    Nothing
+                    []
 
                 UnitOrderEnterBase baseId ->
                     case Dict.get baseId game.baseById of
                         Nothing ->
-                            Nothing
+                            []
 
                         Just base ->
                             if vectorDistance unit.position (tile2Vec base.position) > Game.maximumDistanceForUnitToEnterBase then
                                 move dt game (tile2Vec base.position) unit
                             else
-                                Just (UnitEntersBase unit.id base.id)
+                                [ UnitEntersBase unit.id base.id ]
 
                 UnitOrderMoveTo targetPosition ->
                     move dt game targetPosition unit
@@ -204,7 +260,7 @@ thinkMovement dt game unit =
                 UnitOrderFollowMarker ->
                     case Dict.get unit.ownerId game.playerById of
                         Nothing ->
-                            Nothing
+                            []
 
                         Just player ->
                             let
@@ -225,7 +281,7 @@ thinkMovement dt game unit =
                                     if baseDistance base > Game.maximumDistanceForUnitToEnterBase then
                                         move dt game (tile2Vec base.position) unit
                                     else
-                                        Just (UnitEntersBase unit.id base.id)
+                                        [ UnitEntersBase unit.id base.id ]
 
                                 Nothing ->
                                     move dt game player.markerPosition unit

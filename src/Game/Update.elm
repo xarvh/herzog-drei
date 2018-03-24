@@ -7,8 +7,9 @@ import Game
         , Delta(..)
         , Game
         , Id
+        , Player
         , Unit
-        , UnitStatus(..)
+        , UnitMode(..)
         , normalizeAngle
         , tile2Vec
         , vec2Tile
@@ -20,10 +21,31 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 
 
+-- Setters
+
+
+updateBase : Base -> Game -> Game
+updateBase base game =
+    { game | baseById = Dict.insert base.id base game.baseById }
+
+
+updatePlayer : Player -> Game -> Game
+updatePlayer player game =
+    { game | playerById = Dict.insert player.id player game.playerById }
+
+
+updateUnit : Unit -> Game -> Game
+updateUnit unit game =
+    { game | unitById = Dict.insert unit.id unit game.unitById }
+
+
+
+-- Main update function
+
+
 update : Float -> Dict Id Game.PlayerInput -> Game -> Game
 update dt playerInputById oldGame =
     let
-        --
         units =
             Dict.values oldGame.unitById
 
@@ -55,51 +77,76 @@ update dt playerInputById oldGame =
         |> List.foldl applyGameDelta oldGameWithUpdatedUnpassableTiles
 
 
+
+-- Folder
+
+
 applyGameDelta : Delta -> Game -> Game
 applyGameDelta delta game =
-    case delta of
-        MoveUnit unitId movementAngle dx ->
-            case Dict.get unitId game.unitById of
+    let
+        with : (Game -> Dict Id a) -> Id -> (a -> Game) -> Game
+        with getter id fn =
+            case Dict.get id (getter game) of
                 Nothing ->
                     game
 
-                Just unit ->
-                    deltaUnitMoves movementAngle dx unit game
+                Just item ->
+                    fn item
 
-        UnitEntersBase unitId baseId ->
-            case ( Dict.get unitId game.unitById, Dict.get baseId game.baseById ) of
-                ( Just unit, Just base ) ->
-                    deltaUnitEntersBase unit base game
+        withBase =
+            with .baseById
 
-                ( _, _ ) ->
-                    game
+        withPlayer =
+            with .playerById
 
-        MovePlayer playerId dp ->
+        withUnit =
+            with .unitById
+    in
+    case delta of
+        PlayerMoves playerId dp ->
             Game.Player.move playerId dp game
 
-        RepositionMarker playerId newPosition ->
-            case Dict.get playerId game.playerById of
-                Nothing ->
-                    game
+        MarkerMoves playerId newPosition ->
+            withPlayer playerId <|
+                \player ->
+                    updatePlayer { player | markerPosition = newPosition } game
 
-                Just player ->
-                    { game | playerById = Dict.insert playerId { player | markerPosition = newPosition } game.playerById }
+        UnitMoves unitId movementAngle dx ->
+            withUnit unitId <|
+                \unit -> deltaUnitMoves movementAngle dx unit game
 
-        SetUnitTarget unitId targetId ->
-            case Dict.get unitId game.unitById of
-                Nothing ->
-                    game
+        UnitEntersBase unitId baseId ->
+            withUnit unitId <|
+                \unit ->
+                    withBase baseId <|
+                        \base -> deltaUnitEntersBase unit base game
 
-                Just unit ->
-                    { game | unitById = Dict.insert unitId { unit | maybeTargetId = Just targetId } game.unitById }
+        UnitAttackCooldown unitId timeToReload ->
+            withUnit unitId <|
+                \unit ->
+                    updateUnit { unit | timeToReload = timeToReload } game
+
+        UnitAcquiresTarget unitId targetId ->
+            withUnit unitId <|
+                \unit ->
+                    updateUnit { unit | maybeTargetId = Just targetId } game
 
         UnitAims unitId targetingAngle ->
-            case Dict.get unitId game.unitById of
-                Nothing ->
-                    game
+            withUnit unitId <|
+                \unit ->
+                    updateUnit { unit | targetingAngle = targetingAngle } game
 
-                Just unit ->
-                    { game | unitById = Dict.insert unitId { unit | targetingAngle = targetingAngle } game.unitById }
+        UnitShoots unitId timeToReload targetId ->
+            withUnit unitId <|
+                \unit ->
+                    withUnit targetId <|
+                        \target ->
+                            game
+                                |> updateUnit
+                                    { unit
+                                        | targetingAngle = Game.vecToAngle (Vec2.sub target.position unit.position)
+                                        , timeToReload = timeToReload
+                                    }
 
 
 
@@ -127,13 +174,11 @@ deltaUnitMoves movementAngle dx unit game =
             newUnit =
                 { unit | position = newPosition, movementAngle = movementAngle }
 
-            unitById =
-                Dict.insert unit.id newUnit game.unitById
-
             unpassableTiles =
                 Set.insert newTilePosition game.unpassableTiles
         in
-        { game | unitById = unitById, unpassableTiles = unpassableTiles }
+        { game | unpassableTiles = unpassableTiles }
+            |> updateUnit newUnit
 
 
 deltaUnitEntersBase : Unit -> Base -> Game -> Game
@@ -148,7 +193,7 @@ deltaUnitEntersBase unit base game =
             unitsInBase =
                 game.unitById
                     |> Dict.values
-                    |> List.filter (\u -> u.status == UnitStatusInBase base.id)
+                    |> List.filter (\u -> u.mode == UnitModeBase base.id)
 
             takenCorners =
                 unitsInBase
@@ -165,7 +210,7 @@ deltaUnitEntersBase unit base game =
 
                     newUnit =
                         { unit
-                            | status = Game.UnitStatusInBase base.id
+                            | mode = Game.UnitModeBase base.id
                             , position = corner
                         }
 
@@ -176,7 +221,6 @@ deltaUnitEntersBase unit base game =
                             , maybeOwnerId = Just unit.ownerId
                         }
                 in
-                { game
-                    | unitById = Dict.insert unit.id newUnit game.unitById
-                    , baseById = Dict.insert base.id newBase game.baseById
-                }
+                game
+                    |> updateUnit newUnit
+                    |> updateBase newBase
