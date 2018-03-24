@@ -32,7 +32,7 @@ unitReloadTime =
 
 unitShootRange : Float
 unitShootRange =
-    4.0
+    7.0
 
 
 

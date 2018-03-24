@@ -97,7 +97,7 @@ rotateVector angle v =
             Vec2.toTuple v
 
         sinA =
-            sin angle
+            sin -angle
 
         cosA =
             cos angle
@@ -248,14 +248,29 @@ type alias Base =
 
 
 
+-- Laser
+
+
+type alias Laser =
+    { start : Vec2
+    , end : Vec2
+    , age : Float
+    , colorPattern : ColorPattern
+    }
+
+
+
 -- Game
 
 
 type alias Game =
     { baseById : Dict Id Base
-    , unitById : Dict Id Unit
     , playerById : Dict Id Player
+    , unitById : Dict Id Unit
     , lastId : Id
+
+    --
+    , lasers : List Laser
 
     -- includes terrain and bases
     , staticObstacles : Set Tile2
@@ -277,6 +292,7 @@ init seed =
     , lastId = 0
 
     --
+    , lasers = []
     , staticObstacles = Set.empty
     , unpassableTiles = Set.empty
 

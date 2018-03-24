@@ -8,6 +8,7 @@ import Game
         ( Base
         , Game
         , Id
+        , Laser
         , Player
         , Unit
         , clampToRadius
@@ -260,26 +261,41 @@ viewMarker game player =
     circle player.markerPosition player.colorPattern.dark 0.2
 
 
+viewLaser : Laser -> Svg a
+viewLaser laser =
+    UnitSvg.laser laser.start laser.end laser.colorPattern.bright laser.age
+
+
 view =
-    testView
+    gameView
 
 
 testView : Model -> Svg a
 testView model =
     let
+        moveAngle =
+            turns 0.1
+
         period =
-            2.0
+            UnitSvg.laserLifeSpan
 
         wrap n p =
             n - (toFloat (floor (n / p)) * p)
 
-        t =
+        age =
             wrap model.time period
+
+        start =
+            UnitSvg.gunOffset moveAngle
+
+        end =
+            model.mousePosition
+                |> Vec2.scale 10
     in
     Svg.g
         [ transform "scale(0.1, 0.1)" ]
-        [ UnitSvg.unit (turns 0.1) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
-        , UnitSvg.laser (vec2 0 0) (Vec2.scale 10 model.mousePosition) (t / period)
+        [ UnitSvg.unit moveAngle (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
+        , UnitSvg.laser start end neutral.bright age
         ]
 
 
@@ -295,6 +311,9 @@ gameView { game } =
         , game.baseById
             |> Dict.values
             |> List.map (viewBase game)
+            |> Svg.g []
+        , game.lasers
+            |> List.map viewLaser
             |> Svg.g []
         , game.unitById
             |> Dict.values

@@ -7,6 +7,7 @@ import Game
         , Delta(..)
         , Game
         , Id
+        , Laser
         , Player
         , Unit
         , UnitMode(..)
@@ -19,6 +20,7 @@ import Game.Unit
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
+import UnitSvg
 
 
 -- Setters
@@ -37,6 +39,11 @@ updatePlayer player game =
 updateUnit : Unit -> Game -> Game
 updateUnit unit game =
     { game | unitById = Dict.insert unit.id unit game.unitById }
+
+
+addLaser : Laser -> Game -> Game
+addLaser laser game =
+    { game | lasers = laser :: game.lasers }
 
 
 
@@ -75,6 +82,26 @@ update dt playerInputById oldGame =
         ]
         |> List.concat
         |> List.foldl applyGameDelta oldGameWithUpdatedUnpassableTiles
+        |> updateLasers dt
+
+
+
+-- Lasers
+
+
+updateLaser : Float -> Laser -> Laser
+updateLaser dt laser =
+    { laser | age = laser.age + dt }
+
+
+updateLasers : Float -> Game -> Game
+updateLasers dt game =
+    { game
+        | lasers =
+            game.lasers
+                |> List.map (updateLaser dt)
+                |> List.filter (\laser -> laser.age < UnitSvg.laserLifeSpan)
+    }
 
 
 
@@ -146,6 +173,12 @@ applyGameDelta delta game =
                                     { unit
                                         | targetingAngle = Game.vecToAngle (Vec2.sub target.position unit.position)
                                         , timeToReload = timeToReload
+                                    }
+                                |> addLaser
+                                    { start = Vec2.add unit.position (UnitSvg.gunOffset unit.movementAngle)
+                                    , end = target.position
+                                    , age = 0
+                                    , colorPattern = Game.playerColorPattern game unit.ownerId
                                     }
 
 

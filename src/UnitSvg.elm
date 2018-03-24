@@ -15,8 +15,30 @@ path =
     Svg.path
 
 
-laser : Vec2 -> Vec2 -> Float -> Svg a
-laser start end t =
+
+--
+
+
+gunOffset : Float -> Vec2
+gunOffset torsoAngle =
+    vec2 0.3 0 |> Game.rotateVector torsoAngle
+
+
+
+-- Laser
+
+
+laserLifeSpan : Float
+laserLifeSpan =
+    2.0
+
+
+laser : Vec2 -> Vec2 -> String -> Float -> Svg a
+laser start end color age =
+    let
+        t =
+            age / laserLifeSpan
+    in
     line
         [ start |> Vec2.getX |> toString |> x1
         , start |> Vec2.getY |> toString |> y1
@@ -24,11 +46,15 @@ laser start end t =
         , end |> Vec2.getY |> toString |> y2
         , styles
             [ "stroke-width:" ++ toString (0.1 * (1 + 3 * t))
-            , "stroke:#f00"
+            , "stroke:" ++ color
             , "opacity:" ++ toString (1 - Ease.outExpo t)
             ]
         ]
         []
+
+
+
+-- Unit
 
 
 unit : Float -> Float -> String -> String -> Svg a
@@ -65,15 +91,15 @@ unit moveAngle aimAngle brightColor darkColor =
                 |> toString
 
         -- gun origin coordinates
-        ( qx, qy ) =
-            vec2 0.6 0
-                |> Game.rotateVector moveAngle
+        ( gx, gy ) =
+            gunOffset moveAngle
+                |> Vec2.scale 2
                 |> Vec2.toTuple
     in
     g
         [ transform "scale(0.5,-0.5)" ]
         [ rect
-            [ transform <| "translate(" ++ toString qx ++ "," ++ toString qy ++ ") rotate(" ++ a2s aimAngle ++ ")"
+            [ transform <| "translate(" ++ toString gx ++ "," ++ toString -gy ++ ") rotate(" ++ a2s aimAngle ++ ")"
             , styles
                 [ "fill:#808080"
                 , "stroke:" ++ darkColor
