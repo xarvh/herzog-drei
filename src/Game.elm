@@ -63,7 +63,7 @@ vecToAngle v =
         ( x, y ) =
             Vec2.toTuple v
     in
-    atan2 -x y
+    atan2 x y
 
 
 radiantsToDegrees : Float -> Float
@@ -97,7 +97,7 @@ rotateVector angle v =
             Vec2.toTuple v
 
         sinA =
-            sin angle
+            sin -angle
 
         cosA =
             cos angle
@@ -169,9 +169,9 @@ type UnitOrder
     | UnitOrderEnterBase Id
 
 
-type UnitStatus
-    = UnitStatusFree
-    | UnitStatusInBase Id
+type UnitMode
+    = UnitModeFree
+    | UnitModeBase Id
 
 
 unitAttackRange : Float
@@ -183,11 +183,16 @@ type alias Unit =
     { id : Id
     , order : UnitOrder
     , ownerId : Id
+    , mode : UnitMode
+
+    --
     , position : Vec2
     , movementAngle : Float
-    , targetingAngle : Float
+
+    --
     , maybeTargetId : Maybe Id
-    , status : UnitStatus
+    , timeToReload : Float
+    , targetingAngle : Float
     }
 
 
@@ -243,14 +248,29 @@ type alias Base =
 
 
 
+-- Laser
+
+
+type alias Laser =
+    { start : Vec2
+    , end : Vec2
+    , age : Float
+    , colorPattern : ColorPattern
+    }
+
+
+
 -- Game
 
 
 type alias Game =
     { baseById : Dict Id Base
-    , unitById : Dict Id Unit
     , playerById : Dict Id Player
+    , unitById : Dict Id Unit
     , lastId : Id
+
+    --
+    , lasers : List Laser
 
     -- includes terrain and bases
     , staticObstacles : Set Tile2
@@ -272,6 +292,7 @@ init seed =
     , lastId = 0
 
     --
+    , lasers = []
     , staticObstacles = Set.empty
     , unpassableTiles = Set.empty
 
@@ -290,13 +311,12 @@ addStaticObstacles tiles game =
 -- Deltas
 
 
-type
-    Delta
-    -- TODO rename to `UnitMoves`
-    = MoveUnit Id Float Vec2
+type Delta
+    = PlayerMoves Id Vec2
+    | MarkerMoves Id Vec2
+    | UnitMoves Id Float Vec2
     | UnitEntersBase Id Id
-      -- TODO rename to `PlayerMoves`
-    | MovePlayer Id Vec2
-    | RepositionMarker Id Vec2
-    | SetUnitTarget Id Id
+    | UnitAttackCooldown Id Float
+    | UnitAcquiresTarget Id Id
     | UnitAims Id Float
+    | UnitShoots Id Float Id
