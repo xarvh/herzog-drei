@@ -1,5 +1,6 @@
 module UnitSvg exposing (..)
 
+import Ease
 import Game exposing (normalizeAngle)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
@@ -12,6 +13,22 @@ styles =
 
 path =
     Svg.path
+
+
+laser : Vec2 -> Vec2 -> Float -> Svg a
+laser start end t =
+    line
+        [ start |> Vec2.getX |> toString |> x1
+        , start |> Vec2.getY |> toString |> y1
+        , end |> Vec2.getX |> toString |> x2
+        , end |> Vec2.getY |> toString |> y2
+        , styles
+            [ "stroke-width:" ++ toString (0.1 * (1 + 3 * t))
+            , "stroke:#f00"
+            , "opacity:" ++ toString (1 - Ease.outExpo t)
+            ]
+        ]
+        []
 
 
 unit : Float -> Float -> String -> String -> Svg a

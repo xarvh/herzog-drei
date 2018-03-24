@@ -40,6 +40,7 @@ type Msg
 type alias Model =
     { game : Game
     , mousePosition : Vec2
+    , time : Time
     }
 
 
@@ -83,7 +84,7 @@ init =
         |> Tuple.first
         |> Game.Unit.add player2.id (vec2 -3 4.8)
         |> Tuple.first
-        |> (\g -> Model g (vec2 0 0))
+        |> (\g -> Model g (vec2 0 0) 0)
         |> noCmd
 
 
@@ -108,8 +109,11 @@ update mousePosition pressedKeys msg model =
         OnBaseClick baseId ->
             noCmd model
 
-        OnAnimationFrame dt ->
+        OnAnimationFrame dtInMilliseconds ->
             let
+                dt =
+                    dtInMilliseconds / 1000
+
                 { x, y } =
                     Keyboard.Extra.wasd pressedKeys
 
@@ -122,11 +126,12 @@ update mousePosition pressedKeys msg model =
                     }
 
                 game =
-                    Game.Update.update (dt / 1000) (Dict.singleton 2 input) model.game
+                    Game.Update.update dt (Dict.singleton 2 input) model.game
             in
             noCmd
                 { game = game
                 , mousePosition = mousePosition
+                , time = model.time + dt
                 }
 
 
@@ -256,14 +261,26 @@ viewMarker game player =
 
 
 view =
-    gameView
+    testView
 
 
 testView : Model -> Svg a
 testView model =
+    let
+        period =
+            2.0
+
+        wrap n p =
+            n - (toFloat (floor (n / p)) * p)
+
+        t =
+            wrap model.time period
+    in
     Svg.g
         [ transform "scale(0.1, 0.1)" ]
-        [ UnitSvg.unit (turns 0.1) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark ]
+        [ UnitSvg.unit (turns 0.1) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
+        , UnitSvg.laser (vec2 0 0) (Vec2.scale 10 model.mousePosition) (t / period)
+        ]
 
 
 gameView : Model -> Svg Msg
