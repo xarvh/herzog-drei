@@ -5,10 +5,11 @@ import ColorPattern exposing (ColorPattern)
 import Dict exposing (Dict)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Random
+import Random.List
 import Set exposing (Set)
 
 
--- TODO move these out of here or rename the module?
+-- Geometry helpers
 
 
 tileDistance : Tile2 -> Tile2 -> Float
@@ -54,6 +55,70 @@ vec2Tile v =
 tile2Vec : Tile2 -> Vec2
 tile2Vec ( x, y ) =
     vec2 (toFloat x) (toFloat y)
+
+
+vecToAngle : Vec2 -> Float
+vecToAngle v =
+    let
+        ( x, y ) =
+            Vec2.toTuple v
+    in
+    atan2 -x y
+
+
+radiantsToDegrees : Float -> Float
+radiantsToDegrees r =
+    r * (180 / pi)
+
+
+normalizeAngle : Float -> Float
+normalizeAngle angle =
+    if angle < -pi then
+        normalizeAngle (angle + 2 * pi)
+    else if angle >= pi then
+        normalizeAngle (angle - 2 * pi)
+    else
+        angle
+
+
+turnTo : Float -> Float -> Float -> Float
+turnTo maxTurn targetAngle currentAngle =
+    (targetAngle - currentAngle)
+        |> normalizeAngle
+        |> clamp -maxTurn maxTurn
+        |> (+) currentAngle
+        |> normalizeAngle
+
+
+rotateVector : Float -> Vec2 -> Vec2
+rotateVector angle v =
+    let
+        ( x, y ) =
+            Vec2.toTuple v
+
+        sinA =
+            sin angle
+
+        cosA =
+            cos angle
+    in
+    vec2
+        (x * cosA - y * sinA)
+        (x * sinA + y * cosA)
+
+
+
+-- Other stuff
+
+
+playerColorPattern : Game -> Id -> ColorPattern
+playerColorPattern game playerId =
+    case Dict.get playerId game.playerById of
+        Nothing ->
+            ColorPattern.neutral
+
+        Just player ->
+            player.colorPattern
 
 
 
@@ -104,25 +169,73 @@ type UnitOrder
     | UnitOrderEnterBase Id
 
 
+type UnitStatus
+    = UnitStatusFree
+    | UnitStatusInBase Id
+
+
+unitAttackRange : Float
+unitAttackRange =
+    4.0
+
+
 type alias Unit =
     { id : Id
     , order : UnitOrder
     , ownerId : Id
     , position : Vec2
+    , movementAngle : Float
+    , targetingAngle : Float
+    , maybeTargetId : Maybe Id
+    , status : UnitStatus
     }
 
 
 
 -- Bases
 
-maximumDistanceForUnitToEnterBase =
-  2.1
 
+maximumDistanceForUnitToEnterBase : Float
+maximumDistanceForUnitToEnterBase =
+    2.1
+
+
+baseColorPattern : Game -> Base -> ColorPattern
+baseColorPattern game base =
+    base.maybeOwnerId
+        |> Maybe.map (playerColorPattern game)
+        |> Maybe.withDefault ColorPattern.neutral
+
+
+baseCorners : Base -> List Vec2
+baseCorners base =
+    let
+        ( x, y ) =
+            base.position
+                |> tile2Vec
+                |> Vec2.toTuple
+
+        r =
+            0.8
+    in
+    [ vec2 (x + r) (y + r)
+    , vec2 (x - r) (y + r)
+    , vec2 (x - r) (y - r)
+    , vec2 (x + r) (y - r)
+    ]
+
+
+baseMaxContainedUnits : Int
 baseMaxContainedUnits =
-  4
+    -- A very convoluted way to write `4`
+    Base 0 False 0 Nothing ( 0, 0 )
+        |> baseCorners
+        |> List.length
+
 
 type alias Base =
     { id : Id
+    , isActive : Bool
     , containedUnits : Int
     , maybeOwnerId : Maybe Id
     , position : Tile2
@@ -137,6 +250,7 @@ type alias Game =
     { baseById : Dict Id Base
     , unitById : Dict Id Unit
     , playerById : Dict Id Player
+    , lastId : Id
 
     -- includes terrain and bases
     , staticObstacles : Set Tile2
@@ -150,12 +264,39 @@ type alias Game =
     }
 
 
+init : Random.Seed -> Game
+init seed =
+    { baseById = Dict.empty
+    , unitById = Dict.empty
+    , playerById = Dict.empty
+    , lastId = 0
+
+    --
+    , staticObstacles = Set.empty
+    , unpassableTiles = Set.empty
+
+    --
+    , seed = seed
+    , shuffledColorPatterns = Random.step (Random.List.shuffle ColorPattern.patterns) seed |> Tuple.first
+    }
+
+
+addStaticObstacles : List Tile2 -> Game -> Game
+addStaticObstacles tiles game =
+    { game | staticObstacles = Set.union (Set.fromList tiles) game.staticObstacles }
+
+
 
 -- Deltas
 
 
-type Delta
-    = MoveUnit Id Vec2
+type
+    Delta
+    -- TODO rename to `UnitMoves`
+    = MoveUnit Id Float Vec2
     | UnitEntersBase Id Id
+      -- TODO rename to `PlayerMoves`
     | MovePlayer Id Vec2
     | RepositionMarker Id Vec2
+    | SetUnitTarget Id Id
+    | UnitAims Id Float

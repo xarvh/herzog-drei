@@ -17,29 +17,35 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 
 
-add : List ColorPattern -> Id -> Vec2 -> Dict Id Player -> Dict Id Player
-add shuffledColorPatterns id position playerById =
+add : Vec2 -> Game -> ( Game, Player )
+add position game =
     let
+        id =
+            game.lastId + 1
+
         colorPatternCount colorPattern =
-            playerById
+            game.playerById
                 |> Dict.values
                 |> List.filter (\player -> player.colorPattern == colorPattern)
                 |> List.length
 
         colorPattern =
-            shuffledColorPatterns
+            game.shuffledColorPatterns
                 |> List.sortBy colorPatternCount
                 |> List.head
                 |> Maybe.withDefault ColorPattern.neutral
+
+        player =
+            { id = id
+            , position = position
+            , markerPosition = position
+            , colorPattern = colorPattern
+            }
+
+        playerById =
+            Dict.insert id player game.playerById
     in
-    Dict.insert
-        id
-        { id = id
-        , position = position
-        , markerPosition = position
-        , colorPattern = colorPattern
-        }
-        playerById
+    ( { game | playerById = playerById, lastId = id }, player )
 
 
 think : Float -> Game -> PlayerInput -> Player -> List Delta
@@ -51,7 +57,7 @@ think dt game input player =
         dx =
             input.move
                 |> clampToRadius 1
-                |> Vec2.scale (speed * dt / 1000)
+                |> Vec2.scale (speed * dt)
 
         moveTarget =
             if input.fire then

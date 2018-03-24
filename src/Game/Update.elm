@@ -3,13 +3,19 @@ module Game.Update exposing (..)
 import Dict exposing (Dict)
 import Game
     exposing
-        ( Delta(..)
+        ( Base
+        , Delta(..)
         , Game
         , Id
+        , Unit
+        , UnitStatus(..)
+        , normalizeAngle
+        , tile2Vec
         , vec2Tile
         )
 import Game.Player
 import Game.Unit
+import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 
@@ -40,58 +46,30 @@ update dt playerInputById oldGame =
     in
     List.concat
         [ units
-            |> List.filterMap (Game.Unit.think dt oldGameWithUpdatedUnpassableTiles)
+            |> List.map (Game.Unit.think dt oldGameWithUpdatedUnpassableTiles)
         , oldGame.playerById
             |> Dict.values
             |> List.map playerThink
-            |> List.concat
         ]
+        |> List.concat
         |> List.foldl applyGameDelta oldGameWithUpdatedUnpassableTiles
 
 
 applyGameDelta : Delta -> Game -> Game
 applyGameDelta delta game =
     case delta of
-        MoveUnit unitId dx ->
+        MoveUnit unitId movementAngle dx ->
             case Dict.get unitId game.unitById of
                 Nothing ->
                     game
 
                 Just unit ->
-                    let
-                        newPosition =
-                            Vec2.add unit.position dx
-
-                        currentTilePosition =
-                            vec2Tile unit.position
-
-                        newTilePosition =
-                            vec2Tile newPosition
-                    in
-                    if currentTilePosition /= newTilePosition && Set.member newTilePosition game.unpassableTiles then
-                        -- destination tile occupied, don't move
-                        game
-                    else
-                        -- destination tile available, mark it as occupied and move unit
-                        { game
-                            | unitById = game.unitById |> Dict.insert unitId { unit | position = newPosition }
-                            , unpassableTiles = game.unpassableTiles |> Set.insert newTilePosition
-                        }
+                    deltaUnitMoves movementAngle dx unit game
 
         UnitEntersBase unitId baseId ->
             case ( Dict.get unitId game.unitById, Dict.get baseId game.baseById ) of
                 ( Just unit, Just base ) ->
-                    if base.containedUnits < 4 then
-                        let
-                            unitById =
-                                Dict.remove unit.id game.unitById
-
-                            baseById =
-                                Dict.insert base.id { base | containedUnits = base.containedUnits + 1 } game.baseById
-                        in
-                        { game | unitById = unitById, baseById = baseById }
-                    else
-                        game
+                    deltaUnitEntersBase unit base game
 
                 ( _, _ ) ->
                     game
@@ -106,3 +84,99 @@ applyGameDelta delta game =
 
                 Just player ->
                     { game | playerById = Dict.insert playerId { player | markerPosition = newPosition } game.playerById }
+
+        SetUnitTarget unitId targetId ->
+            case Dict.get unitId game.unitById of
+                Nothing ->
+                    game
+
+                Just unit ->
+                    { game | unitById = Dict.insert unitId { unit | maybeTargetId = Just targetId } game.unitById }
+
+        UnitAims unitId targetingAngle ->
+            case Dict.get unitId game.unitById of
+                Nothing ->
+                    game
+
+                Just unit ->
+                    { game | unitById = Dict.insert unitId { unit | targetingAngle = targetingAngle } game.unitById }
+
+
+
+-- Deltas
+
+
+deltaUnitMoves : Float -> Vec2 -> Unit -> Game -> Game
+deltaUnitMoves movementAngle dx unit game =
+    let
+        newPosition =
+            Vec2.add unit.position dx
+
+        currentTilePosition =
+            vec2Tile unit.position
+
+        newTilePosition =
+            vec2Tile newPosition
+    in
+    if currentTilePosition /= newTilePosition && Set.member newTilePosition game.unpassableTiles then
+        -- destination tile occupied, don't move
+        game
+    else
+        -- destination tile available, mark it as occupied and move unit
+        let
+            newUnit =
+                { unit | position = newPosition, movementAngle = movementAngle }
+
+            unitById =
+                Dict.insert unit.id newUnit game.unitById
+
+            unpassableTiles =
+                Set.insert newTilePosition game.unpassableTiles
+        in
+        { game | unitById = unitById, unpassableTiles = unpassableTiles }
+
+
+deltaUnitEntersBase : Unit -> Base -> Game -> Game
+deltaUnitEntersBase unit base game =
+    if base.maybeOwnerId /= Nothing && base.maybeOwnerId /= Just unit.ownerId then
+        game
+    else
+        let
+            corners =
+                Game.baseCorners base
+
+            unitsInBase =
+                game.unitById
+                    |> Dict.values
+                    |> List.filter (\u -> u.status == UnitStatusInBase base.id)
+
+            takenCorners =
+                unitsInBase
+                    |> List.map .position
+        in
+        case List.Extra.find (\c -> not (List.member c takenCorners)) corners of
+            Nothing ->
+                game
+
+            Just corner ->
+                let
+                    containedUnits =
+                        1 + List.length takenCorners
+
+                    newUnit =
+                        { unit
+                            | status = Game.UnitStatusInBase base.id
+                            , position = corner
+                        }
+
+                    newBase =
+                        { base
+                            | containedUnits = containedUnits
+                            , isActive = base.isActive || containedUnits == List.length corners
+                            , maybeOwnerId = Just unit.ownerId
+                        }
+                in
+                { game
+                    | unitById = Dict.insert unit.id newUnit game.unitById
+                    , baseById = Dict.insert base.id newBase game.baseById
+                }
