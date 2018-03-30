@@ -21,6 +21,7 @@ import Game.Unit
 import Game.Update
 import Keyboard.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import MechSvg
 import Mouse
 import Random
 import Set exposing (Set)
@@ -31,13 +32,26 @@ import Time exposing (Time)
 import UnitSvg
 
 
+--
+
+
+gameToScreenRatio =
+    10.0
+
+
+
+--
+
+
 type Msg
     = OnAnimationFrame Time
+    | OnMouseButton Bool
 
 
 type alias Model =
     { game : Game
     , mousePosition : Vec2
+    , mouseIsPressed : Bool
     , time : Time
     }
 
@@ -82,7 +96,13 @@ init =
         |> Tuple.first
         |> Game.Unit.add player2.id (vec2 -3 4.8)
         |> Tuple.first
-        |> (\g -> Model g (vec2 0 0) 0)
+        |> (\game ->
+                { game = game
+                , mousePosition = vec2 0 0
+                , mouseIsPressed = False
+                , time = 0
+                }
+           )
         |> noCmd
 
 
@@ -98,6 +118,9 @@ noCmd model =
 update : Vec2 -> List Keyboard.Extra.Key -> Msg -> Model -> ( Model, Cmd Msg )
 update mousePosition pressedKeys msg model =
     case msg of
+        OnMouseButton state ->
+            noCmd { model | mouseIsPressed = state }
+
         OnAnimationFrame dtInMilliseconds ->
             let
                 dt =
@@ -106,21 +129,28 @@ update mousePosition pressedKeys msg model =
                 { x, y } =
                     Keyboard.Extra.wasd pressedKeys
 
-                isSpace =
-                    List.member Keyboard.Extra.Space pressedKeys
+                isPressed key =
+                    List.member key pressedKeys
 
                 input =
-                    { move = vec2 (toFloat x) (toFloat y)
-                    , fire = isSpace
+                    { aim = Vec2.scale gameToScreenRatio mousePosition
+                    , fire = model.mouseIsPressed
+                    , transform = isPressed Keyboard.Extra.CharE
+                    , switchUnit = isPressed Keyboard.Extra.Space
+
+                    -- TODO this should be right mouse button
+                    , rally = isPressed Keyboard.Extra.CharQ
+                    , move = vec2 (toFloat x) (toFloat y)
                     }
 
                 game =
                     Game.Update.update dt (Dict.singleton 2 input) model.game
             in
             noCmd
-                { game = game
-                , mousePosition = mousePosition
-                , time = model.time + dt
+                { model
+                    | game = game
+                    , mousePosition = mousePosition
+                    , time = model.time + dt
                 }
 
 
@@ -241,7 +271,13 @@ viewUnit game unit =
 
 viewPlayer : Game -> Player -> Svg a
 viewPlayer game player =
-    circle player.position player.colorPattern.bright 0.5
+    let
+        ( x, y ) =
+            Vec2.toTuple player.position
+    in
+    Svg.g
+        [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
+        [ MechSvg.mech 0 player.colorPattern.bright player.colorPattern.dark ]
 
 
 viewMarker : Game -> Player -> Svg a
@@ -326,4 +362,6 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ AnimationFrame.diffs OnAnimationFrame
+        , Mouse.downs (\_ -> OnMouseButton True)
+        , Mouse.ups (\_ -> OnMouseButton False)
         ]

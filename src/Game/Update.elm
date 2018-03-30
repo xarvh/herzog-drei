@@ -133,6 +133,26 @@ applyGameDelta delta game =
         PlayerMoves playerId dp ->
             Game.Player.move playerId dp game
 
+        PlayerAttacks playerId direction ->
+            withPlayer playerId <|
+                \player ->
+                    game
+                        |> updatePlayer
+                            { player
+                                | timeToReload = 0.7
+                            }
+                        |> addLaser
+                            { start = player.position
+                            , end = Vec2.add player.position direction
+                            , age = 0
+                            , colorPattern = player.colorPattern
+                            }
+
+        PlayerAttackCooldown playerId timeToReload ->
+            withPlayer playerId <|
+                \player ->
+                    updatePlayer { player | timeToReload = timeToReload } game
+
         MarkerMoves playerId newPosition ->
             withPlayer playerId <|
                 \player ->

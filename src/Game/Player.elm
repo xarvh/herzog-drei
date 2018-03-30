@@ -40,6 +40,7 @@ add position game =
             , position = position
             , markerPosition = position
             , colorPattern = colorPattern
+            , timeToReload = 0
             }
 
         playerById =
@@ -60,12 +61,36 @@ think dt game input player =
                 |> Vec2.scale (speed * dt)
 
         moveTarget =
-            if input.fire then
+            if input.rally then
                 [ MarkerMoves player.id player.position ]
             else
                 []
+
+        movePlayer =
+            [ PlayerMoves player.id dx ]
+
+        reload =
+            if player.timeToReload > 0 then
+                player.timeToReload
+                    - dt
+                    |> max 0
+                    |> PlayerAttackCooldown player.id
+                    |> List.singleton
+            else
+                []
+
+        fire =
+            if input.fire && player.timeToReload == 0 then
+                [ PlayerAttacks player.id (Vec2.sub input.aim player.position) ]
+            else
+                []
     in
-    PlayerMoves player.id dx :: moveTarget
+    List.concat
+        [ moveTarget
+        , movePlayer
+        , reload
+        , fire
+        ]
 
 
 move : Id -> Vec2 -> Game -> Game
