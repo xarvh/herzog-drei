@@ -33,9 +33,6 @@ import UnitSvg
 
 type Msg
     = OnAnimationFrame Time
-    | OnTerrainClick
-    | OnUnitClick Id
-    | OnBaseClick Id
 
 
 type alias Model =
@@ -101,15 +98,6 @@ noCmd model =
 update : Vec2 -> List Keyboard.Extra.Key -> Msg -> Model -> ( Model, Cmd Msg )
 update mousePosition pressedKeys msg model =
     case msg of
-        OnTerrainClick ->
-            noCmd model
-
-        OnUnitClick unitId ->
-            noCmd model
-
-        OnBaseClick baseId ->
-            noCmd model
-
         OnAnimationFrame dtInMilliseconds ->
             let
                 dt =
@@ -153,7 +141,7 @@ checkersBackground size =
             toString (squareSize * 2)
     in
     Svg.g
-        [ Svg.Events.onClick OnTerrainClick ]
+        []
         [ Svg.defs
             []
             [ Svg.pattern
@@ -230,7 +218,7 @@ viewBase game base =
             Vec2.add (tile2Vec base.position) (vec2 -1 -1)
     in
     Svg.g
-        [ Svg.Events.onClick (OnBaseClick base.id) ]
+        []
         [ square v color 2
 
         --, square v "#00c" (toFloat base.containedUnits * 0.5)
