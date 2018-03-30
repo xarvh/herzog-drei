@@ -17,34 +17,8 @@ import Game
         )
 import Game.Player
 import Game.Unit
-import List.Extra
-import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 import UnitSvg
-
-
--- Setters
-
-
-updateBase : Base -> Game -> Game
-updateBase base game =
-    { game | baseById = Dict.insert base.id base game.baseById }
-
-
-updatePlayer : Player -> Game -> Game
-updatePlayer player game =
-    { game | playerById = Dict.insert player.id player game.playerById }
-
-
-updateUnit : Unit -> Game -> Game
-updateUnit unit game =
-    { game | unitById = Dict.insert unit.id unit game.unitById }
-
-
-addLaser : Laser -> Game -> Game
-addLaser laser game =
-    { game | lasers = laser :: game.lasers }
-
 
 
 -- Main update function
@@ -81,7 +55,7 @@ update dt playerInputById oldGame =
             |> List.map playerThink
         ]
         |> List.concat
-        |> List.foldl applyGameDelta oldGameWithUpdatedUnpassableTiles
+        |> applyGameDelta oldGameWithUpdatedUnpassableTiles
         |> updateLasers dt
 
 
@@ -108,172 +82,108 @@ updateLasers dt game =
 -- Folder
 
 
-applyGameDelta : Delta -> Game -> Game
-applyGameDelta delta game =
+{-| For each entity of type `a`, keep a list of functions that can mutate it
+-}
+type alias DeltaDict gameState entity =
+    Dict Id (List (gameState -> entity -> entity))
+
+
+ddEmpty : DeltaDict gameState entity
+ddEmpty =
+    Dict.empty
+
+
+ddInsert : Id -> (gameState -> entity -> entity) -> DeltaDict gameState entity -> DeltaDict gameState entity
+ddInsert id transform dd =
     let
-        with : (Game -> Dict Id a) -> Id -> (a -> Game) -> Game
-        with getter id fn =
-            case Dict.get id (getter game) of
+        updatedList =
+            case Dict.get id dd of
                 Nothing ->
-                    game
+                    [ transform ]
 
-                Just item ->
-                    fn item
-
-        withBase =
-            with .baseById
-
-        withPlayer =
-            with .playerById
-
-        withUnit =
-            with .unitById
+                Just list ->
+                    transform :: list
     in
-    case delta of
-        PlayerMoves playerId dp ->
-            Game.Player.move playerId dp game
+    Dict.insert id updatedList dd
 
-        PlayerAttacks playerId direction ->
-            withPlayer playerId <|
-                \player ->
-                    game
-                        |> updatePlayer
-                            { player
-                                | timeToReload = 0.7
-                            }
-                        |> addLaser
-                            { start = player.position
-                            , end = Vec2.add player.position direction
-                            , age = 0
-                            , colorPattern = player.colorPattern
-                            }
 
-        PlayerAttackCooldown playerId timeToReload ->
-            withPlayer playerId <|
-                \player ->
-                    updatePlayer { player | timeToReload = timeToReload } game
+ddApply : gameState -> DeltaDict gameState entity -> Id -> entity -> entity
+ddApply game dd id entity =
+    case Dict.get id dd of
+        Nothing ->
+            entity
 
-        MarkerMoves playerId newPosition ->
-            withPlayer playerId <|
-                \player ->
-                    updatePlayer { player | markerPosition = newPosition } game
+        Just transforms ->
+            let
+                -- need this to avoid https://github.com/elm-lang/elm-compiler/issues/1602
+                apply : entity -> List (gameState -> entity -> entity) -> entity
+                apply e list =
+                    case list of
+                        [] ->
+                            e
 
-        UnitMoves unitId movementAngle dx ->
-            withUnit unitId <|
-                \unit -> deltaUnitMoves movementAngle dx unit game
-
-        UnitEntersBase unitId baseId ->
-            withUnit unitId <|
-                \unit ->
-                    withBase baseId <|
-                        \base -> deltaUnitEntersBase unit base game
-
-        UnitAttackCooldown unitId timeToReload ->
-            withUnit unitId <|
-                \unit ->
-                    updateUnit { unit | timeToReload = timeToReload } game
-
-        UnitAcquiresTarget unitId targetId ->
-            withUnit unitId <|
-                \unit ->
-                    updateUnit { unit | maybeTargetId = Just targetId } game
-
-        UnitAims unitId targetingAngle ->
-            withUnit unitId <|
-                \unit ->
-                    updateUnit { unit | targetingAngle = targetingAngle } game
-
-        UnitShoots unitId timeToReload targetId ->
-            withUnit unitId <|
-                \unit ->
-                    withUnit targetId <|
-                        \target ->
-                            game
-                                |> updateUnit
-                                    { unit
-                                        | targetingAngle = Game.vecToAngle (Vec2.sub target.position unit.position)
-                                        , timeToReload = timeToReload
-                                    }
-                                |> addLaser
-                                    { start = Vec2.add unit.position (UnitSvg.gunOffset unit.movementAngle)
-                                    , end = target.position
-                                    , age = 0
-                                    , colorPattern = Game.playerColorPattern game unit.ownerId
-                                    }
+                        fun :: xs ->
+                            apply (fun game e) xs
+            in
+            apply entity transforms
 
 
 
--- Deltas
+--
 
 
-deltaUnitMoves : Float -> Vec2 -> Unit -> Game -> Game
-deltaUnitMoves movementAngle dx unit game =
+type alias GameDeltaDicts =
+    { players : DeltaDict Game Player
+    , units : DeltaDict Game Unit
+    , bases : DeltaDict Game Base
+    , game : List (Game -> Game)
+    }
+
+
+applyGameDelta : Game -> List Delta -> Game
+applyGameDelta game deltas =
     let
-        newPosition =
-            Vec2.add unit.position dx
+        foldDeltas : Delta -> GameDeltaDicts -> GameDeltaDicts
+        foldDeltas delta deltaStuff =
+            case delta of
+                DeltaPlayer id f ->
+                    { deltaStuff | players = ddInsert id f deltaStuff.players }
 
-        currentTilePosition =
-            vec2Tile unit.position
+                DeltaUnit id f ->
+                    { deltaStuff | units = ddInsert id f deltaStuff.units }
 
-        newTilePosition =
-            vec2Tile newPosition
+                DeltaBase id f ->
+                    { deltaStuff | bases = ddInsert id f deltaStuff.bases }
+
+                DeltaGame f ->
+                    { deltaStuff | game = f :: deltaStuff.game }
+
+        emptyGameDeltaDicts : GameDeltaDicts
+        emptyGameDeltaDicts =
+            { players = ddEmpty
+            , units = ddEmpty
+            , bases = ddEmpty
+            , game = []
+            }
+
+        deltaDicts : GameDeltaDicts
+        deltaDicts =
+            List.foldl foldDeltas emptyGameDeltaDicts deltas
+
+        -- need this to avoid https://github.com/elm-lang/elm-compiler/issues/1602
+        apply : List (Game -> Game) -> Game -> Game
+        apply list g =
+            case list of
+                [] ->
+                    g
+
+                fun :: xs ->
+                    -- TODO is this TCO-friendly?
+                    apply xs (fun g)
     in
-    if currentTilePosition /= newTilePosition && Set.member newTilePosition game.unpassableTiles then
-        -- destination tile occupied, don't move
-        game
-    else
-        -- destination tile available, mark it as occupied and move unit
-        let
-            newUnit =
-                { unit | position = newPosition, movementAngle = movementAngle }
-
-            unpassableTiles =
-                Set.insert newTilePosition game.unpassableTiles
-        in
-        { game | unpassableTiles = unpassableTiles }
-            |> updateUnit newUnit
-
-
-deltaUnitEntersBase : Unit -> Base -> Game -> Game
-deltaUnitEntersBase unit base game =
-    if base.maybeOwnerId /= Nothing && base.maybeOwnerId /= Just unit.ownerId then
-        game
-    else
-        let
-            corners =
-                Game.baseCorners base
-
-            unitsInBase =
-                game.unitById
-                    |> Dict.values
-                    |> List.filter (\u -> u.mode == UnitModeBase base.id)
-
-            takenCorners =
-                unitsInBase
-                    |> List.map .position
-        in
-        case List.Extra.find (\c -> not (List.member c takenCorners)) corners of
-            Nothing ->
-                game
-
-            Just corner ->
-                let
-                    containedUnits =
-                        1 + List.length takenCorners
-
-                    newUnit =
-                        { unit
-                            | mode = Game.UnitModeBase base.id
-                            , position = corner
-                        }
-
-                    newBase =
-                        { base
-                            | containedUnits = containedUnits
-                            , isActive = base.isActive || containedUnits == List.length corners
-                            , maybeOwnerId = Just unit.ownerId
-                        }
-                in
-                game
-                    |> updateUnit newUnit
-                    |> updateBase newBase
+    { game
+        | playerById = Dict.map (ddApply game deltaDicts.players) game.playerById
+        , unitById = Dict.map (ddApply game deltaDicts.units) game.unitById
+        , baseById = Dict.map (ddApply game deltaDicts.bases) game.baseById
+    }
+        |> apply deltaDicts.game

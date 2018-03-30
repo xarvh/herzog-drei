@@ -62,26 +62,33 @@ think dt game input player =
 
         moveTarget =
             if input.rally then
-                [ MarkerMoves player.id player.position ]
+                [ DeltaPlayer player.id (\g p -> { p | markerPosition = player.position }) ]
             else
                 []
 
         movePlayer =
-            [ PlayerMoves player.id dx ]
+            [ DeltaPlayer player.id (deltaPlayerMove dx) ]
 
         reload =
             if player.timeToReload > 0 then
-                player.timeToReload
-                    - dt
-                    |> max 0
-                    |> PlayerAttackCooldown player.id
-                    |> List.singleton
+                [ DeltaPlayer player.id (\g p -> { p | timeToReload = max 0 (p.timeToReload - dt) }) ]
             else
                 []
 
+        fireDirection =
+            Vec2.sub input.aim player.position
+
         fire =
             if input.fire && player.timeToReload == 0 then
-                [ PlayerAttacks player.id (Vec2.sub input.aim player.position) ]
+                [ DeltaPlayer player.id (\g p -> { p | timeToReload = 0.7 })
+                , DeltaGame <|
+                    Game.addLaser
+                        { start = player.position
+                        , end = Vec2.add player.position fireDirection
+                        , age = 0
+                        , colorPattern = player.colorPattern
+                        }
+                ]
             else
                 []
     in
@@ -93,91 +100,86 @@ think dt game input player =
         ]
 
 
-move : Id -> Vec2 -> Game -> Game
-move playerId dp game =
-    case Dict.get playerId game.playerById of
-        Nothing ->
-            game
+deltaPlayerMove : Vec2 -> Game -> Player -> Player
+deltaPlayerMove dp game player =
+    let
+        isObstacle tile =
+            Set.member tile game.staticObstacles
 
-        Just player ->
-            let
-                isObstacle tile =
-                    Set.member tile game.staticObstacles
+        originalPosition =
+            player.position
 
-                originalPosition =
-                    player.position
+        originalTile =
+            vec2Tile originalPosition
 
-                originalTile =
-                    vec2Tile originalPosition
+        idealPosition =
+            Vec2.add originalPosition dp
 
-                idealPosition =
-                    Vec2.add originalPosition dp
+        idealTile =
+            vec2Tile idealPosition
 
-                idealTile =
-                    vec2Tile idealPosition
+        didNotChangeTile =
+            idealTile == originalTile
 
-                didNotChangeTile =
-                    idealTile == originalTile
+        idealPositionIsObstacle =
+            isObstacle idealTile
+    in
+    if didNotChangeTile || not idealPositionIsObstacle then
+        { player | position = idealPosition }
+    else
+        let
+            ( tX, tY ) =
+                originalTile
 
-                idealPositionIsObstacle =
-                    isObstacle idealTile
-            in
-            if didNotChangeTile || not idealPositionIsObstacle then
-                { game | playerById = Dict.insert playerId { player | position = idealPosition } game.playerById }
-            else
-                let
-                    ( tX, tY ) =
-                        originalTile
+            leftTile =
+                ( tX - 1, tY )
 
-                    leftTile =
-                        ( tX - 1, tY )
+            rightTile =
+                ( tX + 1, tY )
 
-                    rightTile =
-                        ( tX + 1, tY )
+            topTile =
+                ( tX, tY + 1 )
 
-                    topTile =
-                        ( tX, tY + 1 )
+            bottomTile =
+                ( tX, tY - 1 )
 
-                    bottomTile =
-                        ( tX, tY - 1 )
+            oX =
+                toFloat tX
 
-                    oX =
-                        toFloat tX
+            oY =
+                toFloat tY
 
-                    oY =
-                        toFloat tY
+            minX =
+                if isObstacle leftTile then
+                    oX
+                else
+                    oX - 1
 
-                    minX =
-                        if isObstacle leftTile then
-                            oX
-                        else
-                            oX - 1
+            maxX =
+                if isObstacle rightTile then
+                    oX + 0.99
+                else
+                    oX + 1.99
 
-                    maxX =
-                        if isObstacle rightTile then
-                            oX + 0.99
-                        else
-                            oX + 1.99
+            minY =
+                if isObstacle bottomTile then
+                    oY
+                else
+                    oY - 1
 
-                    minY =
-                        if isObstacle bottomTile then
-                            oY
-                        else
-                            oY - 1
+            maxY =
+                if isObstacle topTile then
+                    oY + 0.99
+                else
+                    oY + 1.99
 
-                    maxY =
-                        if isObstacle topTile then
-                            oY + 0.99
-                        else
-                            oY + 1.99
+            ( iX, iY ) =
+                Vec2.toTuple idealPosition
 
-                    ( iX, iY ) =
-                        Vec2.toTuple idealPosition
+            fX =
+                clamp minX maxX iX
 
-                    fX =
-                        clamp minX maxX iX
-
-                    fY =
-                        clamp minY maxY iY
-                in
-                { game | playerById = Dict.insert playerId { player | position = vec2 fX fY } game.playerById }
+            fY =
+                clamp minY maxY iY
+        in
+        { player | position = vec2 fX fY }
