@@ -142,19 +142,40 @@ type alias Player =
     , colorPattern : ColorPattern
     , position : Vec2
     , markerPosition : Vec2
+    , timeToReload : Float
     }
 
 
 type alias PlayerInput =
-    { move : Vec2
+    { aim : Vec2
+
+    -- Mech attacks
     , fire : Bool
+
+    -- Mech transforms or change base production
+    , transform : Bool
+
+    -- Change selected units
+    -- Hold: select all units
+    , switchUnit : Bool
+
+    -- Rally selected units
+    -- Hold: retreat
+    , rally : Bool
+
+    -- Mech moves
+    , move : Vec2
     }
 
 
 neutralPlayerInput : PlayerInput
 neutralPlayerInput =
-    { move = vec2 0 0
+    { aim = vec2 0 1
     , fire = False
+    , transform = False
+    , switchUnit = False
+    , rally = False
+    , move = vec2 0 0
     }
 
 
@@ -313,6 +334,8 @@ addStaticObstacles tiles game =
 
 type Delta
     = PlayerMoves Id Vec2
+    | PlayerAttacks Id Vec2
+    | PlayerAttackCooldown Id Float
     | MarkerMoves Id Vec2
     | UnitMoves Id Float Vec2
     | UnitEntersBase Id Id
