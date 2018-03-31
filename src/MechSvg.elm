@@ -11,46 +11,45 @@ styles =
     String.join ";" >> Svg.Attributes.style
 
 
-style =
-    Svg.Attributes.style
-
-
 path =
     Svg.path
 
 
-
---
-
-
-gunOffset : Float -> Vec2
-gunOffset torsoAngle =
-    vec2 0.3 0 |> Game.rotateVector torsoAngle
+a2s : Float -> String
+a2s angle =
+    angle
+        |> Game.radiantsToDegrees
+        |> toString
 
 
 
--- Unit
+-- Mech
+{-
+   gunOffset : Float -> Vec2
+   gunOffset torsoAngle =
+       vec2 0.3 0 |> Game.rotateVector torsoAngle
+-}
 
 
 mech : Float -> String -> String -> Svg a
-mech angle brightColor darkColor =
+mech topAngle brightColor darkColor =
     let
         bodyStyle =
             styles
-            [ "fill:" ++ darkColor
-            , "stroke:" ++ brightColor
-            , "stroke-width:0.03"
-            ]
+                [ "fill:" ++ darkColor
+                , "stroke:" ++ brightColor
+                , "stroke-width:0.03"
+                ]
 
         eyesStyle =
             styles
-            [ "fill:#f80000"
-            , "stroke:#ff8383"
-            , "stroke-width:0.00553906"
-            ]
+                [ "fill:#f80000"
+                , "stroke:#ff8383"
+                , "stroke-width:0.00553906"
+                ]
     in
     g
-        [ transform "scale(3,-3) translate(0,-287.00002)" ]
+        [ transform <| "scale(3,-3) rotate(" ++ a2s topAngle ++ ") translate(0,-287.00002)" ]
         [ rect
             [ y "286.65598"
             , x "-0.34999204"

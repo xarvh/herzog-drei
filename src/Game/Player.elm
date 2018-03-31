@@ -41,6 +41,7 @@ add position game =
             , markerPosition = position
             , colorPattern = colorPattern
             , timeToReload = 0
+            , topAngle = Vec2.negate position |> Game.vecToAngle
             }
 
         playerById =
@@ -75,8 +76,11 @@ think dt game input player =
             else
                 []
 
-        fireDirection =
+        aimDirection =
             Vec2.sub input.aim player.position
+
+        aim =
+            [ DeltaPlayer player.id (\g p -> { p | topAngle = Game.vecToAngle aimDirection }) ]
 
         fire =
             if input.fire && player.timeToReload == 0 then
@@ -84,7 +88,7 @@ think dt game input player =
                 , DeltaGame <|
                     Game.addLaser
                         { start = player.position
-                        , end = Vec2.add player.position fireDirection
+                        , end = Vec2.add player.position aimDirection
                         , age = 0
                         , colorPattern = player.colorPattern
                         }
@@ -96,6 +100,7 @@ think dt game input player =
         [ moveTarget
         , movePlayer
         , reload
+        , aim
         , fire
         ]
 

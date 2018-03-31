@@ -277,7 +277,7 @@ viewPlayer game player =
     in
     Svg.g
         [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
-        [ MechSvg.mech 0 player.colorPattern.bright player.colorPattern.dark ]
+        [ MechSvg.mech player.topAngle player.colorPattern.bright player.colorPattern.dark ]
 
 
 viewMarker : Game -> Player -> Svg a
