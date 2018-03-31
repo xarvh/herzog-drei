@@ -9,6 +9,276 @@ import Random.List
 import Set exposing (Set)
 
 
+-- Basic Types
+
+
+type alias Id =
+    Int
+
+
+type alias Tile2 =
+    ( Int, Int )
+
+
+
+-- Players
+
+
+type alias Player =
+    { id : Id
+    , colorPattern : ColorPattern
+    , position : Vec2
+    , markerPosition : Vec2
+    , timeToReload : Float
+    }
+
+
+type alias PlayerInput =
+    { aim : Vec2
+
+    -- Mech attacks
+    , fire : Bool
+
+    -- Mech transforms or change base production
+    , transform : Bool
+
+    -- Change selected units
+    -- Hold: select all units
+    , switchUnit : Bool
+
+    -- Rally selected units
+    -- Hold: retreat
+    , rally : Bool
+
+    -- Mech moves
+    , move : Vec2
+    }
+
+
+neutralPlayerInput : PlayerInput
+neutralPlayerInput =
+    { aim = vec2 0 1
+    , fire = False
+    , transform = False
+    , switchUnit = False
+    , rally = False
+    , move = vec2 0 0
+    }
+
+
+
+-- Units
+
+
+type UnitOrder
+    = UnitOrderStay
+    | UnitOrderFollowMarker
+    | UnitOrderMoveTo Vec2
+    | UnitOrderEnterBase Id
+
+
+type UnitMode
+    = UnitModeFree
+    | UnitModeBase Id
+
+
+type alias Unit =
+    { id : Id
+    , order : UnitOrder
+    , ownerId : Id
+    , mode : UnitMode
+
+    --
+    , position : Vec2
+    , movementAngle : Float
+
+    --
+    , maybeTargetId : Maybe Id
+    , timeToReload : Float
+    , targetingAngle : Float
+    }
+
+
+
+-- Bases
+
+
+type alias Base =
+    { id : Id
+    , isActive : Bool
+    , containedUnits : Int
+    , maybeOwnerId : Maybe Id
+    , position : Tile2
+    }
+
+
+
+-- Laser
+
+
+type alias Laser =
+    { start : Vec2
+    , end : Vec2
+    , age : Float
+    , colorPattern : ColorPattern
+    }
+
+
+
+-- Game
+
+
+type alias Game =
+    { baseById : Dict Id Base
+    , playerById : Dict Id Player
+    , unitById : Dict Id Unit
+    , lastId : Id
+
+    --
+    , lasers : List Laser
+
+    -- includes terrain and bases
+    , staticObstacles : Set Tile2
+
+    -- this is the union between static obstacles and unit positions
+    , unpassableTiles : Set Tile2
+
+    -- random
+    , seed : Random.Seed
+    , shuffledColorPatterns : List ColorPattern
+    }
+
+
+init : Random.Seed -> Game
+init seed =
+    { baseById = Dict.empty
+    , unitById = Dict.empty
+    , playerById = Dict.empty
+    , lastId = 0
+
+    --
+    , lasers = []
+    , staticObstacles = Set.empty
+    , unpassableTiles = Set.empty
+
+    --
+    , seed = seed
+    , shuffledColorPatterns = Random.step (Random.List.shuffle ColorPattern.patterns) seed |> Tuple.first
+    }
+
+
+
+-- Deltas
+
+
+type Delta
+    = DeltaGame (Game -> Game)
+    | DeltaPlayer Id (Game -> Player -> Player)
+    | DeltaUnit Id (Game -> Unit -> Unit)
+    | DeltaBase Id (Game -> Base -> Base)
+
+
+
+-- Game manipulation helpers
+
+
+updateBase : Base -> Game -> Game
+updateBase base game =
+    { game | baseById = Dict.insert base.id base game.baseById }
+
+
+updatePlayer : Player -> Game -> Game
+updatePlayer player game =
+    { game | playerById = Dict.insert player.id player game.playerById }
+
+
+updateUnit : Unit -> Game -> Game
+updateUnit unit game =
+    { game | unitById = Dict.insert unit.id unit game.unitById }
+
+
+addLaser : Laser -> Game -> Game
+addLaser laser game =
+    { game | lasers = laser :: game.lasers }
+
+
+with : (Game -> Dict Id a) -> Game -> Id -> (a -> Game) -> Game
+with getter game id fn =
+    case Dict.get id (getter game) of
+        Nothing ->
+            game
+
+        Just item ->
+            fn item
+
+
+withBase : Game -> Id -> (Base -> Game) -> Game
+withBase =
+    with .baseById
+
+
+withPlayer : Game -> Id -> (Player -> Game) -> Game
+withPlayer =
+    with .playerById
+
+
+withUnit : Game -> Id -> (Unit -> Game) -> Game
+withUnit =
+    with .unitById
+
+
+
+-- Obstacles
+
+
+addStaticObstacles : List Tile2 -> Game -> Game
+addStaticObstacles tiles game =
+    { game | staticObstacles = Set.union (Set.fromList tiles) game.staticObstacles }
+
+
+
+-- Bases
+
+
+maximumDistanceForUnitToEnterBase : Float
+maximumDistanceForUnitToEnterBase =
+    2.1
+
+
+baseColorPattern : Game -> Base -> ColorPattern
+baseColorPattern game base =
+    base.maybeOwnerId
+        |> Maybe.map (playerColorPattern game)
+        |> Maybe.withDefault ColorPattern.neutral
+
+
+baseCorners : Base -> List Vec2
+baseCorners base =
+    let
+        ( x, y ) =
+            base.position
+                |> tile2Vec
+                |> Vec2.toTuple
+
+        r =
+            0.8
+    in
+    [ vec2 (x + r) (y + r)
+    , vec2 (x - r) (y + r)
+    , vec2 (x - r) (y - r)
+    , vec2 (x + r) (y - r)
+    ]
+
+
+baseMaxContainedUnits : Int
+baseMaxContainedUnits =
+    -- A very convoluted way to write `4`
+    Base 0 False 0 Nothing ( 0, 0 )
+        |> baseCorners
+        |> List.length
+
+
+
 -- Geometry helpers
 
 
@@ -108,7 +378,7 @@ rotateVector angle v =
 
 
 
--- Other stuff
+-- Color Patterns
 
 
 playerColorPattern : Game -> Id -> ColorPattern
@@ -119,227 +389,3 @@ playerColorPattern game playerId =
 
         Just player ->
             player.colorPattern
-
-
-
---
-
-
-type alias Id =
-    Int
-
-
-type alias Tile2 =
-    ( Int, Int )
-
-
-
--- Players
-
-
-type alias Player =
-    { id : Id
-    , colorPattern : ColorPattern
-    , position : Vec2
-    , markerPosition : Vec2
-    , timeToReload : Float
-    }
-
-
-type alias PlayerInput =
-    { aim : Vec2
-
-    -- Mech attacks
-    , fire : Bool
-
-    -- Mech transforms or change base production
-    , transform : Bool
-
-    -- Change selected units
-    -- Hold: select all units
-    , switchUnit : Bool
-
-    -- Rally selected units
-    -- Hold: retreat
-    , rally : Bool
-
-    -- Mech moves
-    , move : Vec2
-    }
-
-
-neutralPlayerInput : PlayerInput
-neutralPlayerInput =
-    { aim = vec2 0 1
-    , fire = False
-    , transform = False
-    , switchUnit = False
-    , rally = False
-    , move = vec2 0 0
-    }
-
-
-
--- Units
-
-
-type UnitOrder
-    = UnitOrderStay
-    | UnitOrderFollowMarker
-    | UnitOrderMoveTo Vec2
-    | UnitOrderEnterBase Id
-
-
-type UnitMode
-    = UnitModeFree
-    | UnitModeBase Id
-
-
-unitAttackRange : Float
-unitAttackRange =
-    4.0
-
-
-type alias Unit =
-    { id : Id
-    , order : UnitOrder
-    , ownerId : Id
-    , mode : UnitMode
-
-    --
-    , position : Vec2
-    , movementAngle : Float
-
-    --
-    , maybeTargetId : Maybe Id
-    , timeToReload : Float
-    , targetingAngle : Float
-    }
-
-
-
--- Bases
-
-
-maximumDistanceForUnitToEnterBase : Float
-maximumDistanceForUnitToEnterBase =
-    2.1
-
-
-baseColorPattern : Game -> Base -> ColorPattern
-baseColorPattern game base =
-    base.maybeOwnerId
-        |> Maybe.map (playerColorPattern game)
-        |> Maybe.withDefault ColorPattern.neutral
-
-
-baseCorners : Base -> List Vec2
-baseCorners base =
-    let
-        ( x, y ) =
-            base.position
-                |> tile2Vec
-                |> Vec2.toTuple
-
-        r =
-            0.8
-    in
-    [ vec2 (x + r) (y + r)
-    , vec2 (x - r) (y + r)
-    , vec2 (x - r) (y - r)
-    , vec2 (x + r) (y - r)
-    ]
-
-
-baseMaxContainedUnits : Int
-baseMaxContainedUnits =
-    -- A very convoluted way to write `4`
-    Base 0 False 0 Nothing ( 0, 0 )
-        |> baseCorners
-        |> List.length
-
-
-type alias Base =
-    { id : Id
-    , isActive : Bool
-    , containedUnits : Int
-    , maybeOwnerId : Maybe Id
-    , position : Tile2
-    }
-
-
-
--- Laser
-
-
-type alias Laser =
-    { start : Vec2
-    , end : Vec2
-    , age : Float
-    , colorPattern : ColorPattern
-    }
-
-
-
--- Game
-
-
-type alias Game =
-    { baseById : Dict Id Base
-    , playerById : Dict Id Player
-    , unitById : Dict Id Unit
-    , lastId : Id
-
-    --
-    , lasers : List Laser
-
-    -- includes terrain and bases
-    , staticObstacles : Set Tile2
-
-    -- this is the union between static obstacles and unit positions
-    , unpassableTiles : Set Tile2
-
-    -- random
-    , seed : Random.Seed
-    , shuffledColorPatterns : List ColorPattern
-    }
-
-
-init : Random.Seed -> Game
-init seed =
-    { baseById = Dict.empty
-    , unitById = Dict.empty
-    , playerById = Dict.empty
-    , lastId = 0
-
-    --
-    , lasers = []
-    , staticObstacles = Set.empty
-    , unpassableTiles = Set.empty
-
-    --
-    , seed = seed
-    , shuffledColorPatterns = Random.step (Random.List.shuffle ColorPattern.patterns) seed |> Tuple.first
-    }
-
-
-addStaticObstacles : List Tile2 -> Game -> Game
-addStaticObstacles tiles game =
-    { game | staticObstacles = Set.union (Set.fromList tiles) game.staticObstacles }
-
-
-
--- Deltas
-
-
-type Delta
-    = PlayerMoves Id Vec2
-    | PlayerAttacks Id Vec2
-    | PlayerAttackCooldown Id Float
-    | MarkerMoves Id Vec2
-    | UnitMoves Id Float Vec2
-    | UnitEntersBase Id Id
-    | UnitAttackCooldown Id Float
-    | UnitAcquiresTarget Id Id
-    | UnitAims Id Float
-    | UnitShoots Id Float Id
