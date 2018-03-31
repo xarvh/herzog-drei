@@ -35,13 +35,17 @@ add position game =
                 |> List.head
                 |> Maybe.withDefault ColorPattern.neutral
 
+        startAngle =
+            Vec2.negate position |> Game.vecToAngle
+
         player =
             { id = id
             , position = position
             , markerPosition = position
             , colorPattern = colorPattern
             , timeToReload = 0
-            , topAngle = Vec2.negate position |> Game.vecToAngle
+            , headAngle = startAngle
+            , topAngle = startAngle
             }
 
         playerById =
@@ -79,8 +83,17 @@ think dt game input player =
         aimDirection =
             Vec2.sub input.aim player.position
 
+        aimAngle =
+            Game.vecToAngle aimDirection
+
         aim =
-            [ DeltaPlayer player.id (\g p -> { p | topAngle = Game.vecToAngle aimDirection }) ]
+            [ DeltaPlayer player.id <|
+                \g p ->
+                    { p
+                        | headAngle = Game.turnTo (5 * pi * dt) aimAngle p.headAngle
+                        , topAngle = Game.turnTo (2 * pi * dt) aimAngle p.topAngle
+                    }
+            ]
 
         fire =
             if input.fire && player.timeToReload == 0 then

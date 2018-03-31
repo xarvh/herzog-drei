@@ -30,6 +30,7 @@ type alias Player =
     , position : Vec2
     , markerPosition : Vec2
     , timeToReload : Float
+    , headAngle : Float
     , topAngle : Float
     }
 
