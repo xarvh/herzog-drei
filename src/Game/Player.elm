@@ -32,10 +32,18 @@ transformTime =
 
 transformMode : Player -> TransformMode
 transformMode player =
-    if player.transformState < 0.5 then
-        Mech
-    else
-        Plane
+    case player.transformingTo of
+        Mech ->
+            if player.transformState < 1 then
+                Mech
+            else
+                Plane
+
+        Plane ->
+            if player.transformState > 0 then
+                Plane
+            else
+                Mech
 
 
 
@@ -97,9 +105,11 @@ think dt game input player =
                 |> clampToRadius 1
                 |> Vec2.scale (speed * dt)
 
-        -- TODO: prevent transforming to mech if obstacles below
+        hasFreeGround p =
+            Set.member (vec2Tile p.position) game.staticObstacles |> not
+
         transformingTo =
-            if input.transform then
+            if input.transform && hasFreeGround player then
                 case player.transformingTo of
                     Plane ->
                         if player.transformState == 1 then
