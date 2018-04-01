@@ -277,7 +277,7 @@ viewPlayer game player =
     in
     Svg.g
         [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
-        [ MechSvg.mech player.headAngle player.topAngle player.colorPattern.bright player.colorPattern.dark ]
+        [ MechSvg.mech 0 player.headAngle player.topAngle player.colorPattern.bright player.colorPattern.dark ]
 
 
 viewMarker : Game -> Player -> Svg a
@@ -301,7 +301,7 @@ testView model =
             turns 0.1
 
         period =
-            UnitSvg.laserLifeSpan
+            1
 
         wrap n p =
             n - (toFloat (floor (n / p)) * p)
@@ -317,9 +317,9 @@ testView model =
                 |> Vec2.scale 10
     in
     Svg.g
-        [ transform "scale(0.1, 0.1)" ]
-        [ UnitSvg.unit moveAngle (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
-        , UnitSvg.laser start end neutral.bright age
+        [ transform "scale(0.4, 0.4)" ]
+        [ MechSvg.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
+        --, UnitSvg.laser start end neutral.bright age
         ]
 
 
