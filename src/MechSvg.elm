@@ -4,145 +4,166 @@ import Ease
 import Game exposing (normalizeAngle)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
-import Svg.Attributes exposing (..)
+import Svg.Attributes as SA exposing (transform)
 
 
 styles =
-    String.join ";" >> Svg.Attributes.style
-
-
-style =
-    Svg.Attributes.style
+    String.join ";" >> SA.style
 
 
 path =
     Svg.path
 
 
-
---
-
-
-gunOffset : Float -> Vec2
-gunOffset torsoAngle =
-    vec2 0.3 0 |> Game.rotateVector torsoAngle
+a2s : Float -> String
+a2s angle =
+    -angle
+        |> Game.radiantsToDegrees
+        |> toString
 
 
+x =
+    toString >> SA.x
 
--- Unit
+
+y =
+    toString >> SA.y
 
 
-mech : Float -> String -> String -> Svg a
-mech angle brightColor darkColor =
+rx =
+    toString >> SA.rx
+
+
+ry =
+    toString >> SA.ry
+
+
+cx =
+    toString >> SA.cx
+
+
+cy =
+    toString >> SA.cy
+
+
+width =
+    toString >> SA.width
+
+
+height =
+    toString >> SA.height
+
+
+
+-- Mech
+{-
+   gunOffset : Float -> Vec2
+   gunOffset torsoAngle =
+       vec2 0.3 0 |> Game.rotateVector torsoAngle
+-}
+
+
+mech : Float -> Float -> Float -> String -> String -> Svg a
+mech t headAngle topAngle brightColor darkColor =
     let
+        smooth : Float -> Float -> Float
+        smooth a b =
+            let
+                tt =
+                    Ease.inOutCubic t
+            in
+            tt * b + (1 - tt) * a
+
+        step : Float -> Float -> Float
+        step a b =
+            if t > 0 then
+                b
+            else
+                a
+
         bodyStyle =
-            ""
+            styles
+                [ "fill:" ++ darkColor
+                , "stroke:" ++ brightColor
+                , "stroke-width:0.03"
+                ]
 
         eyesStyle =
-            ""
+            styles
+                [ "fill:#f80000"
+                , "stroke:#ff8383"
+                , "stroke-width:0.00553906"
+                ]
+
+        plate xx yy ww hh aa =
+            rect
+                [ transform <| "translate(" ++ toString xx ++ "," ++ toString yy ++ ") rotate(" ++ toString aa ++ ")"
+                , bodyStyle
+                , width ww
+                , height hh
+                , x (-ww / 2)
+                , y (-hh / 2)
+                ]
+                []
+
+        plates xx yy ww hh aa =
+            g []
+                [ plate -xx yy ww hh -aa
+                , plate xx yy ww hh aa
+                ]
+
+        eye xx yy aa =
+            ellipse
+                [ transform <| "translate(" ++ toString xx ++ "," ++ toString yy ++ ") rotate(" ++ toString aa ++ ")"
+                , eyesStyle
+                , ry 0.027
+                , rx 0.018
+                ]
+                []
     in
-    g
-        [ transform "scale(3,-3) translate(0,-287.00002)" ]
-        [ rect
-            [ y "286.65598"
-            , x "-0.34999204"
-            , height "0.26498201"
-            , width "0.083487481"
-            , style "fill:#7c7c7c;fill-opacity:1;stroke:#c1c1c1;stroke-width:0.03;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+    g []
+        [ g
+            [ transform <| "scale(3,3) rotate(" ++ a2s topAngle ++ ")" ]
+            -- guns
+            [ plates (smooth 0.39 0.15) (smooth 0.21 0.26) 0.08 0.26 0
+
+            -- arms / front wings
+            , plates
+                (smooth 0.35 0.25)
+                (smooth 0.02 0.03)
+                (smooth 0.2 0.4)
+                (smooth 0.23 0.15)
+                (smooth 0 -15)
+
+            -- mid beam
+            , plate
+                0
+                (smooth -0.04 0.04)
+                (smooth 0.65 0.3)
+                (smooth 0.17 0.12)
+                0
+
+            -- shoulders / rear wings
+            , plates
+                (smooth 0.29 0.12)
+                (smooth -0.04 -0.25)
+                (smooth 0.2 0.15)
+                (smooth 0.23 0.25)
+                (smooth 0 45)
             ]
-            []
-        , rect
-            [ transform "scale(-1,1)"
-            , style "fill:#7c7c7c;fill-opacity:1;stroke:#c1c1c1;stroke-width:0.03;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-            , width "0.083487481"
-            , height "0.26498201"
-            , x "-0.35230175"
-            , y "286.65598"
+        , g
+            [ transform <| "scale(3,3) rotate(" ++ a2s (step headAngle topAngle) ++ ")" ]
+            [ ellipse
+                [ cx 0
+                , cy -0.01
+                , rx 0.08
+                , ry <| smooth 0.17 0.34
+                , bodyStyle
+                ]
+                []
+            , eye 0.03 (smooth 0.1 0.22) 14
+            , eye -0.03 (smooth 0.1 0.22) -14
+            , eye 0.05 (smooth 0.03 0.15) 6
+            , eye -0.05 (smooth 0.03 0.15) -6
             ]
-            []
-        , rect
-            [ y "286.86285"
-            , x "-0.42440477"
-            , height "0.23229113"
-            , width "0.20145902"
-            , style "fill:#7c7c7c;fill-opacity:1;stroke:#c1c1c1;stroke-width:0.03;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-            ]
-            []
-        , rect
-            [ y "286.95251"
-            , x "-0.29396078"
-            , height "0.16940348"
-            , width "0.6519469"
-            , style "fill:#7c7c7c;fill-opacity:1;stroke:#c1c1c1;stroke-width:0.03;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-            ]
-            []
-        , rect
-            [ transform "scale(-1,1)"
-            , style "fill:#7c7c7c;fill-opacity:1;stroke:#c1c1c1;stroke-width:0.03;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-            , width "0.20145902"
-            , height "0.23229113"
-            , x "-0.42671448"
-            , y "286.86285"
-            ]
-            []
-        , rect
-            [ style "fill:#7c7c7c;fill-opacity:1;stroke:#c1c1c1;stroke-width:0.03;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-            , width "0.20277083"
-            , height "0.23613821"
-            , x "-0.38636273"
-            , y "286.91919"
-            ]
-            []
-        , rect
-            [ y "286.91919"
-            , x "0.18590166"
-            , height "0.23613821"
-            , width "0.20277083"
-            , style "fill:#7c7c7c;fill-opacity:1;stroke:#c1c1c1;stroke-width:0.03;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-            ]
-            []
-        , ellipse
-            [ cx "0.010910868"
-            , cy "286.99118"
-            , rx "0.084701769"
-            , ry "0.16940352"
-            , style "fill:#7c7c7c;fill-opacity:1;stroke:#c1c1c1;stroke-width:0.03;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-            ]
-            []
-        , ellipse
-            [ transform "rotate(13.994631)"
-            , style "fill:#f80000;fill-opacity:1;stroke:#ff8383;stroke-width:0.00553906;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-            , ry "0.027490584"
-            , rx "0.017793473"
-            , cy "278.37259"
-            , cx "69.358574"
-            ]
-            []
-        , ellipse
-            [ cx "35.681171"
-            , cy "284.72101"
-            , rx "0.017793473"
-            , ry "0.027490584"
-            , style "fill:#f80000;fill-opacity:1;stroke:#ff8383;stroke-width:0.00553906;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-            , transform "rotate(7.151609)"
-            ]
-            []
-        , ellipse
-            [ cx "69.338051"
-            , cy "278.37772"
-            , rx "0.017793473"
-            , ry "0.027490584"
-            , style "fill:#f80000;fill-opacity:1;stroke:#ff8383;stroke-width:0.00553906;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-            , transform "matrix(-0.97031839,0.24183097,0.24183097,0.97031839,0,0)"
-            ]
-            []
-        , ellipse
-            [ transform "matrix(-0.9922202,0.12449527,0.12449527,0.9922202,0,0)"
-            , style "fill:#f80000;fill-opacity:1;stroke:#ff8383;stroke-width:0.00553906;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-            , ry "0.027490584"
-            , rx "0.017793473"
-            , cy "284.72379"
-            , cx "35.659008"
-            ]
-            []
         ]

@@ -9,12 +9,45 @@ import Game
         , Id
         , Player
         , PlayerInput
+        , TransformMode(..)
         , clampToRadius
         , tile2Vec
         , vec2Tile
         )
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
+
+
+-- globals
+
+
+transformTime : Float
+transformTime =
+    0.2
+
+
+
+--
+
+
+transformMode : Player -> TransformMode
+transformMode player =
+    case player.transformingTo of
+        Mech ->
+            if player.transformState < 1 then
+                Mech
+            else
+                Plane
+
+        Plane ->
+            if player.transformState > 0 then
+                Plane
+            else
+                Mech
+
+
+
+--
 
 
 add : Vec2 -> Game -> ( Game, Player )
@@ -35,12 +68,19 @@ add position game =
                 |> List.head
                 |> Maybe.withDefault ColorPattern.neutral
 
+        startAngle =
+            Vec2.negate position |> Game.vecToAngle
+
         player =
             { id = id
             , position = position
             , markerPosition = position
             , colorPattern = colorPattern
             , timeToReload = 0
+            , headAngle = startAngle
+            , topAngle = startAngle
+            , transformState = 0
+            , transformingTo = Mech
             }
 
         playerById =
@@ -53,12 +93,54 @@ think : Float -> Game -> PlayerInput -> Player -> List Delta
 think dt game input player =
     let
         speed =
-            2
+            case transformMode player of
+                Mech ->
+                    2.0
+
+                Plane ->
+                    6.0
 
         dx =
             input.move
                 |> clampToRadius 1
                 |> Vec2.scale (speed * dt)
+
+        hasFreeGround p =
+            Set.member (vec2Tile p.position) game.staticObstacles |> not
+
+        transformingTo =
+            if input.transform && hasFreeGround player then
+                case player.transformingTo of
+                    Plane ->
+                        if player.transformState == 1 then
+                            Mech
+                        else
+                            player.transformingTo
+
+                    Mech ->
+                        if player.transformState == 0 then
+                            Plane
+                        else
+                            player.transformingTo
+            else
+                player.transformingTo
+
+        transformDirection =
+            case transformingTo of
+                Mech ->
+                    (-)
+
+                Plane ->
+                    (+)
+
+        transform =
+            DeltaPlayer player.id
+                (\g p ->
+                    { p
+                        | transformingTo = transformingTo
+                        , transformState = clamp 0 1 (transformDirection p.transformState (dt / transformTime))
+                    }
+                )
 
         moveTarget =
             if input.rally then
@@ -66,8 +148,16 @@ think dt game input player =
             else
                 []
 
+        deltaMoveOrWalk =
+            case transformMode player of
+                Mech ->
+                    deltaPlayerWalk
+
+                Plane ->
+                    deltaPlayerFly
+
         movePlayer =
-            [ DeltaPlayer player.id (deltaPlayerMove dx) ]
+            [ DeltaPlayer player.id (deltaMoveOrWalk dx) ]
 
         reload =
             if player.timeToReload > 0 then
@@ -75,8 +165,20 @@ think dt game input player =
             else
                 []
 
-        fireDirection =
+        aimDirection =
             Vec2.sub input.aim player.position
+
+        aimAngle =
+            Game.vecToAngle aimDirection
+
+        aim =
+            [ DeltaPlayer player.id <|
+                \g p ->
+                    { p
+                        | headAngle = Game.turnTo (5 * pi * dt) aimAngle p.headAngle
+                        , topAngle = Game.turnTo (2 * pi * dt) aimAngle p.topAngle
+                    }
+            ]
 
         fire =
             if input.fire && player.timeToReload == 0 then
@@ -84,7 +186,7 @@ think dt game input player =
                 , DeltaGame <|
                     Game.addLaser
                         { start = player.position
-                        , end = Vec2.add player.position fireDirection
+                        , end = Vec2.add player.position aimDirection
                         , age = 0
                         , colorPattern = player.colorPattern
                         }
@@ -96,12 +198,19 @@ think dt game input player =
         [ moveTarget
         , movePlayer
         , reload
+        , aim
         , fire
+        , [ transform ]
         ]
 
 
-deltaPlayerMove : Vec2 -> Game -> Player -> Player
-deltaPlayerMove dp game player =
+deltaPlayerFly : Vec2 -> Game -> Player -> Player
+deltaPlayerFly dp game player =
+    { player | position = Vec2.add player.position dp }
+
+
+deltaPlayerWalk : Vec2 -> Game -> Player -> Player
+deltaPlayerWalk dp game player =
     let
         isObstacle tile =
             Set.member tile game.staticObstacles

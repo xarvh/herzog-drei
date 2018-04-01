@@ -24,12 +24,23 @@ type alias Tile2 =
 -- Players
 
 
+type TransformMode
+    = Mech
+    | Plane
+
+
 type alias Player =
     { id : Id
     , colorPattern : ColorPattern
     , position : Vec2
     , markerPosition : Vec2
     , timeToReload : Float
+
+    --
+    , headAngle : Float
+    , topAngle : Float
+    , transformState : Float
+    , transformingTo : TransformMode
     }
 
 
