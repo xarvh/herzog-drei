@@ -9,12 +9,37 @@ import Game
         , Id
         , Player
         , PlayerInput
+        , TransformMode(..)
         , clampToRadius
         , tile2Vec
         , vec2Tile
         )
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
+
+
+-- globals
+
+
+transformTime : Float
+transformTime =
+    0.2
+
+
+
+--
+
+
+transformMode : Player -> TransformMode
+transformMode player =
+    if player.transformState < 0.5 then
+        Mech
+    else
+        Plane
+
+
+
+--
 
 
 add : Vec2 -> Game -> ( Game, Player )
@@ -46,6 +71,8 @@ add position game =
             , timeToReload = 0
             , headAngle = startAngle
             , topAngle = startAngle
+            , transformState = 0
+            , transformingTo = Mech
             }
 
         playerById =
@@ -58,12 +85,52 @@ think : Float -> Game -> PlayerInput -> Player -> List Delta
 think dt game input player =
     let
         speed =
-            2
+            case transformMode player of
+                Mech ->
+                    2.0
+
+                Plane ->
+                    6.0
 
         dx =
             input.move
                 |> clampToRadius 1
                 |> Vec2.scale (speed * dt)
+
+        -- TODO: prevent transforming to mech if obstacles below
+        transformingTo =
+            if input.transform then
+                case player.transformingTo of
+                    Plane ->
+                        if player.transformState == 1 then
+                            Mech
+                        else
+                            player.transformingTo
+
+                    Mech ->
+                        if player.transformState == 0 then
+                            Plane
+                        else
+                            player.transformingTo
+            else
+                player.transformingTo
+
+        transformDirection =
+            case transformingTo of
+                Mech ->
+                    (-)
+
+                Plane ->
+                    (+)
+
+        transform =
+            DeltaPlayer player.id
+                (\g p ->
+                    { p
+                        | transformingTo = transformingTo
+                        , transformState = clamp 0 1 (transformDirection p.transformState (dt / transformTime))
+                    }
+                )
 
         moveTarget =
             if input.rally then
@@ -71,8 +138,16 @@ think dt game input player =
             else
                 []
 
+        deltaMoveOrWalk =
+            case transformMode player of
+                Mech ->
+                    deltaPlayerWalk
+
+                Plane ->
+                    deltaPlayerFly
+
         movePlayer =
-            [ DeltaPlayer player.id (deltaPlayerMove dx) ]
+            [ DeltaPlayer player.id (deltaMoveOrWalk dx) ]
 
         reload =
             if player.timeToReload > 0 then
@@ -115,11 +190,17 @@ think dt game input player =
         , reload
         , aim
         , fire
+        , [ transform ]
         ]
 
 
-deltaPlayerMove : Vec2 -> Game -> Player -> Player
-deltaPlayerMove dp game player =
+deltaPlayerFly : Vec2 -> Game -> Player -> Player
+deltaPlayerFly dp game player =
+    { player | position = Vec2.add player.position dp }
+
+
+deltaPlayerWalk : Vec2 -> Game -> Player -> Player
+deltaPlayerWalk dp game player =
     let
         isObstacle tile =
             Set.member tile game.staticObstacles

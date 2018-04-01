@@ -17,7 +17,7 @@ path =
 
 a2s : Float -> String
 a2s angle =
-    angle
+    -angle
         |> Game.radiantsToDegrees
         |> toString
 
@@ -152,7 +152,7 @@ mech t headAngle topAngle brightColor darkColor =
                 (smooth 0 45)
             ]
         , g
-            [ transform <| "scale(3,3) rotate(" ++ a2s (step headAngle 0) ++ ")" ]
+            [ transform <| "scale(3,3) rotate(" ++ a2s (step headAngle topAngle) ++ ")" ]
             [ ellipse
                 [ cx 0
                 , cy -0.01

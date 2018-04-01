@@ -277,7 +277,13 @@ viewPlayer game player =
     in
     Svg.g
         [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
-        [ MechSvg.mech 0 player.headAngle player.topAngle player.colorPattern.bright player.colorPattern.dark ]
+        [ MechSvg.mech
+            player.transformState
+            player.headAngle
+            player.topAngle
+            player.colorPattern.bright
+            player.colorPattern.dark
+        ]
 
 
 viewMarker : Game -> Player -> Svg a
@@ -319,6 +325,7 @@ testView model =
     Svg.g
         [ transform "scale(0.4, 0.4)" ]
         [ MechSvg.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
+
         --, UnitSvg.laser start end neutral.bright age
         ]
 
