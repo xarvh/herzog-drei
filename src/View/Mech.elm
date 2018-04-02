@@ -1,58 +1,9 @@
 module View.Mech exposing (..)
 
-import Ease
 import Game exposing (normalizeAngle)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
-import Svg.Attributes as SA exposing (transform)
-
-
-styles =
-    String.join ";" >> SA.style
-
-
-path =
-    Svg.path
-
-
-a2s : Float -> String
-a2s angle =
-    -angle
-        |> Game.radiantsToDegrees
-        |> toString
-
-
-x =
-    toString >> SA.x
-
-
-y =
-    toString >> SA.y
-
-
-rx =
-    toString >> SA.rx
-
-
-ry =
-    toString >> SA.ry
-
-
-cx =
-    toString >> SA.cx
-
-
-cy =
-    toString >> SA.cy
-
-
-width =
-    toString >> SA.width
-
-
-height =
-    toString >> SA.height
-
+import View exposing (..)
 
 
 -- Mech
@@ -66,39 +17,18 @@ height =
 mech : Float -> Float -> Float -> String -> String -> Svg a
 mech t headAngle topAngle brightColor darkColor =
     let
-        smooth : Float -> Float -> Float
-        smooth a b =
-            let
-                tt =
-                    Ease.inOutCubic t
-            in
-            tt * b + (1 - tt) * a
+        smooth =
+            View.smooth t
 
-        step : Float -> Float -> Float
-        step a b =
-            if t > 0 then
-                b
-            else
-                a
-
-        bodyStyle =
-            styles
-                [ "fill:" ++ darkColor
-                , "stroke:" ++ brightColor
-                , "stroke-width:0.03"
-                ]
-
-        eyesStyle =
-            styles
-                [ "fill:#f80000"
-                , "stroke:#ff8383"
-                , "stroke-width:0.00553906"
-                ]
+        step =
+            View.step t
 
         plate xx yy ww hh aa =
             rect
-                [ transform <| "translate(" ++ toString xx ++ "," ++ toString yy ++ ") rotate(" ++ toString aa ++ ")"
-                , bodyStyle
+                [ transform [ translate2 xx yy, rotateDeg aa ]
+                , fill darkColor
+                , stroke brightColor
+                , strokeWidth 0.03
                 , width ww
                 , height hh
                 , x (-ww / 2)
@@ -114,8 +44,10 @@ mech t headAngle topAngle brightColor darkColor =
 
         eye xx yy aa =
             ellipse
-                [ transform <| "translate(" ++ toString xx ++ "," ++ toString yy ++ ") rotate(" ++ toString aa ++ ")"
-                , eyesStyle
+                [ transform [ translate2 xx yy, rotateDeg aa ]
+                , fill "#f80000"
+                , stroke "#990000"
+                , strokeWidth 0.01
                 , ry 0.027
                 , rx 0.018
                 ]
@@ -123,7 +55,7 @@ mech t headAngle topAngle brightColor darkColor =
     in
     g []
         [ g
-            [ transform <| "scale(3,3) rotate(" ++ a2s topAngle ++ ")" ]
+            [ transform [ scale 3, rotateRad topAngle ] ]
             -- guns
             [ plates (smooth 0.39 0.15) (smooth 0.21 0.26) 0.08 0.26 0
 
@@ -133,7 +65,7 @@ mech t headAngle topAngle brightColor darkColor =
                 (smooth 0.02 0.03)
                 (smooth 0.2 0.4)
                 (smooth 0.23 0.15)
-                (smooth 0 -15)
+                (smooth 0 15)
 
             -- mid beam
             , plate
@@ -149,16 +81,18 @@ mech t headAngle topAngle brightColor darkColor =
                 (smooth -0.04 -0.25)
                 (smooth 0.2 0.15)
                 (smooth 0.23 0.25)
-                (smooth 0 45)
+                (smooth 0 -45)
             ]
         , g
-            [ transform <| "scale(3,3) rotate(" ++ a2s (step headAngle topAngle) ++ ")" ]
+            [ transform [ scale 3, rotateRad (step headAngle topAngle) ] ]
             [ ellipse
                 [ cx 0
                 , cy -0.01
                 , rx 0.08
                 , ry <| smooth 0.17 0.34
-                , bodyStyle
+                , fill darkColor
+                , stroke brightColor
+                , strokeWidth 0.03
                 ]
                 []
             , eye 0.03 (smooth 0.1 0.22) 14

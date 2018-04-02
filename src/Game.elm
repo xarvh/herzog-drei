@@ -314,15 +314,6 @@ clampToRadius radius v =
         Vec2.scale (radius / sqrt ll) v
 
 
-vecToString : Vec2 -> String
-vecToString v =
-    let
-        ( x, y ) =
-            Vec2.toTuple v
-    in
-    toString x ++ "," ++ toString y
-
-
 vec2Tile : Vec2 -> Tile2
 vec2Tile v =
     let
@@ -344,11 +335,6 @@ vecToAngle v =
             Vec2.toTuple v
     in
     atan2 x y
-
-
-radiantsToDegrees : Float -> Float
-radiantsToDegrees r =
-    r * (180 / pi)
 
 
 normalizeAngle : Float -> Float

@@ -4,7 +4,7 @@ import ColorPattern exposing (ColorPattern)
 import Ease
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
-import Svg.Attributes exposing (..)
+import View exposing (..)
 
 
 type alias Seconds =
@@ -36,7 +36,7 @@ explosion : (Gfx -> a) -> Vec2 -> Float -> a
 explosion toDelta position size =
     toDelta
         { age = 0
-        , maxAge = 5.0
+        , maxAge = 1.0
         , render = Explosion position size
         }
 
@@ -61,10 +61,6 @@ update dt cosmetic =
 -- View
 
 
-styles =
-    String.join ";" >> Svg.Attributes.style
-
-
 render : Gfx -> Svg a
 render cosmetic =
     let
@@ -73,16 +69,21 @@ render cosmetic =
     in
     case cosmetic.render of
         Beam start end colorPattern ->
+            let
+                ( sx, sy ) =
+                    Vec2.toTuple start
+
+                ( ex, ey ) =
+                    Vec2.toTuple end
+            in
             line
-                [ start |> Vec2.getX |> toString |> x1
-                , start |> Vec2.getY |> toString |> y1
-                , end |> Vec2.getX |> toString |> x2
-                , end |> Vec2.getY |> toString |> y2
-                , styles
-                    [ "stroke-width:" ++ toString (0.1 * (1 + 3 * t))
-                    , "stroke:" ++ colorPattern.bright
-                    , "opacity:" ++ toString (1 - Ease.outExpo t)
-                    ]
+                [ x1 sx
+                , y1 sy
+                , x2 ex
+                , y2 ey
+                , strokeWidth (0.1 * (1 + 3 * t))
+                , stroke colorPattern.bright
+                , opacity (1 - Ease.outExpo t)
                 ]
                 []
 
@@ -103,16 +104,21 @@ render cosmetic =
                             t * size * sin a
                     in
                     circle
-                        [ cx <| toString x
-                        , cy <| toString y
-                        , r <| toString <| (t * 0.9 + 0.1) * 0.2 * size
-                        , opacity <| toString <| (1 - t) / 3
+                        [ cx x
+                        , cy y
+                        , r <| size * (t * 0.9 + 0.1)
+                        , opacity (1 - t)
                         , fill "yellow"
                         , stroke "orange"
-                        , strokeWidth "0.1"
+                        , strokeWidth 0.1
                         ]
                         []
             in
             List.range 0 (particleCount - 1)
                 |> List.map particleByIndex
-                |> g [] --[ transform <| "translate(" ++ Game.vecToString position ++ ")" ]
+                |> g
+                    [ transform
+                        [ translate position
+                        , "scale(0.3,0.3)"
+                        ]
+                    ]
