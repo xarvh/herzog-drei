@@ -7,9 +7,15 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Random
 import Random.List
 import Set exposing (Set)
+import Svg exposing (Svg)
+import View.Gfx exposing (Gfx)
 
 
 -- Basic Types
+
+
+type alias Seconds =
+    Float
 
 
 type alias Id =
@@ -34,7 +40,7 @@ type alias Player =
     , colorPattern : ColorPattern
     , position : Vec2
     , markerPosition : Vec2
-    , timeToReload : Float
+    , timeToReload : Seconds
 
     --
     , headAngle : Float
@@ -105,7 +111,7 @@ type alias Unit =
 
     --
     , maybeTargetId : Maybe Id
-    , timeToReload : Float
+    , timeToReload : Seconds
     , targetingAngle : Float
     }
 
@@ -124,18 +130,6 @@ type alias Base =
 
 
 
--- Laser
-
-
-type alias Laser =
-    { start : Vec2
-    , end : Vec2
-    , age : Float
-    , colorPattern : ColorPattern
-    }
-
-
-
 -- Game
 
 
@@ -146,7 +140,7 @@ type alias Game =
     , lastId : Id
 
     --
-    , lasers : List Laser
+    , cosmetics : List Gfx
 
     -- includes terrain and bases
     , staticObstacles : Set Tile2
@@ -168,7 +162,7 @@ init seed =
     , lastId = 0
 
     --
-    , lasers = []
+    , cosmetics = []
     , staticObstacles = Set.empty
     , unpassableTiles = Set.empty
 
@@ -206,11 +200,6 @@ updatePlayer player game =
 updateUnit : Unit -> Game -> Game
 updateUnit unit game =
     { game | unitById = Dict.insert unit.id unit game.unitById }
-
-
-addLaser : Laser -> Game -> Game
-addLaser laser game =
-    { game | lasers = laser :: game.lasers }
 
 
 with : (Game -> Dict Id a) -> Game -> Id -> (a -> Game) -> Game
@@ -400,3 +389,16 @@ playerColorPattern game playerId =
 
         Just player ->
             player.colorPattern
+
+
+
+-- Gfx helpers
+
+
+cosmeticToDelta : Gfx -> Delta
+cosmeticToDelta c =
+    DeltaGame <| \game -> { game | cosmetics = c :: game.cosmetics }
+
+
+deltaAddGfxBeam =
+    View.Gfx.beam cosmeticToDelta

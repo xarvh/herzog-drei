@@ -8,7 +8,6 @@ import Game
         ( Base
         , Game
         , Id
-        , Laser
         , Player
         , Unit
         , clampToRadius
@@ -21,7 +20,6 @@ import Game.Unit
 import Game.Update
 import Keyboard.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
-import MechSvg
 import Mouse
 import Random
 import Set exposing (Set)
@@ -29,7 +27,9 @@ import Svg exposing (Svg)
 import Svg.Attributes exposing (..)
 import Svg.Events
 import Time exposing (Time)
-import UnitSvg
+import View.Gfx
+import View.Mech
+import View.Unit
 
 
 --
@@ -266,7 +266,7 @@ viewUnit game unit =
     in
     Svg.g
         [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
-        [ UnitSvg.unit unit.movementAngle unit.targetingAngle colorPattern.bright colorPattern.dark ]
+        [ View.Unit.unit unit.movementAngle unit.targetingAngle colorPattern.bright colorPattern.dark ]
 
 
 viewPlayer : Game -> Player -> Svg a
@@ -277,7 +277,7 @@ viewPlayer game player =
     in
     Svg.g
         [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
-        [ MechSvg.mech
+        [ View.Mech.mech
             player.transformState
             player.headAngle
             player.topAngle
@@ -289,11 +289,6 @@ viewPlayer game player =
 viewMarker : Game -> Player -> Svg a
 viewMarker game player =
     circle player.markerPosition player.colorPattern.dark 0.2
-
-
-viewLaser : Laser -> Svg a
-viewLaser laser =
-    UnitSvg.laser laser.start laser.end laser.colorPattern.bright laser.age
 
 
 view =
@@ -316,7 +311,7 @@ testView model =
             wrap model.time period
 
         start =
-            UnitSvg.gunOffset moveAngle
+            View.Unit.gunOffset moveAngle
 
         end =
             model.mousePosition
@@ -324,9 +319,7 @@ testView model =
     in
     Svg.g
         [ transform "scale(0.4, 0.4)" ]
-        [ MechSvg.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
-
-        --, UnitSvg.laser start end neutral.bright age
+        [ View.Mech.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
         ]
 
 
@@ -343,8 +336,8 @@ gameView { game } =
             |> Dict.values
             |> List.map (viewBase game)
             |> Svg.g []
-        , game.lasers
-            |> List.map viewLaser
+        , game.cosmetics
+            |> List.map View.Gfx.render
             |> Svg.g []
         , game.unitById
             |> Dict.values

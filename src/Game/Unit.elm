@@ -20,7 +20,7 @@ import Game
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
-import UnitSvg
+import View.Unit
 
 
 -- Constants
@@ -158,13 +158,10 @@ thinkTarget dt game unit =
                     [ DeltaUnit unit.id (\g u -> { u | targetingAngle = targetingAngle }) ]
                 else
                     [ DeltaUnit unit.id (deltaUnitShoot targetingAngle)
-                    , DeltaGame <|
-                        Game.addLaser
-                            { start = Vec2.add unit.position (UnitSvg.gunOffset unit.movementAngle)
-                            , end = target.position
-                            , age = 0
-                            , colorPattern = Game.playerColorPattern game unit.ownerId
-                            }
+                    , Game.deltaAddGfxBeam
+                        (Vec2.add unit.position (View.Unit.gunOffset unit.movementAngle))
+                        target.position
+                        (Game.playerColorPattern game unit.ownerId)
                     ]
 
 

@@ -183,13 +183,10 @@ think dt game input player =
         fire =
             if input.fire && player.timeToReload == 0 then
                 [ DeltaPlayer player.id (\g p -> { p | timeToReload = 0.7 })
-                , DeltaGame <|
-                    Game.addLaser
-                        { start = player.position
-                        , end = Vec2.add player.position aimDirection
-                        , age = 0
-                        , colorPattern = player.colorPattern
-                        }
+                , Game.deltaAddGfxBeam
+                    player.position
+                    (Vec2.add player.position aimDirection)
+                    player.colorPattern
                 ]
             else
                 []

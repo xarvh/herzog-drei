@@ -1,4 +1,4 @@
-module MechSvg exposing (..)
+module View.Mech exposing (..)
 
 import Ease
 import Game exposing (normalizeAngle)

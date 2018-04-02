@@ -7,7 +7,6 @@ import Game
         , Delta(..)
         , Game
         , Id
-        , Laser
         , Player
         , Unit
         , UnitMode(..)
@@ -18,7 +17,7 @@ import Game
 import Game.Player
 import Game.Unit
 import Set exposing (Set)
-import UnitSvg
+import View.Gfx
 
 
 -- Main update function
@@ -56,26 +55,16 @@ update dt playerInputById oldGame =
         ]
         |> List.concat
         |> applyGameDelta oldGameWithUpdatedUnpassableTiles
-        |> updateLasers dt
+        |> updateGfxs dt
 
 
 
--- Lasers
+-- Gfxs
 
 
-updateLaser : Float -> Laser -> Laser
-updateLaser dt laser =
-    { laser | age = laser.age + dt }
-
-
-updateLasers : Float -> Game -> Game
-updateLasers dt game =
-    { game
-        | lasers =
-            game.lasers
-                |> List.map (updateLaser dt)
-                |> List.filter (\laser -> laser.age < UnitSvg.laserLifeSpan)
-    }
+updateGfxs : Float -> Game -> Game
+updateGfxs dt game =
+    { game | cosmetics = List.filterMap (View.Gfx.update dt) game.cosmetics }
 
 
 

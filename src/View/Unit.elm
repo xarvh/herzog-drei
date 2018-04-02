@@ -1,6 +1,5 @@
-module UnitSvg exposing (..)
+module View.Unit exposing (..)
 
-import Ease
 import Game exposing (normalizeAngle)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
@@ -22,35 +21,6 @@ path =
 gunOffset : Float -> Vec2
 gunOffset torsoAngle =
     vec2 0.3 0 |> Game.rotateVector torsoAngle
-
-
-
--- Laser
-
-
-laserLifeSpan : Float
-laserLifeSpan =
-    2.0
-
-
-laser : Vec2 -> Vec2 -> String -> Float -> Svg a
-laser start end color age =
-    let
-        t =
-            age / laserLifeSpan
-    in
-    line
-        [ start |> Vec2.getX |> toString |> x1
-        , start |> Vec2.getY |> toString |> y1
-        , end |> Vec2.getX |> toString |> x2
-        , end |> Vec2.getY |> toString |> y2
-        , styles
-            [ "stroke-width:" ++ toString (0.1 * (1 + 3 * t))
-            , "stroke:" ++ color
-            , "opacity:" ++ toString (1 - Ease.outExpo t)
-            ]
-        ]
-        []
 
 
 
