@@ -4,7 +4,8 @@ import AStar
 import Dict exposing (Dict)
 import Game
     exposing
-        ( Delta(..)
+        ( Base
+        , Delta(..)
         , Game
         , Id
         , Tile2
@@ -20,6 +21,7 @@ import Game
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
+import View.Gfx
 import View.Unit
 
 
@@ -57,6 +59,7 @@ add ownerId position game =
             , position = position
 
             --
+            , hp = 4
             , maybeTargetId = Nothing
             , targetingAngle = 0
             , timeToReload = 0
@@ -68,16 +71,58 @@ add ownerId position game =
     ( { game | lastId = id, unitById = unitById }, unit )
 
 
+remove : Id -> Game -> Game
+remove id game =
+    { game | unitById = Dict.remove id game.unitById }
+
+
 
 -- Think
 
 
 think : Float -> Game -> Unit -> List Delta
 think dt game unit =
+    if unit.hp < 1 then
+        destroy unit
+    else
+        List.concat
+            [ thinkTarget dt game unit
+            , thinkReload dt game unit
+            , thinkMovement dt game unit
+            ]
+
+
+
+-- Explosion
+
+
+deltaBaseLosesUnit : Game -> Base -> Base
+deltaBaseLosesUnit game base =
+    let
+        containedUnits =
+            base.containedUnits - 1
+
+        maybeOwnerId =
+            if containedUnits < 1 then
+                Nothing
+            else
+                base.maybeOwnerId
+    in
+    { base | maybeOwnerId = maybeOwnerId, containedUnits = containedUnits }
+
+
+destroy : Unit -> List Delta
+destroy unit =
     List.concat
-        [ thinkTarget dt game unit
-        , thinkReload dt game unit
-        , thinkMovement dt game unit
+        [ [ DeltaGame (remove unit.id)
+          , Game.deltaAddGfxExplosion unit.position 1.0
+          ]
+        , case unit.mode of
+            UnitModeBase baseId ->
+                [ DeltaBase baseId deltaBaseLosesUnit ]
+
+            _ ->
+                []
         ]
 
 
@@ -158,6 +203,7 @@ thinkTarget dt game unit =
                     [ DeltaUnit unit.id (\g u -> { u | targetingAngle = targetingAngle }) ]
                 else
                     [ DeltaUnit unit.id (deltaUnitShoot targetingAngle)
+                    , DeltaUnit target.id (deltaUnitTakeDamage 1)
                     , Game.deltaAddGfxBeam
                         (Vec2.add unit.position (View.Unit.gunOffset unit.movementAngle))
                         target.position
@@ -171,6 +217,11 @@ deltaUnitShoot targetingAngle game unit =
         | targetingAngle = targetingAngle
         , timeToReload = unitReloadTime
     }
+
+
+deltaUnitTakeDamage : Int -> Game -> Unit -> Unit
+deltaUnitTakeDamage damage game unit =
+    { unit | hp = unit.hp - damage }
 
 
 

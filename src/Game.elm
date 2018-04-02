@@ -110,6 +110,7 @@ type alias Unit =
     , movementAngle : Float
 
     --
+    , hp : Int
     , maybeTargetId : Maybe Id
     , timeToReload : Seconds
     , targetingAngle : Float
@@ -313,6 +314,15 @@ clampToRadius radius v =
         Vec2.scale (radius / sqrt ll) v
 
 
+vecToString : Vec2 -> String
+vecToString v =
+    let
+        ( x, y ) =
+            Vec2.toTuple v
+    in
+    toString x ++ "," ++ toString y
+
+
 vec2Tile : Vec2 -> Tile2
 vec2Tile v =
     let
@@ -402,3 +412,7 @@ cosmeticToDelta c =
 
 deltaAddGfxBeam =
     View.Gfx.beam cosmeticToDelta
+
+
+deltaAddGfxExplosion =
+    View.Gfx.explosion cosmeticToDelta

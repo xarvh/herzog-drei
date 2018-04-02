@@ -13,6 +13,7 @@ type alias Seconds =
 
 type GfxRender
     = Beam Vec2 Vec2 ColorPattern
+    | Explosion Vec2 Float
 
 
 type alias Gfx =
@@ -28,6 +29,15 @@ beam toDelta start end colorPattern =
         { age = 0
         , maxAge = 2.0
         , render = Beam start end colorPattern
+        }
+
+
+explosion : (Gfx -> a) -> Vec2 -> Float -> a
+explosion toDelta position size =
+    toDelta
+        { age = 0
+        , maxAge = 5.0
+        , render = Explosion position size
         }
 
 
@@ -75,3 +85,34 @@ render cosmetic =
                     ]
                 ]
                 []
+
+        Explosion position size ->
+            let
+                particleCount =
+                    5
+
+                particleByIndex index =
+                    let
+                        a =
+                            turns (toFloat index / particleCount)
+
+                        x =
+                            t * size * cos a
+
+                        y =
+                            t * size * sin a
+                    in
+                    circle
+                        [ cx <| toString x
+                        , cy <| toString y
+                        , r <| toString <| (t * 0.9 + 0.1) * 0.2 * size
+                        , opacity <| toString <| (1 - t) / 3
+                        , fill "yellow"
+                        , stroke "orange"
+                        , strokeWidth "0.1"
+                        ]
+                        []
+            in
+            List.range 0 (particleCount - 1)
+                |> List.map particleByIndex
+                |> g [] --[ transform <| "translate(" ++ Game.vecToString position ++ ")" ]

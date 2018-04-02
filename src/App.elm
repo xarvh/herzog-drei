@@ -13,6 +13,7 @@ import Game
         , clampToRadius
         , tile2Vec
         , vec2Tile
+        , vecToString
         )
 import Game.Base
 import Game.Player
@@ -260,23 +261,16 @@ viewUnit game unit =
     let
         colorPattern =
             Game.playerColorPattern game unit.ownerId
-
-        ( x, y ) =
-            Vec2.toTuple unit.position
     in
     Svg.g
-        [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
+        [ transform <| "translate(" ++ vecToString unit.position ++ ")" ]
         [ View.Unit.unit unit.movementAngle unit.targetingAngle colorPattern.bright colorPattern.dark ]
 
 
 viewPlayer : Game -> Player -> Svg a
 viewPlayer game player =
-    let
-        ( x, y ) =
-            Vec2.toTuple player.position
-    in
     Svg.g
-        [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
+        [ transform <| "translate(" ++ vecToString player.position ++ ")" ]
         [ View.Mech.mech
             player.transformState
             player.headAngle
