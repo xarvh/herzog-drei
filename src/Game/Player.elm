@@ -1,5 +1,9 @@
 module Game.Player exposing (..)
 
+{-| This module contains all the deltas that can be originated by Players
+and the Player.think that decudes which deltas to output.
+-}
+
 import ColorPattern exposing (ColorPattern)
 import Dict exposing (Dict)
 import Game
@@ -16,6 +20,7 @@ import Game
         )
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
+import View.Gfx
 
 
 -- globals
@@ -48,45 +53,6 @@ transformMode player =
 
 
 --
-
-
-add : Vec2 -> Game -> ( Game, Player )
-add position game =
-    let
-        id =
-            game.lastId + 1
-
-        colorPatternCount colorPattern =
-            game.playerById
-                |> Dict.values
-                |> List.filter (\player -> player.colorPattern == colorPattern)
-                |> List.length
-
-        colorPattern =
-            game.shuffledColorPatterns
-                |> List.sortBy colorPatternCount
-                |> List.head
-                |> Maybe.withDefault ColorPattern.neutral
-
-        startAngle =
-            Vec2.negate position |> Game.vecToAngle
-
-        player =
-            { id = id
-            , position = position
-            , markerPosition = position
-            , colorPattern = colorPattern
-            , timeToReload = 0
-            , headAngle = startAngle
-            , topAngle = startAngle
-            , transformState = 0
-            , transformingTo = Mech
-            }
-
-        playerById =
-            Dict.insert id player game.playerById
-    in
-    ( { game | playerById = playerById, lastId = id }, player )
 
 
 think : Float -> Game -> PlayerInput -> Player -> List Delta
@@ -183,13 +149,10 @@ think dt game input player =
         fire =
             if input.fire && player.timeToReload == 0 then
                 [ DeltaPlayer player.id (\g p -> { p | timeToReload = 0.7 })
-                , DeltaGame <|
-                    Game.addLaser
-                        { start = player.position
-                        , end = Vec2.add player.position aimDirection
-                        , age = 0
-                        , colorPattern = player.colorPattern
-                        }
+                , View.Gfx.deltaAddBeam
+                    player.position
+                    (Vec2.add player.position aimDirection)
+                    player.colorPattern
                 ]
             else
                 []

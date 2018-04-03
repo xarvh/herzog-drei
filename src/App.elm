@@ -8,7 +8,6 @@ import Game
         ( Base
         , Game
         , Id
-        , Laser
         , Player
         , Unit
         , clampToRadius
@@ -21,15 +20,17 @@ import Game.Unit
 import Game.Update
 import Keyboard.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
-import MechSvg
 import Mouse
 import Random
 import Set exposing (Set)
 import Svg exposing (Svg)
-import Svg.Attributes exposing (..)
+import Svg.Attributes
 import Svg.Events
 import Time exposing (Time)
-import UnitSvg
+import View exposing (..)
+import View.Gfx
+import View.Mech
+import View.Unit
 
 
 --
@@ -70,31 +71,31 @@ init =
         ( game0, player1 ) =
             Random.initialSeed 0
                 |> Game.init
-                |> Game.Base.add ( 0, 0 )
+                |> Game.addBase ( 0, 0 )
                 |> Tuple.first
-                |> Game.Player.add (vec2 -3 -3)
+                |> Game.addPlayer (vec2 -3 -3)
 
         ( game1, player2 ) =
             game0
-                |> Game.Player.add (vec2 3 3)
+                |> Game.addPlayer (vec2 3 3)
     in
     game1
         |> Game.addStaticObstacles terrainObstacles
-        |> Game.Unit.add player1.id (vec2 0 -4)
+        |> Game.addUnit player1.id (vec2 0 -4)
         |> Tuple.first
-        |> Game.Unit.add player1.id (vec2 1 -4)
+        |> Game.addUnit player1.id (vec2 1 -4)
         |> Tuple.first
-        |> Game.Unit.add player1.id (vec2 2 -4)
+        |> Game.addUnit player1.id (vec2 2 -4)
         |> Tuple.first
-        |> Game.Unit.add player1.id (vec2 3 -4)
+        |> Game.addUnit player1.id (vec2 3 -4)
         |> Tuple.first
-        |> Game.Unit.add player2.id (vec2 0 4.8)
+        |> Game.addUnit player2.id (vec2 0 4.8)
         |> Tuple.first
-        |> Game.Unit.add player2.id (vec2 -1 4.8)
+        |> Game.addUnit player2.id (vec2 -1 4.8)
         |> Tuple.first
-        |> Game.Unit.add player2.id (vec2 -2 4.8)
+        |> Game.addUnit player2.id (vec2 -2 4.8)
         |> Tuple.first
-        |> Game.Unit.add player2.id (vec2 -3 4.8)
+        |> Game.addUnit player2.id (vec2 -3 4.8)
         |> Tuple.first
         |> (\game ->
                 { game = game
@@ -165,24 +166,24 @@ checkersBackground size =
             1.0
 
         s =
-            toString squareSize
+            squareSize
 
         s2 =
-            toString (squareSize * 2)
+            squareSize * 2
     in
     Svg.g
         []
         [ Svg.defs
             []
             [ Svg.pattern
-                [ id "grid"
+                [ Svg.Attributes.id "grid"
                 , width s2
                 , height s2
-                , patternUnits "userSpaceOnUse"
+                , Svg.Attributes.patternUnits "userSpaceOnUse"
                 ]
                 [ Svg.rect
-                    [ x "0"
-                    , y "0"
+                    [ x 0
+                    , y 0
                     , width s
                     , height s
                     , fill "#eee"
@@ -200,10 +201,10 @@ checkersBackground size =
             ]
         , Svg.rect
             [ fill "url(#grid)"
-            , x <| toString <| -size / 2
-            , y <| toString <| -size / 2
-            , width <| toString size
-            , height <| toString size
+            , x <| -size / 2
+            , y <| -size / 2
+            , width size
+            , height size
             ]
             []
         ]
@@ -212,9 +213,9 @@ checkersBackground size =
 circle : Vec2 -> String -> Float -> Svg a
 circle pos color size =
     Svg.circle
-        [ Vec2.getX pos |> toString |> cx
-        , Vec2.getY pos |> toString |> cy
-        , size |> toString |> r
+        [ cx <| Vec2.getX pos
+        , cy <| Vec2.getY pos
+        , r size
         , fill color
         ]
         []
@@ -223,10 +224,10 @@ circle pos color size =
 square : Vec2 -> String -> Float -> Svg a
 square pos color size =
     Svg.rect
-        [ Vec2.getX pos |> toString |> x
-        , Vec2.getY pos |> toString |> y
-        , size |> toString |> width
-        , size |> toString |> height
+        [ x <| Vec2.getX pos
+        , y <| Vec2.getY pos
+        , width size
+        , height size
         , fill color
         ]
         []
@@ -260,24 +261,17 @@ viewUnit game unit =
     let
         colorPattern =
             Game.playerColorPattern game unit.ownerId
-
-        ( x, y ) =
-            Vec2.toTuple unit.position
     in
     Svg.g
-        [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
-        [ UnitSvg.unit unit.movementAngle unit.targetingAngle colorPattern.bright colorPattern.dark ]
+        [ transform [ translate unit.position ] ]
+        [ View.Unit.unit unit.movementAngle unit.targetingAngle colorPattern.bright colorPattern.dark ]
 
 
 viewPlayer : Game -> Player -> Svg a
 viewPlayer game player =
-    let
-        ( x, y ) =
-            Vec2.toTuple player.position
-    in
     Svg.g
-        [ transform <| "translate(" ++ toString x ++ "," ++ toString y ++ ")" ]
-        [ MechSvg.mech
+        [ transform [ translate player.position ] ]
+        [ View.Mech.mech
             player.transformState
             player.headAngle
             player.topAngle
@@ -289,11 +283,6 @@ viewPlayer game player =
 viewMarker : Game -> Player -> Svg a
 viewMarker game player =
     circle player.markerPosition player.colorPattern.dark 0.2
-
-
-viewLaser : Laser -> Svg a
-viewLaser laser =
-    UnitSvg.laser laser.start laser.end laser.colorPattern.bright laser.age
 
 
 view =
@@ -316,24 +305,24 @@ testView model =
             wrap model.time period
 
         start =
-            UnitSvg.gunOffset moveAngle
+            View.Unit.gunOffset moveAngle
 
         end =
             model.mousePosition
                 |> Vec2.scale 10
     in
     Svg.g
-        [ transform "scale(0.4, 0.4)" ]
-        [ MechSvg.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
+        [ transform [ "scale(0.4, 0.4)" ] ]
+        [ View.Mech.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
 
-        --, UnitSvg.laser start end neutral.bright age
+        --   [ View.Unit.unit (pi / 4) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
         ]
 
 
 gameView : Model -> Svg Msg
 gameView { game } =
     Svg.g
-        [ transform "scale(0.1, 0.1)" ]
+        [ transform [ "scale(0.1, 0.1)" ] ]
         [ checkersBackground 10
         , game.staticObstacles
             |> Set.toList
@@ -343,8 +332,8 @@ gameView { game } =
             |> Dict.values
             |> List.map (viewBase game)
             |> Svg.g []
-        , game.lasers
-            |> List.map viewLaser
+        , game.cosmetics
+            |> List.map View.Gfx.render
             |> Svg.g []
         , game.unitById
             |> Dict.values

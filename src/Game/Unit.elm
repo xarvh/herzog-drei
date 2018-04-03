@@ -1,10 +1,15 @@
 module Game.Unit exposing (..)
 
+{-| This module contains all the deltas that can be originated by Units
+and the Unit.think that decudes which deltas to output.
+-}
+
 import AStar
 import Dict exposing (Dict)
 import Game
     exposing
-        ( Delta(..)
+        ( Base
+        , Delta(..)
         , Game
         , Id
         , Tile2
@@ -20,7 +25,8 @@ import Game
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
-import UnitSvg
+import View.Gfx
+import View.Unit
 
 
 -- Constants
@@ -37,47 +43,52 @@ unitShootRange =
 
 
 
--- Add
-
-
-add : Id -> Vec2 -> Game -> ( Game, Unit )
-add ownerId position game =
-    let
-        id =
-            game.lastId + 1
-
-        unit =
-            { id = id
-            , mode = Game.UnitModeFree
-            , ownerId = ownerId
-            , order = UnitOrderFollowMarker
-
-            --
-            , movementAngle = 0
-            , position = position
-
-            --
-            , maybeTargetId = Nothing
-            , targetingAngle = 0
-            , timeToReload = 0
-            }
-
-        unitById =
-            Dict.insert id unit game.unitById
-    in
-    ( { game | lastId = id, unitById = unitById }, unit )
-
-
-
 -- Think
 
 
 think : Float -> Game -> Unit -> List Delta
 think dt game unit =
+    if unit.hp < 1 then
+        destroy unit
+    else
+        List.concat
+            [ thinkTarget dt game unit
+            , thinkReload dt game unit
+            , thinkMovement dt game unit
+            ]
+
+
+
+-- Destroy
+
+
+deltaBaseLosesUnit : Game -> Base -> Base
+deltaBaseLosesUnit game base =
+    let
+        containedUnits =
+            base.containedUnits - 1
+
+        maybeOwnerId =
+            if containedUnits < 1 then
+                Nothing
+            else
+                base.maybeOwnerId
+    in
+    { base | maybeOwnerId = maybeOwnerId, containedUnits = containedUnits }
+
+
+destroy : Unit -> List Delta
+destroy unit =
     List.concat
-        [ thinkTarget dt game unit
-        , thinkReload dt game unit
-        , thinkMovement dt game unit
+        [ [ DeltaGame (Game.removeUnit unit.id)
+          , View.Gfx.deltaAddExplosion unit.position 1.0
+          ]
+        , case unit.mode of
+            UnitModeBase baseId ->
+                [ DeltaBase baseId deltaBaseLosesUnit ]
+
+            _ ->
+                []
         ]
 
 
@@ -158,13 +169,11 @@ thinkTarget dt game unit =
                     [ DeltaUnit unit.id (\g u -> { u | targetingAngle = targetingAngle }) ]
                 else
                     [ DeltaUnit unit.id (deltaUnitShoot targetingAngle)
-                    , DeltaGame <|
-                        Game.addLaser
-                            { start = Vec2.add unit.position (UnitSvg.gunOffset unit.movementAngle)
-                            , end = target.position
-                            , age = 0
-                            , colorPattern = Game.playerColorPattern game unit.ownerId
-                            }
+                    , DeltaUnit target.id (deltaUnitTakeDamage 1)
+                    , View.Gfx.deltaAddBeam
+                        (Vec2.add unit.position (View.Unit.gunOffset unit.movementAngle))
+                        target.position
+                        (Game.playerColorPattern game unit.ownerId)
                     ]
 
 
@@ -174,6 +183,11 @@ deltaUnitShoot targetingAngle game unit =
         | targetingAngle = targetingAngle
         , timeToReload = unitReloadTime
     }
+
+
+deltaUnitTakeDamage : Int -> Game -> Unit -> Unit
+deltaUnitTakeDamage damage game unit =
+    { unit | hp = unit.hp - damage }
 
 
 

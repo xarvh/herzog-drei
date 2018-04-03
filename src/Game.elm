@@ -7,9 +7,18 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Random
 import Random.List
 import Set exposing (Set)
+import Svg exposing (Svg)
 
 
 -- Basic Types
+
+
+type alias Seconds =
+    Float
+
+
+type alias Angle =
+    Float
 
 
 type alias Id =
@@ -34,7 +43,7 @@ type alias Player =
     , colorPattern : ColorPattern
     , position : Vec2
     , markerPosition : Vec2
-    , timeToReload : Float
+    , timeToReload : Seconds
 
     --
     , headAngle : Float
@@ -42,6 +51,45 @@ type alias Player =
     , transformState : Float
     , transformingTo : TransformMode
     }
+
+
+addPlayer : Vec2 -> Game -> ( Game, Player )
+addPlayer position game =
+    let
+        id =
+            game.lastId + 1
+
+        colorPatternCount colorPattern =
+            game.playerById
+                |> Dict.values
+                |> List.filter (\player -> player.colorPattern == colorPattern)
+                |> List.length
+
+        colorPattern =
+            game.shuffledColorPatterns
+                |> List.sortBy colorPatternCount
+                |> List.head
+                |> Maybe.withDefault ColorPattern.neutral
+
+        startAngle =
+            Vec2.negate position |> vecToAngle
+
+        player =
+            { id = id
+            , position = position
+            , markerPosition = position
+            , colorPattern = colorPattern
+            , timeToReload = 0
+            , headAngle = startAngle
+            , topAngle = startAngle
+            , transformState = 0
+            , transformingTo = Mech
+            }
+
+        playerById =
+            Dict.insert id player game.playerById
+    in
+    ( { game | playerById = playerById, lastId = id }, player )
 
 
 type alias PlayerInput =
@@ -104,10 +152,45 @@ type alias Unit =
     , movementAngle : Float
 
     --
+    , hp : Int
     , maybeTargetId : Maybe Id
-    , timeToReload : Float
+    , timeToReload : Seconds
     , targetingAngle : Float
     }
+
+
+addUnit : Id -> Vec2 -> Game -> ( Game, Unit )
+addUnit ownerId position game =
+    let
+        id =
+            game.lastId + 1
+
+        unit =
+            { id = id
+            , mode = UnitModeFree
+            , ownerId = ownerId
+            , order = UnitOrderFollowMarker
+
+            --
+            , movementAngle = 0
+            , position = position
+
+            --
+            , hp = 4
+            , maybeTargetId = Nothing
+            , targetingAngle = 0
+            , timeToReload = 0
+            }
+
+        unitById =
+            Dict.insert id unit game.unitById
+    in
+    ( { game | lastId = id, unitById = unitById }, unit )
+
+
+removeUnit : Id -> Game -> Game
+removeUnit id game =
+    { game | unitById = Dict.remove id game.unitById }
 
 
 
@@ -123,15 +206,55 @@ type alias Base =
     }
 
 
+addBase : Tile2 -> Game -> ( Game, Base )
+addBase position game =
+    let
+        id =
+            game.lastId + 1
 
--- Laser
+        base =
+            { id = id
+            , isActive = False
+            , containedUnits = 0
+            , maybeOwnerId = Nothing
+            , position = position
+            }
+
+        baseById =
+            Dict.insert id base game.baseById
+
+        staticObstacles =
+            Set.union (tiles base |> Set.fromList) game.staticObstacles
+    in
+    ( { game | lastId = id, staticObstacles = staticObstacles, baseById = baseById }, base )
 
 
-type alias Laser =
-    { start : Vec2
-    , end : Vec2
-    , age : Float
-    , colorPattern : ColorPattern
+tiles : Base -> List Tile2
+tiles base =
+    let
+        ( x, y ) =
+            base.position
+    in
+    [ ( x + 0, y - 1 )
+    , ( x - 1, y - 1 )
+    , ( x - 1, y + 0 )
+    , ( x + 0, y + 0 )
+    ]
+
+
+
+-- Gfx
+
+
+type GfxRender
+    = Beam Vec2 Vec2 ColorPattern
+    | Explosion Vec2 Float
+
+
+type alias Gfx =
+    { age : Seconds
+    , maxAge : Seconds
+    , render : GfxRender
     }
 
 
@@ -146,7 +269,7 @@ type alias Game =
     , lastId : Id
 
     --
-    , lasers : List Laser
+    , cosmetics : List Gfx
 
     -- includes terrain and bases
     , staticObstacles : Set Tile2
@@ -168,7 +291,7 @@ init seed =
     , lastId = 0
 
     --
-    , lasers = []
+    , cosmetics = []
     , staticObstacles = Set.empty
     , unpassableTiles = Set.empty
 
@@ -206,11 +329,6 @@ updatePlayer player game =
 updateUnit : Unit -> Game -> Game
 updateUnit unit game =
     { game | unitById = Dict.insert unit.id unit game.unitById }
-
-
-addLaser : Laser -> Game -> Game
-addLaser laser game =
-    { game | lasers = laser :: game.lasers }
 
 
 with : (Game -> Dict Id a) -> Game -> Id -> (a -> Game) -> Game
@@ -345,11 +463,6 @@ vecToAngle v =
             Vec2.toTuple v
     in
     atan2 x y
-
-
-radiantsToDegrees : Float -> Float
-radiantsToDegrees r =
-    r * (180 / pi)
 
 
 normalizeAngle : Float -> Float
