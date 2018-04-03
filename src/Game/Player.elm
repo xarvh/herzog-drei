@@ -21,6 +21,7 @@ import Game
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 import View.Gfx
+import View.Mech
 
 
 -- globals
@@ -29,6 +30,10 @@ import View.Gfx
 transformTime : Float
 transformTime =
     0.2
+
+
+mechFireInterval =
+    0.5
 
 
 
@@ -146,13 +151,14 @@ think dt game input player =
                     }
             ]
 
+        deltaFire origin =
+            View.Gfx.deltaAddBeam origin (Vec2.add origin aimDirection) player.colorPattern
+
         fire =
             if input.fire && player.timeToReload == 0 then
-                [ DeltaPlayer player.id (\g p -> { p | timeToReload = 0.7 })
-                , View.Gfx.deltaAddBeam
-                    player.position
-                    (Vec2.add player.position aimDirection)
-                    player.colorPattern
+                [ DeltaPlayer player.id (\g p -> { p | timeToReload = mechFireInterval })
+                , deltaFire (View.Mech.rightGunOffset player.transformState player.topAngle |> Vec2.add player.position)
+                , deltaFire (View.Mech.leftGunOffset player.transformState player.topAngle |> Vec2.add player.position)
                 ]
             else
                 []
