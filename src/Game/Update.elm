@@ -8,6 +8,8 @@ import Game
         , Game
         , Id
         , Player
+        , Projectile
+        , Seconds
         , Unit
         , UnitMode(..)
         , normalizeAngle
@@ -15,6 +17,7 @@ import Game
         , vec2Tile
         )
 import Game.Player
+import Game.Projectile
 import Game.Unit
 import Set exposing (Set)
 import View.Gfx
@@ -23,20 +26,20 @@ import View.Gfx
 -- Main update function
 
 
-update : Float -> Dict Id Game.PlayerInput -> Game -> Game
-update dt playerInputById oldGame =
+update : Seconds -> Dict Id Game.PlayerInput -> Game -> Game
+update dt playerInputById game =
     let
         units =
-            Dict.values oldGame.unitById
+            Dict.values game.unitById
 
         updatedUnpassableTiles =
             units
                 |> List.map (.position >> vec2Tile)
                 |> Set.fromList
-                |> Set.union oldGame.staticObstacles
+                |> Set.union game.staticObstacles
 
         oldGameWithUpdatedUnpassableTiles =
-            { oldGame | unpassableTiles = updatedUnpassableTiles }
+            { game | unpassableTiles = updatedUnpassableTiles }
 
         getInputForPlayer player =
             playerInputById
@@ -49,22 +52,32 @@ update dt playerInputById oldGame =
     List.concat
         [ units
             |> List.map (Game.Unit.think dt oldGameWithUpdatedUnpassableTiles)
-        , oldGame.playerById
+        , game.playerById
             |> Dict.values
             |> List.map playerThink
         ]
         |> List.concat
         |> applyGameDelta oldGameWithUpdatedUnpassableTiles
         |> updateGfxs dt
+        |> updateProjectiles dt
 
 
 
 -- Gfxs
 
 
-updateGfxs : Float -> Game -> Game
+updateGfxs : Seconds -> Game -> Game
 updateGfxs dt game =
     { game | cosmetics = List.filterMap (View.Gfx.update dt) game.cosmetics }
+
+
+
+-- Projectiles
+
+
+updateProjectiles : Seconds -> Game -> Game
+updateProjectiles dt game =
+    { game | projectiles = List.filterMap (Game.Projectile.update dt) game.projectiles }
 
 
 
@@ -126,6 +139,7 @@ type alias GameDeltaDicts =
     , units : DeltaDict Game Unit
     , bases : DeltaDict Game Base
     , game : List (Game -> Game)
+    , newProjectiles : List Projectile
     }
 
 
@@ -147,12 +161,16 @@ applyGameDelta game deltas =
                 DeltaGame f ->
                     { deltaStuff | game = f :: deltaStuff.game }
 
+                DeltaAddProjectile projectile ->
+                    { deltaStuff | newProjectiles = projectile :: deltaStuff.newProjectiles }
+
         emptyGameDeltaDicts : GameDeltaDicts
         emptyGameDeltaDicts =
             { players = ddEmpty
             , units = ddEmpty
             , bases = ddEmpty
             , game = []
+            , newProjectiles = []
             }
 
         deltaDicts : GameDeltaDicts
@@ -174,5 +192,6 @@ applyGameDelta game deltas =
         | playerById = Dict.map (ddApply game deltaDicts.players) game.playerById
         , unitById = Dict.map (ddApply game deltaDicts.units) game.unitById
         , baseById = Dict.map (ddApply game deltaDicts.bases) game.baseById
+        , projectiles = deltaDicts.newProjectiles ++ game.projectiles
     }
         |> apply deltaDicts.game

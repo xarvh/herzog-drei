@@ -9,6 +9,7 @@ import Game
         , Game
         , Id
         , Player
+        , Projectile
         , Unit
         , clampToRadius
         , tile2Vec
@@ -30,6 +31,7 @@ import Time exposing (Time)
 import View exposing (..)
 import View.Gfx
 import View.Mech
+import View.Projectile
 import View.Unit
 
 
@@ -285,6 +287,11 @@ viewMarker game player =
     circle player.markerPosition player.colorPattern.dark 0.2
 
 
+viewProjectile : Projectile -> Svg a
+viewProjectile projectile =
+    View.Projectile.projectile projectile.position projectile.angle
+
+
 view =
     gameView
 
@@ -313,9 +320,10 @@ testView model =
     in
     Svg.g
         [ transform [ "scale(0.4, 0.4)" ] ]
-        [ View.Mech.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
+        [ View.Projectile.projectile (vec2 0 0) (pi / 6)
 
-        --   [ View.Unit.unit (pi / 4) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
+        --[ View.Mech.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
+        --[ View.Unit.unit (pi / 4) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
         ]
 
 
@@ -346,6 +354,9 @@ gameView { game } =
         , game.playerById
             |> Dict.values
             |> List.map (viewMarker game)
+            |> Svg.g []
+        , game.projectiles
+            |> List.map viewProjectile
             |> Svg.g []
         ]
 

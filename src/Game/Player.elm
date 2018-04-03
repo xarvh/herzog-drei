@@ -17,6 +17,7 @@ import Game
         , clampToRadius
         , tile2Vec
         , vec2Tile
+        , vecToAngle
         )
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
@@ -33,7 +34,7 @@ transformTime =
 
 
 mechFireInterval =
-    0.5
+    0.1
 
 
 
@@ -152,7 +153,7 @@ think dt game input player =
             ]
 
         deltaFire origin =
-            View.Gfx.deltaAddBeam origin (Vec2.add origin aimDirection) player.colorPattern
+            DeltaAddProjectile { ownerId = player.id, position = origin, angle = vecToAngle aimDirection }
 
         fire =
             if input.fire && player.timeToReload == 0 then

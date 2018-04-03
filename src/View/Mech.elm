@@ -1,6 +1,6 @@
 module View.Mech exposing (..)
 
-import Game exposing (normalizeAngle)
+import Game
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import View exposing (..)

@@ -126,6 +126,31 @@ neutralPlayerInput =
 
 
 
+-- Projectiles
+
+
+type alias Projectile =
+    { ownerId : Id
+    , position : Vec2
+    , angle : Angle
+    }
+
+
+{-
+addProjectile : Id -> Vec2 -> Angle -> Game -> Game
+addProjectile ownerId position angle game =
+    { game
+        | projectiles =
+            { ownerId = ownerId
+            , position = position
+            , angle = angle
+            }
+                :: game.projectiles
+    }
+-}
+
+
+
 -- Units
 
 
@@ -269,6 +294,7 @@ type alias Game =
     , lastId : Id
 
     --
+    , projectiles : List Projectile
     , cosmetics : List Gfx
 
     -- includes terrain and bases
@@ -291,6 +317,7 @@ init seed =
     , lastId = 0
 
     --
+    , projectiles = []
     , cosmetics = []
     , staticObstacles = Set.empty
     , unpassableTiles = Set.empty
@@ -310,6 +337,7 @@ type Delta
     | DeltaPlayer Id (Game -> Player -> Player)
     | DeltaUnit Id (Game -> Unit -> Unit)
     | DeltaBase Id (Game -> Base -> Base)
+    | DeltaAddProjectile Projectile
 
 
 
@@ -482,6 +510,13 @@ turnTo maxTurn targetAngle currentAngle =
         |> clamp -maxTurn maxTurn
         |> (+) currentAngle
         |> normalizeAngle
+
+
+angleToVector : Float -> Vec2
+angleToVector angle =
+    vec2
+        (sin angle)
+        (cos angle)
 
 
 rotateVector : Float -> Vec2 -> Vec2
