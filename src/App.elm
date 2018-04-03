@@ -71,31 +71,31 @@ init =
         ( game0, player1 ) =
             Random.initialSeed 0
                 |> Game.init
-                |> Game.Base.add ( 0, 0 )
+                |> Game.addBase ( 0, 0 )
                 |> Tuple.first
-                |> Game.Player.add (vec2 -3 -3)
+                |> Game.addPlayer (vec2 -3 -3)
 
         ( game1, player2 ) =
             game0
-                |> Game.Player.add (vec2 3 3)
+                |> Game.addPlayer (vec2 3 3)
     in
     game1
         |> Game.addStaticObstacles terrainObstacles
-        |> Game.Unit.add player1.id (vec2 0 -4)
+        |> Game.addUnit player1.id (vec2 0 -4)
         |> Tuple.first
-        |> Game.Unit.add player1.id (vec2 1 -4)
+        |> Game.addUnit player1.id (vec2 1 -4)
         |> Tuple.first
-        |> Game.Unit.add player1.id (vec2 2 -4)
+        |> Game.addUnit player1.id (vec2 2 -4)
         |> Tuple.first
-        |> Game.Unit.add player1.id (vec2 3 -4)
+        |> Game.addUnit player1.id (vec2 3 -4)
         |> Tuple.first
-        |> Game.Unit.add player2.id (vec2 0 4.8)
+        |> Game.addUnit player2.id (vec2 0 4.8)
         |> Tuple.first
-        |> Game.Unit.add player2.id (vec2 -1 4.8)
+        |> Game.addUnit player2.id (vec2 -1 4.8)
         |> Tuple.first
-        |> Game.Unit.add player2.id (vec2 -2 4.8)
+        |> Game.addUnit player2.id (vec2 -2 4.8)
         |> Tuple.first
-        |> Game.Unit.add player2.id (vec2 -3 4.8)
+        |> Game.addUnit player2.id (vec2 -3 4.8)
         |> Tuple.first
         |> (\game ->
                 { game = game

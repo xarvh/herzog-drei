@@ -1,5 +1,9 @@
 module Game.Unit exposing (..)
 
+{-| This module contains all the deltas that can be originated by Units
+and the Unit.think that decudes which deltas to output.
+-}
+
 import AStar
 import Dict exposing (Dict)
 import Game
@@ -39,44 +43,6 @@ unitShootRange =
 
 
 
--- Add
-
-
-add : Id -> Vec2 -> Game -> ( Game, Unit )
-add ownerId position game =
-    let
-        id =
-            game.lastId + 1
-
-        unit =
-            { id = id
-            , mode = Game.UnitModeFree
-            , ownerId = ownerId
-            , order = UnitOrderFollowMarker
-
-            --
-            , movementAngle = 0
-            , position = position
-
-            --
-            , hp = 4
-            , maybeTargetId = Nothing
-            , targetingAngle = 0
-            , timeToReload = 0
-            }
-
-        unitById =
-            Dict.insert id unit game.unitById
-    in
-    ( { game | lastId = id, unitById = unitById }, unit )
-
-
-remove : Id -> Game -> Game
-remove id game =
-    { game | unitById = Dict.remove id game.unitById }
-
-
-
 -- Think
 
 
@@ -93,7 +59,7 @@ think dt game unit =
 
 
 
--- Explosion
+-- Destroy
 
 
 deltaBaseLosesUnit : Game -> Base -> Base
@@ -114,7 +80,7 @@ deltaBaseLosesUnit game base =
 destroy : Unit -> List Delta
 destroy unit =
     List.concat
-        [ [ DeltaGame (remove unit.id)
+        [ [ DeltaGame (Game.removeUnit unit.id)
           , Game.deltaAddGfxExplosion unit.position 1.0
           ]
         , case unit.mode of
