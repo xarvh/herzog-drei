@@ -23,10 +23,10 @@ mech t headAngle topAngle brightColor darkColor =
         step =
             View.step t
 
-        plate xx yy ww hh aa =
+        rectPlate fillColor xx yy ww hh aa =
             rect
                 [ transform [ translate2 xx yy, rotateDeg aa ]
-                , fill darkColor
+                , fill fillColor
                 , stroke brightColor
                 , strokeWidth 0.03
                 , width ww
@@ -38,8 +38,8 @@ mech t headAngle topAngle brightColor darkColor =
 
         plates xx yy ww hh aa =
             g []
-                [ plate -xx yy ww hh -aa
-                , plate xx yy ww hh aa
+                [ rectPlate darkColor -xx yy ww hh -aa
+                , rectPlate darkColor xx yy ww hh aa
                 ]
 
         eye xx yy aa =
@@ -57,7 +57,8 @@ mech t headAngle topAngle brightColor darkColor =
         [ g
             [ transform [ scale 3, rotateRad topAngle ] ]
             -- guns
-            [ plates (smooth 0.39 0.15) (smooth 0.21 0.26) 0.08 0.26 0
+            [ rectPlate "#808080" -(smooth 0.39 0.15) (smooth 0.21 0.26) 0.08 0.26 -0
+            , rectPlate "#808080" (smooth 0.39 0.15) (smooth 0.21 0.26) 0.08 0.26 0
 
             -- arms / front wings
             , plates
@@ -68,7 +69,8 @@ mech t headAngle topAngle brightColor darkColor =
                 (smooth 0 15)
 
             -- mid beam
-            , plate
+            , rectPlate
+                darkColor
                 0
                 (smooth -0.04 0.04)
                 (smooth 0.65 0.3)
