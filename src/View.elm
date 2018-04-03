@@ -1,18 +1,10 @@
 module View exposing (..)
 
 import Ease
+import Game exposing (Angle, Seconds)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg
 import Svg.Attributes
-
-
-type alias Seconds =
-    Float
-
-
-type alias Angle =
-    Float
-
 
 
 --

@@ -2,39 +2,33 @@ module View.Gfx exposing (..)
 
 import ColorPattern exposing (ColorPattern)
 import Ease
+import Game exposing (Delta(DeltaGame), Gfx, GfxRender(..), Seconds)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import View exposing (..)
 
 
-type alias Seconds =
-    Float
+deltaAddGfx : Gfx -> Delta
+deltaAddGfx c =
+    DeltaGame <| \game -> { game | cosmetics = c :: game.cosmetics }
 
 
-type GfxRender
-    = Beam Vec2 Vec2 ColorPattern
-    | Explosion Vec2 Float
+
+--
 
 
-type alias Gfx =
-    { age : Seconds
-    , maxAge : Seconds
-    , render : GfxRender
-    }
-
-
-beam : (Gfx -> a) -> Vec2 -> Vec2 -> ColorPattern -> a
-beam toDelta start end colorPattern =
-    toDelta
+deltaAddBeam : Vec2 -> Vec2 -> ColorPattern -> Delta
+deltaAddBeam start end colorPattern =
+    deltaAddGfx
         { age = 0
         , maxAge = 2.0
         , render = Beam start end colorPattern
         }
 
 
-explosion : (Gfx -> a) -> Vec2 -> Float -> a
-explosion toDelta position size =
-    toDelta
+deltaAddExplosion : Vec2 -> Float -> Delta
+deltaAddExplosion position size =
+    deltaAddGfx
         { age = 0
         , maxAge = 1.0
         , render = Explosion position size

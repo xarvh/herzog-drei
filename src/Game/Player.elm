@@ -20,6 +20,7 @@ import Game
         )
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
+import View.Gfx
 
 
 -- globals
@@ -52,7 +53,6 @@ transformMode player =
 
 
 --
-
 
 
 think : Float -> Game -> PlayerInput -> Player -> List Delta
@@ -149,7 +149,7 @@ think dt game input player =
         fire =
             if input.fire && player.timeToReload == 0 then
                 [ DeltaPlayer player.id (\g p -> { p | timeToReload = 0.7 })
-                , Game.deltaAddGfxBeam
+                , View.Gfx.deltaAddBeam
                     player.position
                     (Vec2.add player.position aimDirection)
                     player.colorPattern

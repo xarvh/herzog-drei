@@ -8,13 +8,16 @@ import Random
 import Random.List
 import Set exposing (Set)
 import Svg exposing (Svg)
-import View.Gfx exposing (Gfx)
 
 
 -- Basic Types
 
 
 type alias Seconds =
+    Float
+
+
+type alias Angle =
     Float
 
 
@@ -237,6 +240,22 @@ tiles base =
     , ( x - 1, y + 0 )
     , ( x + 0, y + 0 )
     ]
+
+
+
+-- Gfx
+
+
+type GfxRender
+    = Beam Vec2 Vec2 ColorPattern
+    | Explosion Vec2 Float
+
+
+type alias Gfx =
+    { age : Seconds
+    , maxAge : Seconds
+    , render : GfxRender
+    }
 
 
 
@@ -494,20 +513,3 @@ playerColorPattern game playerId =
 
         Just player ->
             player.colorPattern
-
-
-
--- Gfx helpers
-
-
-cosmeticToDelta : Gfx -> Delta
-cosmeticToDelta c =
-    DeltaGame <| \game -> { game | cosmetics = c :: game.cosmetics }
-
-
-deltaAddGfxBeam =
-    View.Gfx.beam cosmeticToDelta
-
-
-deltaAddGfxExplosion =
-    View.Gfx.explosion cosmeticToDelta

@@ -81,7 +81,7 @@ destroy : Unit -> List Delta
 destroy unit =
     List.concat
         [ [ DeltaGame (Game.removeUnit unit.id)
-          , Game.deltaAddGfxExplosion unit.position 1.0
+          , View.Gfx.deltaAddExplosion unit.position 1.0
           ]
         , case unit.mode of
             UnitModeBase baseId ->
@@ -170,7 +170,7 @@ thinkTarget dt game unit =
                 else
                     [ DeltaUnit unit.id (deltaUnitShoot targetingAngle)
                     , DeltaUnit target.id (deltaUnitTakeDamage 1)
-                    , Game.deltaAddGfxBeam
+                    , View.Gfx.deltaAddBeam
                         (Vec2.add unit.position (View.Unit.gunOffset unit.movementAngle))
                         target.position
                         (Game.playerColorPattern game unit.ownerId)
