@@ -274,6 +274,7 @@ tiles base =
 type GfxRender
     = Beam Vec2 Vec2 ColorPattern
     | Explosion Vec2 Float
+    | ProjectileCase Vec2 Angle
 
 
 type alias Gfx =

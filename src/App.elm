@@ -340,9 +340,6 @@ gameView { game } =
             |> Dict.values
             |> List.map (viewBase game)
             |> Svg.g []
-        , game.cosmetics
-            |> List.map View.Gfx.render
-            |> Svg.g []
         , game.unitById
             |> Dict.values
             |> List.map (viewUnit game)
@@ -357,6 +354,9 @@ gameView { game } =
             |> Svg.g []
         , game.projectiles
             |> List.map viewProjectile
+            |> Svg.g []
+        , game.cosmetics
+            |> List.map View.Gfx.render
             |> Svg.g []
         ]
 

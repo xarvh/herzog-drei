@@ -152,14 +152,22 @@ think dt game input player =
                     }
             ]
 
+        leftOrigin =
+            View.Mech.leftGunOffset player.transformState player.topAngle |> Vec2.add player.position
+
+        rightOrigin =
+            View.Mech.rightGunOffset player.transformState player.topAngle |> Vec2.add player.position
+
         deltaFire origin =
-            DeltaAddProjectile { ownerId = player.id, position = origin, angle = vecToAngle aimDirection }
+            DeltaAddProjectile { ownerId = player.id, position = origin, angle = aimAngle }
 
         fire =
             if input.fire && player.timeToReload == 0 then
                 [ DeltaPlayer player.id (\g p -> { p | timeToReload = mechFireInterval })
-                , deltaFire (View.Mech.rightGunOffset player.transformState player.topAngle |> Vec2.add player.position)
-                , deltaFire (View.Mech.leftGunOffset player.transformState player.topAngle |> Vec2.add player.position)
+                , deltaFire leftOrigin
+                , View.Gfx.deltaAddProjectileCase leftOrigin (aimAngle - pi - pi / 12)
+                , deltaFire rightOrigin
+                , View.Gfx.deltaAddProjectileCase rightOrigin (aimAngle + pi / 12)
                 ]
             else
                 []
