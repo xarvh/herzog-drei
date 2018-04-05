@@ -130,24 +130,38 @@ neutralPlayerInput =
 
 
 type alias Projectile =
-    { ownerId : Id
+    { id : Id
+    , ownerId : Id
     , position : Vec2
     , angle : Angle
     }
 
 
-{-
-addProjectile : Id -> Vec2 -> Angle -> Game -> Game
-addProjectile ownerId position angle game =
-    { game
-        | projectiles =
-            { ownerId = ownerId
-            , position = position
-            , angle = angle
-            }
-                :: game.projectiles
-    }
--}
+addProjectile : Projectile -> Game -> Game
+addProjectile projectile game =
+    let
+        id =
+            game.lastId + 1
+
+        projectileById =
+            Dict.insert id { projectile | id = id } game.projectileById
+    in
+    { game | projectileById = projectileById, lastId = id }
+
+
+deltaAddProjectile : Projectile -> Delta
+deltaAddProjectile p =
+    addProjectile p |> DeltaGame
+
+
+removeProjectile : Id -> Game -> Game
+removeProjectile id game =
+    { game | projectileById = Dict.remove id game.projectileById }
+
+
+deltaRemoveProjectile : Id -> Delta
+deltaRemoveProjectile id =
+    removeProjectile id |> DeltaGame
 
 
 
@@ -201,7 +215,7 @@ addUnit ownerId position game =
             , position = position
 
             --
-            , hp = 4
+            , hp = 40
             , maybeTargetId = Nothing
             , targetingAngle = 0
             , timeToReload = 0
@@ -291,11 +305,11 @@ type alias Gfx =
 type alias Game =
     { baseById : Dict Id Base
     , playerById : Dict Id Player
+    , projectileById : Dict Id Projectile
     , unitById : Dict Id Unit
     , lastId : Id
 
     --
-    , projectiles : List Projectile
     , cosmetics : List Gfx
 
     -- includes terrain and bases
@@ -313,12 +327,12 @@ type alias Game =
 init : Random.Seed -> Game
 init seed =
     { baseById = Dict.empty
-    , unitById = Dict.empty
     , playerById = Dict.empty
+    , projectileById = Dict.empty
+    , unitById = Dict.empty
     , lastId = 0
 
     --
-    , projectiles = []
     , cosmetics = []
     , staticObstacles = Set.empty
     , unpassableTiles = Set.empty
@@ -338,7 +352,7 @@ type Delta
     | DeltaPlayer Id (Game -> Player -> Player)
     | DeltaUnit Id (Game -> Unit -> Unit)
     | DeltaBase Id (Game -> Base -> Base)
-    | DeltaAddProjectile Projectile
+    | DeltaProjectile Id (Game -> Projectile -> Projectile)
 
 
 

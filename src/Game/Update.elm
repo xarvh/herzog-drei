@@ -55,11 +55,13 @@ update dt playerInputById game =
         , game.playerById
             |> Dict.values
             |> List.map playerThink
+        , game.projectileById
+            |> Dict.values
+            |> List.map (Game.Projectile.think dt oldGameWithUpdatedUnpassableTiles)
         ]
         |> List.concat
         |> applyGameDelta oldGameWithUpdatedUnpassableTiles
         |> updateGfxs dt
-        |> updateProjectiles dt
 
 
 
@@ -69,15 +71,6 @@ update dt playerInputById game =
 updateGfxs : Seconds -> Game -> Game
 updateGfxs dt game =
     { game | cosmetics = List.filterMap (View.Gfx.update dt) game.cosmetics }
-
-
-
--- Projectiles
-
-
-updateProjectiles : Seconds -> Game -> Game
-updateProjectiles dt game =
-    { game | projectiles = List.filterMap (Game.Projectile.update dt) game.projectiles }
 
 
 
@@ -135,11 +128,11 @@ ddApply game dd id entity =
 
 
 type alias GameDeltaDicts =
-    { players : DeltaDict Game Player
+    { bases : DeltaDict Game Base
+    , players : DeltaDict Game Player
+    , projectiles : DeltaDict Game Projectile
     , units : DeltaDict Game Unit
-    , bases : DeltaDict Game Base
     , game : List (Game -> Game)
-    , newProjectiles : List Projectile
     }
 
 
@@ -149,28 +142,28 @@ applyGameDelta game deltas =
         foldDeltas : Delta -> GameDeltaDicts -> GameDeltaDicts
         foldDeltas delta deltaStuff =
             case delta of
+                DeltaBase id f ->
+                    { deltaStuff | bases = ddInsert id f deltaStuff.bases }
+
                 DeltaPlayer id f ->
                     { deltaStuff | players = ddInsert id f deltaStuff.players }
+
+                DeltaProjectile id f ->
+                    { deltaStuff | projectiles = ddInsert id f deltaStuff.projectiles }
 
                 DeltaUnit id f ->
                     { deltaStuff | units = ddInsert id f deltaStuff.units }
 
-                DeltaBase id f ->
-                    { deltaStuff | bases = ddInsert id f deltaStuff.bases }
-
                 DeltaGame f ->
                     { deltaStuff | game = f :: deltaStuff.game }
 
-                DeltaAddProjectile projectile ->
-                    { deltaStuff | newProjectiles = projectile :: deltaStuff.newProjectiles }
-
         emptyGameDeltaDicts : GameDeltaDicts
         emptyGameDeltaDicts =
-            { players = ddEmpty
+            { bases = ddEmpty
+            , players = ddEmpty
+            , projectiles = ddEmpty
             , units = ddEmpty
-            , bases = ddEmpty
             , game = []
-            , newProjectiles = []
             }
 
         deltaDicts : GameDeltaDicts
@@ -189,9 +182,9 @@ applyGameDelta game deltas =
                     apply xs (fun g)
     in
     { game
-        | playerById = Dict.map (ddApply game deltaDicts.players) game.playerById
+        | baseById = Dict.map (ddApply game deltaDicts.bases) game.baseById
+        , playerById = Dict.map (ddApply game deltaDicts.players) game.playerById
+        , projectileById = Dict.map (ddApply game deltaDicts.projectiles) game.projectileById
         , unitById = Dict.map (ddApply game deltaDicts.units) game.unitById
-        , baseById = Dict.map (ddApply game deltaDicts.bases) game.baseById
-        , projectiles = deltaDicts.newProjectiles ++ game.projectiles
     }
         |> apply deltaDicts.game

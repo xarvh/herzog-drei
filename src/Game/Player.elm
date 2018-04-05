@@ -159,7 +159,7 @@ think dt game input player =
             View.Mech.rightGunOffset player.transformState player.topAngle |> Vec2.add player.position
 
         deltaFire origin =
-            DeltaAddProjectile { ownerId = player.id, position = origin, angle = aimAngle }
+            Game.deltaAddProjectile { id = -1, ownerId = player.id, position = origin, angle = aimAngle }
 
         fire =
             if input.fire && player.timeToReload == 0 then

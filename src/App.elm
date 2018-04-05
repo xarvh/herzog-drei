@@ -352,7 +352,8 @@ gameView { game } =
             |> Dict.values
             |> List.map (viewMarker game)
             |> Svg.g []
-        , game.projectiles
+        , game.projectileById
+            |> Dict.values
             |> List.map viewProjectile
             |> Svg.g []
         , game.cosmetics
