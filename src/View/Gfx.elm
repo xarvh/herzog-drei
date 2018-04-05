@@ -2,7 +2,14 @@ module View.Gfx exposing (..)
 
 import ColorPattern exposing (ColorPattern)
 import Ease
-import Game exposing (Delta(DeltaGame), Gfx, GfxRender(..), Seconds)
+import Game
+    exposing
+        ( Angle
+        , Delta(DeltaGame)
+        , Gfx
+        , GfxRender(..)
+        , Seconds
+        )
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import View exposing (..)
@@ -15,6 +22,15 @@ deltaAddGfx c =
 
 
 --
+
+
+deltaAddProjectileCase : Vec2 -> Angle -> Delta
+deltaAddProjectileCase origin angle =
+    deltaAddGfx
+        { age = 0
+        , maxAge = 0.2
+        , render = ProjectileCase origin angle
+        }
 
 
 deltaAddBeam : Vec2 -> Vec2 -> ColorPattern -> Delta
@@ -62,6 +78,21 @@ render cosmetic =
             cosmetic.age / cosmetic.maxAge
     in
     case cosmetic.render of
+        ProjectileCase origin angle ->
+            rect
+                [ transform
+                    [ translate origin
+                    , rotateRad angle
+                    , translate2 t 0
+                    ]
+                , fill "yellow"
+                , stroke "#990"
+                , strokeWidth 0.02
+                , width 0.1
+                , height 0.15
+                ]
+                []
+
         Beam start end colorPattern ->
             let
                 ( sx, sy ) =

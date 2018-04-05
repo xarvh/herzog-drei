@@ -17,10 +17,12 @@ import Game
         , clampToRadius
         , tile2Vec
         , vec2Tile
+        , vecToAngle
         )
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 import View.Gfx
+import View.Mech
 
 
 -- globals
@@ -29,6 +31,10 @@ import View.Gfx
 transformTime : Float
 transformTime =
     0.2
+
+
+mechFireInterval =
+    0.1
 
 
 
@@ -146,13 +152,22 @@ think dt game input player =
                     }
             ]
 
+        leftOrigin =
+            View.Mech.leftGunOffset player.transformState player.topAngle |> Vec2.add player.position
+
+        rightOrigin =
+            View.Mech.rightGunOffset player.transformState player.topAngle |> Vec2.add player.position
+
+        deltaFire origin =
+            Game.deltaAddProjectile { id = -1, ownerId = player.id, position = origin, angle = aimAngle }
+
         fire =
             if input.fire && player.timeToReload == 0 then
-                [ DeltaPlayer player.id (\g p -> { p | timeToReload = 0.7 })
-                , View.Gfx.deltaAddBeam
-                    player.position
-                    (Vec2.add player.position aimDirection)
-                    player.colorPattern
+                [ DeltaPlayer player.id (\g p -> { p | timeToReload = mechFireInterval })
+                , deltaFire leftOrigin
+                , View.Gfx.deltaAddProjectileCase leftOrigin (aimAngle - pi - pi / 12)
+                , deltaFire rightOrigin
+                , View.Gfx.deltaAddProjectileCase rightOrigin (aimAngle + pi / 12)
                 ]
             else
                 []

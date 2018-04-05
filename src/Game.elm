@@ -126,6 +126,45 @@ neutralPlayerInput =
 
 
 
+-- Projectiles
+
+
+type alias Projectile =
+    { id : Id
+    , ownerId : Id
+    , position : Vec2
+    , angle : Angle
+    }
+
+
+addProjectile : Projectile -> Game -> Game
+addProjectile projectile game =
+    let
+        id =
+            game.lastId + 1
+
+        projectileById =
+            Dict.insert id { projectile | id = id } game.projectileById
+    in
+    { game | projectileById = projectileById, lastId = id }
+
+
+deltaAddProjectile : Projectile -> Delta
+deltaAddProjectile p =
+    addProjectile p |> DeltaGame
+
+
+removeProjectile : Id -> Game -> Game
+removeProjectile id game =
+    { game | projectileById = Dict.remove id game.projectileById }
+
+
+deltaRemoveProjectile : Id -> Delta
+deltaRemoveProjectile id =
+    removeProjectile id |> DeltaGame
+
+
+
 -- Units
 
 
@@ -176,7 +215,7 @@ addUnit ownerId position game =
             , position = position
 
             --
-            , hp = 4
+            , hp = 40
             , maybeTargetId = Nothing
             , targetingAngle = 0
             , timeToReload = 0
@@ -249,6 +288,7 @@ tiles base =
 type GfxRender
     = Beam Vec2 Vec2 ColorPattern
     | Explosion Vec2 Float
+    | ProjectileCase Vec2 Angle
 
 
 type alias Gfx =
@@ -265,6 +305,7 @@ type alias Gfx =
 type alias Game =
     { baseById : Dict Id Base
     , playerById : Dict Id Player
+    , projectileById : Dict Id Projectile
     , unitById : Dict Id Unit
     , lastId : Id
 
@@ -286,8 +327,9 @@ type alias Game =
 init : Random.Seed -> Game
 init seed =
     { baseById = Dict.empty
-    , unitById = Dict.empty
     , playerById = Dict.empty
+    , projectileById = Dict.empty
+    , unitById = Dict.empty
     , lastId = 0
 
     --
@@ -310,6 +352,7 @@ type Delta
     | DeltaPlayer Id (Game -> Player -> Player)
     | DeltaUnit Id (Game -> Unit -> Unit)
     | DeltaBase Id (Game -> Base -> Base)
+    | DeltaProjectile Id (Game -> Projectile -> Projectile)
 
 
 
@@ -482,6 +525,13 @@ turnTo maxTurn targetAngle currentAngle =
         |> clamp -maxTurn maxTurn
         |> (+) currentAngle
         |> normalizeAngle
+
+
+angleToVector : Float -> Vec2
+angleToVector angle =
+    vec2
+        (sin angle)
+        (cos angle)
 
 
 rotateVector : Float -> Vec2 -> Vec2

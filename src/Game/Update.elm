@@ -8,6 +8,8 @@ import Game
         , Game
         , Id
         , Player
+        , Projectile
+        , Seconds
         , Unit
         , UnitMode(..)
         , normalizeAngle
@@ -15,6 +17,7 @@ import Game
         , vec2Tile
         )
 import Game.Player
+import Game.Projectile
 import Game.Unit
 import Set exposing (Set)
 import View.Gfx
@@ -23,20 +26,20 @@ import View.Gfx
 -- Main update function
 
 
-update : Float -> Dict Id Game.PlayerInput -> Game -> Game
-update dt playerInputById oldGame =
+update : Seconds -> Dict Id Game.PlayerInput -> Game -> Game
+update dt playerInputById game =
     let
         units =
-            Dict.values oldGame.unitById
+            Dict.values game.unitById
 
         updatedUnpassableTiles =
             units
                 |> List.map (.position >> vec2Tile)
                 |> Set.fromList
-                |> Set.union oldGame.staticObstacles
+                |> Set.union game.staticObstacles
 
         oldGameWithUpdatedUnpassableTiles =
-            { oldGame | unpassableTiles = updatedUnpassableTiles }
+            { game | unpassableTiles = updatedUnpassableTiles }
 
         getInputForPlayer player =
             playerInputById
@@ -49,9 +52,12 @@ update dt playerInputById oldGame =
     List.concat
         [ units
             |> List.map (Game.Unit.think dt oldGameWithUpdatedUnpassableTiles)
-        , oldGame.playerById
+        , game.playerById
             |> Dict.values
             |> List.map playerThink
+        , game.projectileById
+            |> Dict.values
+            |> List.map (Game.Projectile.think dt oldGameWithUpdatedUnpassableTiles)
         ]
         |> List.concat
         |> applyGameDelta oldGameWithUpdatedUnpassableTiles
@@ -62,7 +68,7 @@ update dt playerInputById oldGame =
 -- Gfxs
 
 
-updateGfxs : Float -> Game -> Game
+updateGfxs : Seconds -> Game -> Game
 updateGfxs dt game =
     { game | cosmetics = List.filterMap (View.Gfx.update dt) game.cosmetics }
 
@@ -122,9 +128,10 @@ ddApply game dd id entity =
 
 
 type alias GameDeltaDicts =
-    { players : DeltaDict Game Player
+    { bases : DeltaDict Game Base
+    , players : DeltaDict Game Player
+    , projectiles : DeltaDict Game Projectile
     , units : DeltaDict Game Unit
-    , bases : DeltaDict Game Base
     , game : List (Game -> Game)
     }
 
@@ -135,23 +142,27 @@ applyGameDelta game deltas =
         foldDeltas : Delta -> GameDeltaDicts -> GameDeltaDicts
         foldDeltas delta deltaStuff =
             case delta of
+                DeltaBase id f ->
+                    { deltaStuff | bases = ddInsert id f deltaStuff.bases }
+
                 DeltaPlayer id f ->
                     { deltaStuff | players = ddInsert id f deltaStuff.players }
 
+                DeltaProjectile id f ->
+                    { deltaStuff | projectiles = ddInsert id f deltaStuff.projectiles }
+
                 DeltaUnit id f ->
                     { deltaStuff | units = ddInsert id f deltaStuff.units }
-
-                DeltaBase id f ->
-                    { deltaStuff | bases = ddInsert id f deltaStuff.bases }
 
                 DeltaGame f ->
                     { deltaStuff | game = f :: deltaStuff.game }
 
         emptyGameDeltaDicts : GameDeltaDicts
         emptyGameDeltaDicts =
-            { players = ddEmpty
+            { bases = ddEmpty
+            , players = ddEmpty
+            , projectiles = ddEmpty
             , units = ddEmpty
-            , bases = ddEmpty
             , game = []
             }
 
@@ -171,8 +182,9 @@ applyGameDelta game deltas =
                     apply xs (fun g)
     in
     { game
-        | playerById = Dict.map (ddApply game deltaDicts.players) game.playerById
+        | baseById = Dict.map (ddApply game deltaDicts.bases) game.baseById
+        , playerById = Dict.map (ddApply game deltaDicts.players) game.playerById
+        , projectileById = Dict.map (ddApply game deltaDicts.projectiles) game.projectileById
         , unitById = Dict.map (ddApply game deltaDicts.units) game.unitById
-        , baseById = Dict.map (ddApply game deltaDicts.bases) game.baseById
     }
         |> apply deltaDicts.game
