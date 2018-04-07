@@ -1,6 +1,6 @@
 module View.Unit exposing (..)
 
-import Game exposing (normalizeAngle)
+import Game exposing (normalizeAngle, Angle)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import View exposing (..)
@@ -15,8 +15,8 @@ gunOffset torsoAngle =
 -- Unit
 
 
-unit : Float -> Float -> String -> String -> Svg a
-unit moveAngle aimAngle brightColor darkColor =
+unit : Angle -> Angle -> Angle -> String -> String -> Svg a
+unit lookAngle moveAngle aimAngle brightColor darkColor =
     let
         {-
            -- aimAngle - moveAngle
@@ -52,7 +52,7 @@ unit moveAngle aimAngle brightColor darkColor =
         [ rect
             [ transform [ translate gunOrigin, rotateRad aimAngle ]
             , fill "#808080"
-            , stroke darkColor
+            , stroke "#666"
             , strokeWidth 0.1
             , width 0.42
             , height 2.2
@@ -72,7 +72,7 @@ unit moveAngle aimAngle brightColor darkColor =
             ]
             []
         , ellipse
-            [ transform [ rotateRad aimAngle ]
+            [ transform [ rotateRad lookAngle ]
             , fill brightColor
             , stroke darkColor
             , strokeWidth 0.1
@@ -81,11 +81,10 @@ unit moveAngle aimAngle brightColor darkColor =
             ]
             []
         , ellipse
-            [ transform [ rotateRad aimAngle ]
+            [ transform [ rotateRad lookAngle ]
             , fill "#f00"
             , stroke "#900"
             , strokeWidth 0.07
-            , cx -0.01
             , cy 0.27
             , rx 0.25
             , ry 0.30

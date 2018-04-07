@@ -286,7 +286,13 @@ viewUnit game unit =
         UnitTypeSub subRecord ->
             Svg.g
                 [ transform [ translate unit.position ] ]
-                [ View.Unit.unit unit.moveAngle unit.fireAngle colorPattern.bright colorPattern.dark ]
+                [ View.Unit.unit
+                    unit.lookAngle
+                    unit.moveAngle
+                    unit.fireAngle
+                    colorPattern.bright
+                    colorPattern.dark
+                ]
 
 
 viewMarker : Game -> Player -> Svg a

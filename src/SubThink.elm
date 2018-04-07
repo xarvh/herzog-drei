@@ -112,11 +112,13 @@ searchForTargets game unit =
 
 unitAlignsAimToMovement : Float -> Unit -> Delta
 unitAlignsAimToMovement dt unit =
-    let
-        fireAngle =
-            Game.turnTo (2 * pi * dt) unit.moveAngle unit.fireAngle
-    in
-    DeltaUnit unit.id (\g u -> { u | fireAngle = fireAngle })
+    DeltaUnit unit.id
+        (\g u ->
+            { u
+                | lookAngle = Game.turnTo (5 * pi * dt) unit.moveAngle unit.lookAngle
+                , fireAngle = Game.turnTo (2 * pi * dt) unit.moveAngle unit.fireAngle
+            }
+        )
 
 
 searchForTargetOrAlignToMovement : Float -> Game -> Unit -> Delta
@@ -142,29 +144,27 @@ thinkTarget dt game unit subRecord =
                 let
                     dp =
                         Vec2.sub target.position unit.position
-
-                    fireAngle =
-                        Game.turnTo (2 * pi * dt) (Game.vecToAngle dp) unit.fireAngle
                 in
-                if unit.timeToReload > 0 || Vec2.lengthSquared dp > unitShootRange ^ 2 then
-                    DeltaUnit unit.id (\g u -> { u | fireAngle = fireAngle })
-                else
-                    DeltaList
-                        [ DeltaUnit unit.id (deltaUnitShoot fireAngle)
-                        , DeltaUnit target.id (deltaUnitTakeDamage 1)
-                        , View.Gfx.deltaAddBeam
-                            (Vec2.add unit.position (View.Unit.gunOffset unit.moveAngle))
-                            target.position
-                            (Game.playerColorPattern game unit.ownerId)
-                        ]
-
-
-deltaUnitShoot : Float -> Game -> Unit -> Unit
-deltaUnitShoot fireAngle game unit =
-    { unit
-        | fireAngle = fireAngle
-        , timeToReload = unitReloadTime
-    }
+                DeltaList
+                    [ DeltaUnit unit.id
+                        (\g u ->
+                            { u
+                                | fireAngle = Game.turnTo (2 * pi * dt) (Game.vecToAngle dp) unit.fireAngle
+                                , lookAngle = Game.turnTo (5 * pi * dt) (Game.vecToAngle dp) unit.lookAngle
+                            }
+                        )
+                    , DeltaList <|
+                        if unit.timeToReload > 0 || Vec2.lengthSquared dp > unitShootRange ^ 2 then
+                            []
+                        else
+                            [ DeltaUnit unit.id (\g u -> { u | timeToReload = unitReloadTime })
+                            , DeltaUnit target.id (deltaUnitTakeDamage 1)
+                            , View.Gfx.deltaAddBeam
+                                (Vec2.add unit.position (View.Unit.gunOffset unit.moveAngle))
+                                target.position
+                                (Game.playerColorPattern game unit.ownerId)
+                            ]
+                    ]
 
 
 deltaUnitTakeDamage : Int -> Game -> Unit -> Unit
