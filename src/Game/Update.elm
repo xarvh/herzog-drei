@@ -16,10 +16,10 @@ import Game
         , tile2Vec
         , vec2Tile
         )
-import Game.Player
-import Game.Projectile
-import Game.Unit
+import PlayerThink
+import ProjectileThink
 import Set exposing (Set)
+import UnitThink
 import View.Gfx
 
 
@@ -47,19 +47,18 @@ update dt playerInputById game =
                 |> Maybe.withDefault Game.neutralPlayerInput
 
         playerThink player =
-            Game.Player.think dt oldGameWithUpdatedUnpassableTiles (getInputForPlayer player) player
+            PlayerThink.think (getInputForPlayer player) dt oldGameWithUpdatedUnpassableTiles player
     in
-    List.concat
-        [ units
-            |> List.map (Game.Unit.think dt oldGameWithUpdatedUnpassableTiles)
-        , game.playerById
-            |> Dict.values
-            |> List.map playerThink
-        , game.projectileById
-            |> Dict.values
-            |> List.map (Game.Projectile.think dt oldGameWithUpdatedUnpassableTiles)
-        ]
-        |> List.concat
+    [ units
+        |> List.map (UnitThink.think dt oldGameWithUpdatedUnpassableTiles)
+    , game.playerById
+        |> Dict.values
+        |> List.map playerThink
+    , game.projectileById
+        |> Dict.values
+        |> List.map (ProjectileThink.think dt oldGameWithUpdatedUnpassableTiles)
+    ]
+        |> List.map DeltaList
         |> applyGameDelta oldGameWithUpdatedUnpassableTiles
         |> updateGfxs dt
 
@@ -142,6 +141,12 @@ applyGameDelta game deltas =
         foldDeltas : Delta -> GameDeltaDicts -> GameDeltaDicts
         foldDeltas delta deltaStuff =
             case delta of
+                DeltaList list ->
+                    List.foldl foldDeltas deltaStuff list
+
+                DeltaGame f ->
+                    { deltaStuff | game = f :: deltaStuff.game }
+
                 DeltaBase id f ->
                     { deltaStuff | bases = ddInsert id f deltaStuff.bases }
 
@@ -153,9 +158,6 @@ applyGameDelta game deltas =
 
                 DeltaUnit id f ->
                     { deltaStuff | units = ddInsert id f deltaStuff.units }
-
-                DeltaGame f ->
-                    { deltaStuff | game = f :: deltaStuff.game }
 
         emptyGameDeltaDicts : GameDeltaDicts
         emptyGameDeltaDicts =

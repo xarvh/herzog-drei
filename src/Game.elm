@@ -34,22 +34,14 @@ type alias Tile2 =
 
 
 type TransformMode
-    = Mech
-    | Plane
+    = ToMech
+    | ToPlane
 
 
 type alias Player =
     { id : Id
     , colorPattern : ColorPattern
-    , position : Vec2
     , markerPosition : Vec2
-    , timeToReload : Seconds
-
-    --
-    , headAngle : Float
-    , topAngle : Float
-    , transformState : Float
-    , transformingTo : TransformMode
     }
 
 
@@ -71,19 +63,10 @@ addPlayer position game =
                 |> List.head
                 |> Maybe.withDefault ColorPattern.neutral
 
-        startAngle =
-            Vec2.negate position |> vecToAngle
-
         player =
             { id = id
-            , position = position
             , markerPosition = position
             , colorPattern = colorPattern
-            , timeToReload = 0
-            , headAngle = startAngle
-            , topAngle = startAngle
-            , transformState = 0
-            , transformingTo = Mech
             }
 
         playerById =
@@ -180,45 +163,81 @@ type UnitMode
     | UnitModeBase Id
 
 
-type alias Unit =
-    { id : Id
-    , order : UnitOrder
-    , ownerId : Id
-    , mode : UnitMode
-
-    --
-    , position : Vec2
-    , movementAngle : Float
-
-    --
-    , hp : Int
-    , maybeTargetId : Maybe Id
-    , timeToReload : Seconds
-    , targetingAngle : Float
+type alias UnitTypeMechRecord =
+    { transformState : Float
+    , transformingTo : TransformMode
     }
 
 
-addUnit : Id -> Vec2 -> Game -> ( Game, Unit )
-addUnit ownerId position game =
+type alias UnitTypeSubRecord =
+    { mode : UnitMode
+    , maybeTargetId : Maybe Id
+    , order : UnitOrder
+    }
+
+
+type
+    UnitType
+    --TODO Record -> Component
+    = UnitTypeMech UnitTypeMechRecord
+    | UnitTypeSub UnitTypeSubRecord
+
+
+type alias Unit =
+    { id : Id
+    , hp : Int
+    , ownerId : Id
+    , position : Vec2
+    , timeToReload : Seconds
+
+    --TODO: rename to 'extra'?
+    , type_ : UnitType
+
+    --
+    , fireAngle : Float
+    , lookAngle : Float
+    , moveAngle : Float
+    }
+
+
+addUnit : Id -> Bool -> Vec2 -> Game -> ( Game, Unit )
+addUnit ownerId isMech position game =
     let
         id =
             game.lastId + 1
 
+        faceCenterOfMap =
+            Vec2.negate position |> vecToAngle
+
         unit =
             { id = id
-            , mode = UnitModeFree
             , ownerId = ownerId
-            , order = UnitOrderFollowMarker
-
-            --
-            , movementAngle = 0
             , position = position
+            , hp =
+                if isMech then
+                    40
+                else
+                    10
+            , timeToReload = 0
 
             --
-            , hp = 40
-            , maybeTargetId = Nothing
-            , targetingAngle = 0
-            , timeToReload = 0
+            , lookAngle = faceCenterOfMap
+            , fireAngle = faceCenterOfMap
+            , moveAngle = faceCenterOfMap
+
+            --
+            , type_ =
+                if isMech then
+                    UnitTypeMech
+                        { transformState = 0
+                        , transformingTo = ToMech
+                        }
+                else
+                    UnitTypeSub
+                        { order = UnitOrderFollowMarker
+                        , mode = UnitModeFree
+                        , maybeTargetId = Nothing
+                        }
             }
 
         unitById =
@@ -230,6 +249,26 @@ addUnit ownerId position game =
 removeUnit : Id -> Game -> Game
 removeUnit id game =
     { game | unitById = Dict.remove id game.unitById }
+
+
+updateUnitSubRecord : (UnitTypeSubRecord -> UnitTypeSubRecord) -> Game -> Unit -> Unit
+updateUnitSubRecord updateSubRecord game unit =
+    case unit.type_ of
+        UnitTypeSub subRecord ->
+            { unit | type_ = UnitTypeSub (updateSubRecord subRecord) }
+
+        _ ->
+            unit
+
+
+updateUnitMechRecord : (UnitTypeMechRecord -> UnitTypeMechRecord) -> Game -> Unit -> Unit
+updateUnitMechRecord updateMechRecord game unit =
+    case unit.type_ of
+        UnitTypeMech mechRecord ->
+            { unit | type_ = UnitTypeMech (updateMechRecord mechRecord) }
+
+        _ ->
+            unit
 
 
 
@@ -348,7 +387,8 @@ init seed =
 
 
 type Delta
-    = DeltaGame (Game -> Game)
+    = DeltaList (List Delta)
+    | DeltaGame (Game -> Game)
     | DeltaPlayer Id (Game -> Player -> Player)
     | DeltaUnit Id (Game -> Unit -> Unit)
     | DeltaBase Id (Game -> Base -> Base)

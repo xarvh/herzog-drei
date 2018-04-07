@@ -1,4 +1,4 @@
-module Game.Unit exposing (..)
+module SubThink exposing (..)
 
 {-| This module contains all the deltas that can be originated by Units
 and the Unit.think that decudes which deltas to output.
@@ -16,9 +16,12 @@ import Game
         , Unit
         , UnitMode(..)
         , UnitOrder(..)
+        , UnitType(..)
+        , UnitTypeSubRecord
         , clampToRadius
         , tile2Vec
         , tileDistance
+        , updateUnitSubRecord
         , vec2Tile
         , vectorDistance
         )
@@ -46,16 +49,12 @@ unitShootRange =
 -- Think
 
 
-think : Float -> Game -> Unit -> List Delta
-think dt game unit =
-    if unit.hp < 1 then
-        destroy unit
-    else
-        List.concat
-            [ thinkTarget dt game unit
-            , thinkReload dt game unit
-            , thinkMovement dt game unit
-            ]
+think : Float -> Game -> Unit -> UnitTypeSubRecord -> Delta
+think dt game unit subRecord =
+    DeltaList
+        [ thinkTarget dt game unit subRecord
+        , thinkMovement dt game unit subRecord
+        ]
 
 
 
@@ -77,35 +76,14 @@ deltaBaseLosesUnit game base =
     { base | maybeOwnerId = maybeOwnerId, containedUnits = containedUnits }
 
 
-destroy : Unit -> List Delta
-destroy unit =
-    List.concat
-        [ [ DeltaGame (Game.removeUnit unit.id)
-          , View.Gfx.deltaAddExplosion unit.position 1.0
-          ]
-        , case unit.mode of
-            UnitModeBase baseId ->
-                [ DeltaBase baseId deltaBaseLosesUnit ]
+destroy : Game -> Unit -> UnitTypeSubRecord -> Delta
+destroy game unit subRecord =
+    case subRecord.mode of
+        UnitModeBase baseId ->
+            DeltaBase baseId deltaBaseLosesUnit
 
-            _ ->
-                []
-        ]
-
-
-
--- Reloading
-
-
-thinkReload : Float -> Game -> Unit -> List Delta
-thinkReload dt game unit =
-    if unit.timeToReload > 0 then
-        let
-            timeToReload =
-                max 0 (unit.timeToReload - dt)
-        in
-        [ DeltaUnit unit.id (\g u -> { u | timeToReload = timeToReload }) ]
-    else
-        []
+        _ ->
+            DeltaList []
 
 
 
@@ -119,7 +97,10 @@ searchForTargets game unit =
             if distance > unitShootRange then
                 Nothing
             else
-                Just <| DeltaUnit unit.id (\g u -> { u | maybeTargetId = Just target.id })
+                (\subRecord -> { subRecord | maybeTargetId = Just target.id })
+                    |> updateUnitSubRecord
+                    |> DeltaUnit unit.id
+                    |> Just
     in
     game.unitById
         |> Dict.values
@@ -132,10 +113,10 @@ searchForTargets game unit =
 unitAlignsAimToMovement : Float -> Unit -> Delta
 unitAlignsAimToMovement dt unit =
     let
-        targetingAngle =
-            Game.turnTo (2 * pi * dt) unit.movementAngle unit.targetingAngle
+        fireAngle =
+            Game.turnTo (2 * pi * dt) unit.moveAngle unit.fireAngle
     in
-    DeltaUnit unit.id (\g u -> { u | targetingAngle = targetingAngle })
+    DeltaUnit unit.id (\g u -> { u | fireAngle = fireAngle })
 
 
 searchForTargetOrAlignToMovement : Float -> Game -> Unit -> Delta
@@ -148,39 +129,40 @@ searchForTargetOrAlignToMovement dt game unit =
             unitAlignsAimToMovement dt unit
 
 
-thinkTarget : Float -> Game -> Unit -> List Delta
-thinkTarget dt game unit =
-    case unit.maybeTargetId |> Maybe.andThen (\id -> Dict.get id game.unitById) of
+thinkTarget : Float -> Game -> Unit -> UnitTypeSubRecord -> Delta
+thinkTarget dt game unit subRecord =
+    case subRecord.maybeTargetId |> Maybe.andThen (\id -> Dict.get id game.unitById) of
         Nothing ->
-            [ searchForTargetOrAlignToMovement dt game unit ]
+            searchForTargetOrAlignToMovement dt game unit
 
         Just target ->
             if vectorDistance unit.position target.position > unitShootRange then
-                [ searchForTargetOrAlignToMovement dt game unit ]
+                searchForTargetOrAlignToMovement dt game unit
             else
                 let
                     dp =
                         Vec2.sub target.position unit.position
 
-                    targetingAngle =
-                        Game.turnTo (2 * pi * dt) (Game.vecToAngle dp) unit.targetingAngle
+                    fireAngle =
+                        Game.turnTo (2 * pi * dt) (Game.vecToAngle dp) unit.fireAngle
                 in
                 if unit.timeToReload > 0 || Vec2.lengthSquared dp > unitShootRange ^ 2 then
-                    [ DeltaUnit unit.id (\g u -> { u | targetingAngle = targetingAngle }) ]
+                    DeltaUnit unit.id (\g u -> { u | fireAngle = fireAngle })
                 else
-                    [ DeltaUnit unit.id (deltaUnitShoot targetingAngle)
-                    , DeltaUnit target.id (deltaUnitTakeDamage 1)
-                    , View.Gfx.deltaAddBeam
-                        (Vec2.add unit.position (View.Unit.gunOffset unit.movementAngle))
-                        target.position
-                        (Game.playerColorPattern game unit.ownerId)
-                    ]
+                    DeltaList
+                        [ DeltaUnit unit.id (deltaUnitShoot fireAngle)
+                        , DeltaUnit target.id (deltaUnitTakeDamage 1)
+                        , View.Gfx.deltaAddBeam
+                            (Vec2.add unit.position (View.Unit.gunOffset unit.moveAngle))
+                            target.position
+                            (Game.playerColorPattern game unit.ownerId)
+                        ]
 
 
 deltaUnitShoot : Float -> Game -> Unit -> Unit
-deltaUnitShoot targetingAngle game unit =
+deltaUnitShoot fireAngle game unit =
     { unit
-        | targetingAngle = targetingAngle
+        | fireAngle = fireAngle
         , timeToReload = unitReloadTime
     }
 
@@ -218,14 +200,14 @@ getAvailableMoves occupiedPositions ( x, y ) =
         |> Set.fromList
 
 
-move : Float -> Game -> Vec2 -> Unit -> List Delta
+move : Float -> Game -> Vec2 -> Unit -> Delta
 move dt game targetPosition unit =
     let
         targetDistance =
             0
     in
     if vectorDistance unit.position targetPosition <= targetDistance then
-        []
+        DeltaList []
     else
         let
             unitTile =
@@ -256,15 +238,14 @@ move dt game targetPosition unit =
             viableDelta =
                 clampToRadius maxLength idealDelta
 
-            movementAngle =
-                Game.turnTo (2 * pi * dt) (Game.vecToAngle viableDelta) unit.movementAngle
+            moveAngle =
+                Game.turnTo (2 * pi * dt) (Game.vecToAngle viableDelta) unit.moveAngle
         in
-        [ DeltaGame (deltaGameUnitMoves unit.id movementAngle viableDelta)
-        ]
+        DeltaGame (deltaGameUnitMoves unit.id moveAngle viableDelta)
 
 
 deltaGameUnitMoves : Id -> Float -> Vec2 -> Game -> Game
-deltaGameUnitMoves unitId movementAngle dx game =
+deltaGameUnitMoves unitId moveAngle dx game =
     Game.withUnit game unitId <|
         \unit ->
             let
@@ -284,7 +265,7 @@ deltaGameUnitMoves unitId movementAngle dx game =
                 -- destination tile available, mark it as occupied and move unit
                 let
                     newUnit =
-                        { unit | position = newPosition, movementAngle = movementAngle }
+                        { unit | position = newPosition, moveAngle = moveAngle }
 
                     unpassableTiles =
                         Set.insert newTilePosition game.unpassableTiles
@@ -295,6 +276,16 @@ deltaGameUnitMoves unitId movementAngle dx game =
 
 
 -- Enter base
+
+
+unitIsInBase : Id -> Unit -> Bool
+unitIsInBase baseId unit =
+    case unit.type_ of
+        UnitTypeSub subRecord ->
+            subRecord.mode == UnitModeBase baseId
+
+        _ ->
+            False
 
 
 deltaGameUnitEntersBase : Id -> Id -> Game -> Game
@@ -314,7 +305,7 @@ deltaGameUnitEntersBase unitId baseId game =
                             unitsInBase =
                                 game.unitById
                                     |> Dict.values
-                                    |> List.filter (\u -> u.mode == UnitModeBase base.id)
+                                    |> List.filter (unitIsInBase base.id)
 
                             takenCorners =
                                 unitsInBase
@@ -330,10 +321,9 @@ deltaGameUnitEntersBase unitId baseId game =
                                         1 + List.length takenCorners
 
                                     newUnit =
-                                        { unit
-                                            | mode = Game.UnitModeBase base.id
-                                            , position = corner
-                                        }
+                                        unit
+                                            |> updateUnitSubRecord (\s -> { s | mode = Game.UnitModeBase base.id }) game
+                                            |> (\u -> { u | position = corner })
 
                                     newBase =
                                         { base
@@ -347,27 +337,27 @@ deltaGameUnitEntersBase unitId baseId game =
                                     |> Game.updateBase newBase
 
 
-thinkMovement : Float -> Game -> Unit -> List Delta
-thinkMovement dt game unit =
-    case unit.mode of
+thinkMovement : Float -> Game -> Unit -> UnitTypeSubRecord -> Delta
+thinkMovement dt game unit subRecord =
+    case subRecord.mode of
         UnitModeBase baseId ->
-            []
+            DeltaList []
 
         UnitModeFree ->
-            case unit.order of
+            case subRecord.order of
                 UnitOrderStay ->
-                    []
+                    DeltaList []
 
                 UnitOrderEnterBase baseId ->
                     case Dict.get baseId game.baseById of
                         Nothing ->
-                            []
+                            DeltaList []
 
                         Just base ->
                             if vectorDistance unit.position (tile2Vec base.position) > Game.maximumDistanceForUnitToEnterBase then
                                 move dt game (tile2Vec base.position) unit
                             else
-                                [ DeltaGame (deltaGameUnitEntersBase unit.id base.id) ]
+                                DeltaGame (deltaGameUnitEntersBase unit.id base.id)
 
                 UnitOrderMoveTo targetPosition ->
                     move dt game targetPosition unit
@@ -380,7 +370,7 @@ thinkMovement dt game unit =
                 UnitOrderFollowMarker ->
                     case Dict.get unit.ownerId game.playerById of
                         Nothing ->
-                            []
+                            DeltaList []
 
                         Just player ->
                             let
@@ -401,7 +391,7 @@ thinkMovement dt game unit =
                                     if baseDistance base > Game.maximumDistanceForUnitToEnterBase then
                                         move dt game (tile2Vec base.position) unit
                                     else
-                                        [ DeltaGame (deltaGameUnitEntersBase unit.id base.id) ]
+                                        DeltaGame (deltaGameUnitEntersBase unit.id base.id)
 
                                 Nothing ->
                                     move dt game player.markerPosition unit
