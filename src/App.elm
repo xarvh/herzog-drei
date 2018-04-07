@@ -2,6 +2,7 @@ module App exposing (..)
 
 import AnimationFrame
 import ColorPattern exposing (neutral)
+import Css
 import Dict exposing (Dict)
 import Game
     exposing
@@ -17,20 +18,26 @@ import Game
         , vec2Tile
         )
 import Game.Update
+import Html exposing (div)
+import Html.Attributes exposing (class)
 import Keyboard.Extra
+import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mouse
 import Random
 import Set exposing (Set)
+import SplitScreen exposing (Viewport)
 import Svg exposing (Svg)
 import Svg.Attributes
 import Svg.Events
+import Task
 import Time exposing (Time)
 import View exposing (..)
 import View.Gfx
 import View.Mech
 import View.Projectile
 import View.Unit
+import Window
 
 
 --
@@ -47,16 +54,21 @@ gameToScreenRatio =
 type Msg
     = OnAnimationFrame Time
     | OnMouseButton Bool
+    | OnMouseMoves Mouse.Position
+    | OnWindowResizes Window.Size
 
 
 type alias Model =
     { game : Game
-    , mousePosition : Vec2
+    , mousePosition : Mouse.Position
     , mouseIsPressed : Bool
+    , viewports : List Viewport
+    , windowSize : Window.Size
     , time : Time
     }
 
 
+init : ( Model, Cmd Msg )
 init =
     let
         addPlayerAndMech : Vec2 -> Game -> ( Game, Player )
@@ -108,12 +120,14 @@ init =
         |> addAiUnit player2.id (vec2 -3 4.8)
         |> (\game ->
                 { game = game
-                , mousePosition = vec2 0 0
+                , mousePosition = { x = 0, y = 0 }
                 , mouseIsPressed = False
+                , viewports = []
+                , windowSize = { width = 1, height = 1 }
                 , time = 0
                 }
            )
-        |> noCmd
+        |> flip (,) (Window.size |> Task.perform OnWindowResizes)
 
 
 
@@ -125,11 +139,25 @@ noCmd model =
     ( model, Cmd.none )
 
 
-update : Vec2 -> List Keyboard.Extra.Key -> Msg -> Model -> ( Model, Cmd Msg )
-update mousePosition pressedKeys msg model =
+setViewports : Window.Size -> Model -> Model
+setViewports windowSize model =
+    { model
+        | windowSize = windowSize
+        , viewports = SplitScreen.makeViewports windowSize (Dict.size model.game.playerById)
+    }
+
+
+update : List Keyboard.Extra.Key -> Msg -> Model -> ( Model, Cmd Msg )
+update pressedKeys msg model =
     case msg of
         OnMouseButton state ->
             noCmd { model | mouseIsPressed = state }
+
+        OnMouseMoves mousePosition ->
+            noCmd { model | mousePosition = mousePosition }
+
+        OnWindowResizes windowSize ->
+            setViewports windowSize model |> noCmd
 
         OnAnimationFrame dtInMilliseconds ->
             let
@@ -142,8 +170,14 @@ update mousePosition pressedKeys msg model =
                 isPressed key =
                     List.member key pressedKeys
 
+                ( mouseX, mouseY ) =
+                    model.viewports
+                        |> List.head
+                        |> Maybe.map (SplitScreen.mouseScreenToViewport model.mousePosition)
+                        |> Maybe.withDefault ( 0, 0 )
+
                 input =
-                    { aim = Vec2.scale gameToScreenRatio mousePosition
+                    { aim = vec2 mouseX mouseY |> Vec2.scale 10
                     , fire = model.mouseIsPressed
                     , transform = isPressed Keyboard.Extra.CharE
                     , switchUnit = isPressed Keyboard.Extra.Space
@@ -159,7 +193,6 @@ update mousePosition pressedKeys msg model =
             noCmd
                 { model
                     | game = game
-                    , mousePosition = mousePosition
                     , time = model.time + dt
                 }
 
@@ -305,8 +338,12 @@ viewProjectile projectile =
     View.Projectile.projectile projectile.position projectile.angle
 
 
+
+-- Test View
+
+
 view =
-    gameView
+    splitView
 
 
 testView : Model -> Svg a
@@ -328,8 +365,7 @@ testView model =
             View.Unit.gunOffset moveAngle
 
         end =
-            model.mousePosition
-                |> Vec2.scale 10
+            vec2 0 0
     in
     Svg.g
         [ transform [ "scale(0.4, 0.4)" ] ]
@@ -340,34 +376,62 @@ testView model =
         ]
 
 
-gameView : Model -> Svg Msg
-gameView { game } =
-    Svg.g
-        [ transform [ "scale(0.1, 0.1)" ] ]
-        [ checkersBackground 10
-        , game.staticObstacles
-            |> Set.toList
-            |> List.map (\pos -> square (tile2Vec pos) "gray" 1)
-            |> Svg.g []
-        , game.baseById
-            |> Dict.values
-            |> List.map (viewBase game)
-            |> Svg.g []
-        , game.unitById
-            |> Dict.values
-            |> List.map (viewUnit game)
-            |> Svg.g []
-        , game.playerById
-            |> Dict.values
-            |> List.map (viewMarker game)
-            |> Svg.g []
-        , game.projectileById
-            |> Dict.values
-            |> List.map viewProjectile
-            |> Svg.g []
-        , game.cosmetics
-            |> List.map View.Gfx.render
-            |> Svg.g []
+
+-- Game view
+
+
+viewPlayer : Model -> ( Player, Viewport ) -> Svg Msg
+viewPlayer { game } ( player, viewport ) =
+    Svg.svg
+        (SplitScreen.viewportToSvgAttributes viewport)
+        [ Svg.g
+            -- TODO: the scale should be enough to fit the mech's shooting range and then some
+            [ transform [ "scale(0.1, -0.1)" ]
+            ]
+            [ checkersBackground 10
+            , game.staticObstacles
+                |> Set.toList
+                |> List.map (\pos -> square (tile2Vec pos) "gray" 1)
+                |> Svg.g []
+            , game.baseById
+                |> Dict.values
+                |> List.map (viewBase game)
+                |> Svg.g []
+            , game.unitById
+                |> Dict.values
+                |> List.map (viewUnit game)
+                |> Svg.g []
+            , game.playerById
+                |> Dict.values
+                |> List.map (viewMarker game)
+                |> Svg.g []
+            , game.projectileById
+                |> Dict.values
+                |> List.map viewProjectile
+                |> Svg.g []
+            , game.cosmetics
+                |> List.map View.Gfx.render
+                |> Svg.g []
+            ]
+        ]
+
+
+splitView : Model -> Svg Msg
+splitView model =
+    let
+        sortedPlayers =
+            model.game.playerById
+                |> Dict.values
+                |> List.sortBy .id
+
+        viewportsAndPlayers =
+            List.map2 (,) sortedPlayers model.viewports
+    in
+    div
+        []
+        [ viewportsAndPlayers
+            |> List.map (viewPlayer model)
+            |> SplitScreen.viewportsWrapper
         ]
 
 
@@ -381,4 +445,6 @@ subscriptions model =
         [ AnimationFrame.diffs OnAnimationFrame
         , Mouse.downs (\_ -> OnMouseButton True)
         , Mouse.ups (\_ -> OnMouseButton False)
+        , Mouse.moves OnMouseMoves
+        , Window.resizes OnWindowResizes
         ]
