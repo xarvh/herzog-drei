@@ -16,8 +16,8 @@ import Game
         , tile2Vec
         , vec2Tile
         )
-import Game.Projectile
 import PlayerThink
+import ProjectileThink
 import Set exposing (Set)
 import UnitThink
 import View.Gfx
@@ -56,7 +56,7 @@ update dt playerInputById game =
         |> List.map playerThink
     , game.projectileById
         |> Dict.values
-        |> List.map (Game.Projectile.think dt oldGameWithUpdatedUnpassableTiles)
+        |> List.map (ProjectileThink.think dt oldGameWithUpdatedUnpassableTiles)
     ]
         |> List.map DeltaList
         |> applyGameDelta oldGameWithUpdatedUnpassableTiles

@@ -1,4 +1,4 @@
-module Game.Projectile exposing (..)
+module ProjectileThink exposing (..)
 
 import Collision
 import Dict exposing (Dict)
