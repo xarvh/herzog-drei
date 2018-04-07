@@ -10,8 +10,7 @@ import Game
         , UnitTypeMechRecord
         , UnitTypeSubRecord
         )
-import UnitTypeMechThink
-import UnitTypeSubThink
+import SubThink
 import View.Gfx
 import View.Unit
 
@@ -29,20 +28,20 @@ think dt game unit =
                 ]
             , case unit.type_ of
                 UnitTypeSub subRecord ->
-                    UnitTypeSubThink.destroy game unit subRecord
+                    SubThink.destroy game unit subRecord
 
                 UnitTypeMech mechRecord ->
-                    UnitTypeMechThink.destroy game unit mechRecord
+                   DeltaList []
             ]
     else
         DeltaList
             [ thinkReload dt game unit
             , case unit.type_ of
                 UnitTypeSub subRecord ->
-                    UnitTypeSubThink.think dt game unit subRecord
+                    SubThink.think dt game unit subRecord
 
                 UnitTypeMech mechRecord ->
-                    UnitTypeMechThink.think dt game unit mechRecord
+                    DeltaList []
             ]
 
 

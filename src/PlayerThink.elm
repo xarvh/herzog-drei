@@ -1,11 +1,14 @@
-module UnitTypeMechThink exposing (..)
+module PlayerThink exposing (..)
 
+import Dict exposing (Dict)
 import Game
     exposing
         ( Delta(..)
         , Game
         , Id
+        , Player
         , PlayerInput
+        , Seconds
         , TransformMode(..)
         , Unit
         , UnitType(..)
@@ -57,18 +60,37 @@ transformMode mechRecord =
 --
 
 
-destroy : Game -> Unit -> UnitTypeMechRecord -> Delta
-destroy game unit mechRecord =
-    DeltaList []
+findMech : Id -> List Unit -> Maybe ( Unit, UnitTypeMechRecord )
+findMech playerId units =
+    case units of
+        [] ->
+            Nothing
+
+        u :: us ->
+            if u.ownerId /= playerId then
+                findMech playerId us
+            else
+                case u.type_ of
+                    UnitTypeMech mechRecord ->
+                        Just ( u, mechRecord )
+
+                    _ ->
+                        findMech playerId us
 
 
-think : Float -> Game -> Unit -> UnitTypeMechRecord -> Delta
-think dt game unit mechRecord =
+think : PlayerInput -> Seconds -> Game -> Player -> Delta
+think input dt game player =
+    case game.unitById |> Dict.values |> findMech player.id of
+        Nothing ->
+            DeltaList []
+
+        Just ( unit, mechRecord ) ->
+            mechThink input dt game unit mechRecord
+
+
+mechThink : PlayerInput -> Float -> Game -> Unit -> UnitTypeMechRecord -> Delta
+mechThink input dt game unit mechRecord =
     let
-        -- TODO
-        input =
-            Game.neutralPlayerInput
-
         speed =
             case transformMode mechRecord of
                 ToMech ->

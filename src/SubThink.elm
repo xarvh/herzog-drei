@@ -1,4 +1,4 @@
-module UnitTypeSubThink exposing (..)
+module SubThink exposing (..)
 
 {-| This module contains all the deltas that can be originated by Units
 and the Unit.think that decudes which deltas to output.
