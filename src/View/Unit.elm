@@ -52,7 +52,7 @@ unit lookAngle moveAngle aimAngle brightColor darkColor =
         [ rect
             [ transform [ translate gunOrigin, rotateRad aimAngle ]
             , fill "#808080"
-            , stroke darkColor
+            , stroke "#666"
             , strokeWidth 0.1
             , width 0.42
             , height 2.2
