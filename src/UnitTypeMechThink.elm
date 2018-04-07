@@ -57,12 +57,12 @@ transformMode mechRecord =
 --
 
 
-destroy : Game -> Unit -> UnitTypeMechRecord -> List Delta
+destroy : Game -> Unit -> UnitTypeMechRecord -> Delta
 destroy game unit mechRecord =
-    []
+    DeltaList []
 
 
-think : Float -> Game -> Unit -> UnitTypeMechRecord -> List Delta
+think : Float -> Game -> Unit -> UnitTypeMechRecord -> Delta
 think dt game unit mechRecord =
     let
         -- TODO
@@ -122,9 +122,9 @@ think dt game unit mechRecord =
 
         moveTarget =
             if input.rally then
-                [ DeltaPlayer unit.ownerId (\g u -> { u | markerPosition = unit.position }) ]
+                DeltaPlayer unit.ownerId (\g u -> { u | markerPosition = unit.position })
             else
-                []
+                DeltaList []
 
         deltaMoveOrWalk =
             case transformMode mechRecord of
@@ -135,13 +135,13 @@ think dt game unit mechRecord =
                     deltaFly
 
         moveMech =
-            [ DeltaUnit unit.id (deltaMoveOrWalk dx) ]
+            DeltaUnit unit.id (deltaMoveOrWalk dx)
 
         reload =
             if unit.timeToReload > 0 then
-                [ DeltaUnit unit.id (\g u -> { u | timeToReload = max 0 (u.timeToReload - dt) }) ]
+                DeltaUnit unit.id (\g u -> { u | timeToReload = max 0 (u.timeToReload - dt) })
             else
-                []
+                DeltaList []
 
         aimDirection =
             Vec2.sub input.aim unit.position
@@ -150,14 +150,13 @@ think dt game unit mechRecord =
             Game.vecToAngle aimDirection
 
         aim =
-            [ (\g u ->
+            (\g u ->
                 { u
                     | lookAngle = Game.turnTo (5 * pi * dt) aimAngle u.lookAngle
                     , fireAngle = Game.turnTo (2 * pi * dt) aimAngle u.fireAngle
                 }
-              )
+            )
                 |> DeltaUnit unit.id
-            ]
 
         leftOrigin =
             View.Mech.leftGunOffset mechRecord.transformState unit.fireAngle |> Vec2.add unit.position
@@ -170,22 +169,23 @@ think dt game unit mechRecord =
 
         fire =
             if input.fire && unit.timeToReload == 0 then
-                [ DeltaUnit unit.id (\g u -> { u | timeToReload = mechFireInterval })
-                , deltaFire leftOrigin
-                , View.Gfx.deltaAddProjectileCase leftOrigin (aimAngle - pi - pi / 12)
-                , deltaFire rightOrigin
-                , View.Gfx.deltaAddProjectileCase rightOrigin (aimAngle + pi / 12)
-                ]
+                DeltaList
+                    [ DeltaUnit unit.id (\g u -> { u | timeToReload = mechFireInterval })
+                    , deltaFire leftOrigin
+                    , View.Gfx.deltaAddProjectileCase leftOrigin (aimAngle - pi - pi / 12)
+                    , deltaFire rightOrigin
+                    , View.Gfx.deltaAddProjectileCase rightOrigin (aimAngle + pi / 12)
+                    ]
             else
-                []
+                DeltaList []
     in
-    List.concat
+    DeltaList
         [ moveTarget
         , moveMech
         , reload
         , aim
         , fire
-        , [ transform ]
+        , transform
         ]
 
 

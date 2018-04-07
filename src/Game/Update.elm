@@ -16,9 +16,9 @@ import Game
         , tile2Vec
         , vec2Tile
         )
-import UnitThink
 import Game.Projectile
 import Set exposing (Set)
+import UnitThink
 import View.Gfx
 
 
@@ -44,16 +44,15 @@ update dt playerInputById game =
             playerInputById
                 |> Dict.get player.id
                 |> Maybe.withDefault Game.neutralPlayerInput
-
     in
-    List.concat
-        [ units
-            |> List.map (UnitThink.think dt oldGameWithUpdatedUnpassableTiles)
-        , game.projectileById
-            |> Dict.values
-            |> List.map (Game.Projectile.think dt oldGameWithUpdatedUnpassableTiles)
-        ]
-        |> List.concat
+    [ units
+        |> List.map (UnitThink.think dt oldGameWithUpdatedUnpassableTiles)
+        |> DeltaList
+    , game.projectileById
+        |> Dict.values
+        |> List.map (Game.Projectile.think dt oldGameWithUpdatedUnpassableTiles)
+        |> DeltaList
+    ]
         |> applyGameDelta oldGameWithUpdatedUnpassableTiles
         |> updateGfxs dt
 
@@ -136,6 +135,12 @@ applyGameDelta game deltas =
         foldDeltas : Delta -> GameDeltaDicts -> GameDeltaDicts
         foldDeltas delta deltaStuff =
             case delta of
+                DeltaList list ->
+                    List.foldl foldDeltas deltaStuff list
+
+                DeltaGame f ->
+                    { deltaStuff | game = f :: deltaStuff.game }
+
                 DeltaBase id f ->
                     { deltaStuff | bases = ddInsert id f deltaStuff.bases }
 
@@ -147,9 +152,6 @@ applyGameDelta game deltas =
 
                 DeltaUnit id f ->
                     { deltaStuff | units = ddInsert id f deltaStuff.units }
-
-                DeltaGame f ->
-                    { deltaStuff | game = f :: deltaStuff.game }
 
         emptyGameDeltaDicts : GameDeltaDicts
         emptyGameDeltaDicts =

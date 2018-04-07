@@ -387,7 +387,8 @@ init seed =
 
 
 type Delta
-    = DeltaGame (Game -> Game)
+    = DeltaList (List Delta)
+    | DeltaGame (Game -> Game)
     | DeltaPlayer Id (Game -> Player -> Player)
     | DeltaUnit Id (Game -> Unit -> Unit)
     | DeltaBase Id (Game -> Base -> Base)

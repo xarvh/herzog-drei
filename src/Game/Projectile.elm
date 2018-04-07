@@ -40,7 +40,7 @@ checkUnitCollision a b unitId unit =
         Collision.collisionPolygonVsPolygon [ a, b ] (unitToPolygon unit)
 
 
-think : Seconds -> Game -> Projectile -> List Delta
+think : Seconds -> Game -> Projectile -> Delta
 think dt game projectile =
     let
         speed =
@@ -62,10 +62,11 @@ think dt game projectile =
     in
     case List.Extra.minimumBy (\u -> Vec2.distanceSquared oldPosition u.position) collidedUnits of
         Just unit ->
-            [ Game.deltaRemoveProjectile projectile.id
-            , View.Gfx.deltaAddExplosion (Vec2.add newPosition oldPosition |> Vec2.scale 0.5) 0.2
-            , DeltaUnit unit.id (\g u -> { u | hp = u.hp - 1 })
-            ]
+            DeltaList
+                [ Game.deltaRemoveProjectile projectile.id
+                , View.Gfx.deltaAddExplosion (Vec2.add newPosition oldPosition |> Vec2.scale 0.5) 0.2
+                , DeltaUnit unit.id (\g u -> { u | hp = u.hp - 1 })
+                ]
 
         Nothing ->
             let
@@ -73,6 +74,6 @@ think dt game projectile =
                     Vec2.toTuple newPosition
             in
             if abs x > 10 || abs y > 10 then
-                [ Game.deltaRemoveProjectile projectile.id ]
+                Game.deltaRemoveProjectile projectile.id
             else
-                [ DeltaProjectile projectile.id (\g p -> { p | position = newPosition }) ]
+                DeltaProjectile projectile.id (\g p -> { p | position = newPosition })
