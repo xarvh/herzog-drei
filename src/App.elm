@@ -11,13 +11,11 @@ import Game
         , Player
         , Projectile
         , Unit
+        , UnitType(..)
         , clampToRadius
         , tile2Vec
         , vec2Tile
         )
-import Game.Base
-import Game.Player
-import Game.Unit
 import Game.Update
 import Keyboard.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
@@ -61,6 +59,22 @@ type alias Model =
 
 init =
     let
+        addPlayerAndMech : Vec2 -> Game -> ( Game, Player )
+        addPlayerAndMech position game =
+            let
+                ( game_, player ) =
+                    Game.addPlayer position game
+            in
+            ( game_
+                |> Game.addUnit player.id True position
+                |> Tuple.first
+            , player
+            )
+
+        addAiUnit : Id -> Vec2 -> Game -> Game
+        addAiUnit ownerId position game =
+            Game.addUnit ownerId False position game |> Tuple.first
+
         terrainObstacles =
             [ ( 0, 0 )
             , ( 1, 0 )
@@ -70,35 +84,28 @@ init =
             , ( 4, 2 )
             ]
 
-        ( game0, player1 ) =
+        game =
             Random.initialSeed 0
                 |> Game.init
                 |> Game.addBase ( 0, 0 )
                 |> Tuple.first
-                |> Game.addPlayer (vec2 -3 -3)
 
-        ( game1, player2 ) =
-            game0
-                |> Game.addPlayer (vec2 3 3)
+        ( game_, player1 ) =
+            game |> addPlayerAndMech (vec2 -3 -3)
+
+        ( game__, player2 ) =
+            game_ |> addPlayerAndMech (vec2 3 3)
     in
-    game1
+    game__
         |> Game.addStaticObstacles terrainObstacles
-        |> Game.addUnit player1.id (vec2 0 -4)
-        |> Tuple.first
-        |> Game.addUnit player1.id (vec2 1 -4)
-        |> Tuple.first
-        |> Game.addUnit player1.id (vec2 2 -4)
-        |> Tuple.first
-        |> Game.addUnit player1.id (vec2 3 -4)
-        |> Tuple.first
-        |> Game.addUnit player2.id (vec2 0 4.8)
-        |> Tuple.first
-        |> Game.addUnit player2.id (vec2 -1 4.8)
-        |> Tuple.first
-        |> Game.addUnit player2.id (vec2 -2 4.8)
-        |> Tuple.first
-        |> Game.addUnit player2.id (vec2 -3 4.8)
-        |> Tuple.first
+        |> addAiUnit player1.id (vec2 0 -4)
+        |> addAiUnit player1.id (vec2 1 -4)
+        |> addAiUnit player1.id (vec2 2 -4)
+        |> addAiUnit player1.id (vec2 3 -4)
+        |> addAiUnit player2.id (vec2 0 4.8)
+        |> addAiUnit player2.id (vec2 -1 4.8)
+        |> addAiUnit player2.id (vec2 -2 4.8)
+        |> addAiUnit player2.id (vec2 -3 4.8)
         |> (\game ->
                 { game = game
                 , mousePosition = vec2 0 0
@@ -264,22 +271,22 @@ viewUnit game unit =
         colorPattern =
             Game.playerColorPattern game unit.ownerId
     in
-    Svg.g
-        [ transform [ translate unit.position ] ]
-        [ View.Unit.unit unit.movementAngle unit.targetingAngle colorPattern.bright colorPattern.dark ]
+    case unit.type_ of
+        UnitTypeMech mechRecord ->
+            Svg.g
+                [ transform [ translate unit.position ] ]
+                [ View.Mech.mech
+                    mechRecord.transformState
+                    unit.lookAngle
+                    unit.fireAngle
+                    colorPattern.bright
+                    colorPattern.dark
+                ]
 
-
-viewPlayer : Game -> Player -> Svg a
-viewPlayer game player =
-    Svg.g
-        [ transform [ translate player.position ] ]
-        [ View.Mech.mech
-            player.transformState
-            player.headAngle
-            player.topAngle
-            player.colorPattern.bright
-            player.colorPattern.dark
-        ]
+        UnitTypeSub subRecord ->
+            Svg.g
+                [ transform [ translate unit.position ] ]
+                [ View.Unit.unit unit.moveAngle unit.fireAngle colorPattern.bright colorPattern.dark ]
 
 
 viewMarker : Game -> Player -> Svg a
@@ -343,10 +350,6 @@ gameView { game } =
         , game.unitById
             |> Dict.values
             |> List.map (viewUnit game)
-            |> Svg.g []
-        , game.playerById
-            |> Dict.values
-            |> List.map (viewPlayer game)
             |> Svg.g []
         , game.playerById
             |> Dict.values

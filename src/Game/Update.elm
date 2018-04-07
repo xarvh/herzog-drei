@@ -16,9 +16,8 @@ import Game
         , tile2Vec
         , vec2Tile
         )
-import Game.Player
+import UnitThink
 import Game.Projectile
-import Game.Unit
 import Set exposing (Set)
 import View.Gfx
 
@@ -46,15 +45,10 @@ update dt playerInputById game =
                 |> Dict.get player.id
                 |> Maybe.withDefault Game.neutralPlayerInput
 
-        playerThink player =
-            Game.Player.think dt oldGameWithUpdatedUnpassableTiles (getInputForPlayer player) player
     in
     List.concat
         [ units
-            |> List.map (Game.Unit.think dt oldGameWithUpdatedUnpassableTiles)
-        , game.playerById
-            |> Dict.values
-            |> List.map playerThink
+            |> List.map (UnitThink.think dt oldGameWithUpdatedUnpassableTiles)
         , game.projectileById
             |> Dict.values
             |> List.map (Game.Projectile.think dt oldGameWithUpdatedUnpassableTiles)
