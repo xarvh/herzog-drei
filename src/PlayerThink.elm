@@ -165,11 +165,8 @@ mechThink input dt game unit mechRecord =
             else
                 DeltaList []
 
-        aimDirection =
-            Vec2.sub input.aim unit.position
-
         aimAngle =
-            Game.vecToAngle aimDirection
+            Game.vecToAngle input.aim
 
         aim =
             (\g u ->

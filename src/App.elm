@@ -2,7 +2,6 @@ module App exposing (..)
 
 import AnimationFrame
 import ColorPattern exposing (neutral)
-import Css
 import Dict exposing (Dict)
 import Game
     exposing
@@ -24,6 +23,7 @@ import Keyboard.Extra
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mouse
+import PlayerThink
 import Random
 import Set exposing (Set)
 import SplitScreen exposing (Viewport)
@@ -38,14 +38,6 @@ import View.Mech
 import View.Projectile
 import View.Unit
 import Window
-
-
---
-
-
-gameToScreenRatio =
-    10.0
-
 
 
 --
@@ -177,7 +169,7 @@ update pressedKeys msg model =
                         |> Maybe.withDefault ( 0, 0 )
 
                 input =
-                    { aim = vec2 mouseX mouseY |> Vec2.scale 10
+                    { aim = vec2 mouseX mouseY
                     , fire = model.mouseIsPressed
                     , transform = isPressed Keyboard.Extra.CharE
                     , switchUnit = isPressed Keyboard.Extra.Space
@@ -382,11 +374,26 @@ testView model =
 
 viewPlayer : Model -> ( Player, Viewport ) -> Svg Msg
 viewPlayer { game } ( player, viewport ) =
+    let
+        units =
+            Dict.values game.unitById
+
+        mechPosition =
+            PlayerThink.findMech player.id units
+                |> Maybe.map (Tuple.first >> .position)
+                |> Maybe.withDefault (vec2 0 0)
+
+        offset =
+            Vec2.negate mechPosition
+
+        viewportMinSizeInTiles =
+            20
+    in
     Svg.svg
         (SplitScreen.viewportToSvgAttributes viewport)
         [ Svg.g
             -- TODO: the scale should be enough to fit the mech's shooting range and then some
-            [ transform [ "scale(0.1, -0.1)" ]
+            [ transform [ "scale(1 -1)", scale (1 / viewportMinSizeInTiles), translate offset ]
             ]
             [ checkersBackground 10
             , game.staticObstacles
@@ -397,14 +404,10 @@ viewPlayer { game } ( player, viewport ) =
                 |> Dict.values
                 |> List.map (viewBase game)
                 |> Svg.g []
-            , game.unitById
-                |> Dict.values
+            , units
                 |> List.map (viewUnit game)
                 |> Svg.g []
-            , game.playerById
-                |> Dict.values
-                |> List.map (viewMarker game)
-                |> Svg.g []
+            , viewMarker game player
             , game.projectileById
                 |> Dict.values
                 |> List.map viewProjectile

@@ -73,6 +73,7 @@ think dt game projectile =
                 ( x, y ) =
                     Vec2.toTuple newPosition
             in
+            -- TODO use game.size or something
             if abs x > 10 || abs y > 10 then
                 Game.deltaRemoveProjectile projectile.id
             else
