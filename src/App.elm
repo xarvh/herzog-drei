@@ -2,7 +2,6 @@ module App exposing (..)
 
 import AnimationFrame
 import ColorPattern exposing (neutral)
-import Css
 import Dict exposing (Dict)
 import Game
     exposing
@@ -24,6 +23,7 @@ import Keyboard.Extra
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mouse
+import PlayerThink
 import Random
 import Set exposing (Set)
 import SplitScreen exposing (Viewport)
@@ -38,14 +38,6 @@ import View.Mech
 import View.Projectile
 import View.Unit
 import Window
-
-
---
-
-
-gameToScreenRatio =
-    10.0
-
 
 
 --
@@ -161,8 +153,10 @@ update pressedKeys msg model =
 
         OnAnimationFrame dtInMilliseconds ->
             let
+                -- All times in the game are in seconds
+                -- Also, cap dt to 0.1 secs, in case the app goes in background
                 dt =
-                    dtInMilliseconds / 1000
+                    dtInMilliseconds / 1000 |> min 0.1
 
                 { x, y } =
                     Keyboard.Extra.wasd pressedKeys
@@ -177,7 +171,7 @@ update pressedKeys msg model =
                         |> Maybe.withDefault ( 0, 0 )
 
                 input =
-                    { aim = vec2 mouseX mouseY |> Vec2.scale 10
+                    { aim = vec2 mouseX mouseY
                     , fire = model.mouseIsPressed
                     , transform = isPressed Keyboard.Extra.CharE
                     , switchUnit = isPressed Keyboard.Extra.Space
@@ -382,34 +376,53 @@ testView model =
 
 viewPlayer : Model -> ( Player, Viewport ) -> Svg Msg
 viewPlayer { game } ( player, viewport ) =
+    let
+        units =
+            Dict.values game.unitById
+
+        mechPosition =
+            PlayerThink.findMech player.id units
+                |> Maybe.map (Tuple.first >> .position)
+                |> Maybe.withDefault (vec2 0 0)
+
+        offset =
+            Vec2.negate mechPosition
+
+        -- The scale should be enough to fit the mech's shooting range and then some
+        viewportMinSizeInTiles =
+            10
+
+        isWithinViewport =
+            SplitScreen.isWithinViewport viewport mechPosition viewportMinSizeInTiles
+    in
     Svg.svg
         (SplitScreen.viewportToSvgAttributes viewport)
         [ Svg.g
-            -- TODO: the scale should be enough to fit the mech's shooting range and then some
-            [ transform [ "scale(0.1, -0.1)" ]
+            [ transform [ "scale(1 -1)", scale (1 / viewportMinSizeInTiles), translate offset ]
             ]
             [ checkersBackground 10
             , game.staticObstacles
                 |> Set.toList
+                |> List.filter (\pos -> isWithinViewport (tile2Vec pos) 1)
                 |> List.map (\pos -> square (tile2Vec pos) "gray" 1)
                 |> Svg.g []
             , game.baseById
                 |> Dict.values
+                |> List.filter (\b -> isWithinViewport (tile2Vec b.position) 3)
                 |> List.map (viewBase game)
                 |> Svg.g []
-            , game.unitById
-                |> Dict.values
+            , units
+                |> List.filter (\u -> isWithinViewport u.position 1.5)
                 |> List.map (viewUnit game)
                 |> Svg.g []
-            , game.playerById
-                |> Dict.values
-                |> List.map (viewMarker game)
-                |> Svg.g []
+            , viewMarker game player
             , game.projectileById
                 |> Dict.values
+                |> List.filter (\p -> isWithinViewport p.position 0.5)
                 |> List.map viewProjectile
                 |> Svg.g []
             , game.cosmetics
+                -- TODO viewport cull
                 |> List.map View.Gfx.render
                 |> Svg.g []
             ]
