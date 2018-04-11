@@ -388,33 +388,41 @@ viewPlayer { game } ( player, viewport ) =
         offset =
             Vec2.negate mechPosition
 
+        -- The scale should be enough to fit the mech's shooting range and then some
         viewportMinSizeInTiles =
-            20
+            10
+
+        isWithinViewport =
+            SplitScreen.isWithinViewport viewport mechPosition viewportMinSizeInTiles
     in
     Svg.svg
         (SplitScreen.viewportToSvgAttributes viewport)
         [ Svg.g
-            -- TODO: the scale should be enough to fit the mech's shooting range and then some
             [ transform [ "scale(1 -1)", scale (1 / viewportMinSizeInTiles), translate offset ]
             ]
             [ checkersBackground 10
             , game.staticObstacles
                 |> Set.toList
+                |> List.filter (\pos -> isWithinViewport (tile2Vec pos) 1)
                 |> List.map (\pos -> square (tile2Vec pos) "gray" 1)
                 |> Svg.g []
             , game.baseById
                 |> Dict.values
+                |> List.filter (\b -> isWithinViewport (tile2Vec b.position) 3)
                 |> List.map (viewBase game)
                 |> Svg.g []
             , units
+                |> List.filter (\u -> isWithinViewport u.position 1.5)
                 |> List.map (viewUnit game)
                 |> Svg.g []
             , viewMarker game player
             , game.projectileById
                 |> Dict.values
+                |> List.filter (\p -> isWithinViewport p.position 0.5)
                 |> List.map viewProjectile
                 |> Svg.g []
             , game.cosmetics
+                -- TODO viewport cull
                 |> List.map View.Gfx.render
                 |> Svg.g []
             ]

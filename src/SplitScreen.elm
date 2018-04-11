@@ -1,14 +1,8 @@
-module SplitScreen
-    exposing
-        ( Viewport
-        , makeViewports
-        , mouseScreenToViewport
-        , viewportToSvgAttributes
-        , viewportsWrapper
-        )
+module SplitScreen exposing (..)
 
 import Html exposing (Html)
 import Html.Attributes
+import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (Attribute)
 import Svg.Attributes
 import Window
@@ -31,6 +25,59 @@ type alias Cell =
 
 type alias Viewport =
     Rect Int
+
+
+
+-- Size
+
+
+viewportSizeInGameUnits : Viewport -> Float -> ( Float, Float )
+viewportSizeInGameUnits viewport minSizeInGameUnits =
+    let
+        minSize =
+            toFloat (min viewport.w viewport.h)
+
+        w =
+            minSizeInGameUnits * toFloat viewport.w / minSize
+
+        h =
+            minSizeInGameUnits * toFloat viewport.h / minSize
+    in
+    ( w, h )
+
+
+
+isWithinViewport : Viewport -> Vec2 -> Float -> (Vec2 -> Float -> Bool)
+isWithinViewport viewport centeredOn minSizeInGameUnits =
+    let
+        -- center coordinates
+        ( cx, cy ) =
+            Vec2.toTuple centeredOn
+
+        -- half size
+        ( hw, hh ) =
+            viewportSizeInGameUnits viewport (minSizeInGameUnits / 2)
+
+        minX =
+            cx - hw
+
+        maxX =
+            cx + hw
+
+        minY =
+            cy - hh
+
+        maxY =
+            cy + hh
+
+        test position r =
+            let
+                ( px, py ) =
+                    Vec2.toTuple position
+            in
+            (px < maxX + r) && (px > minX - r) && (py < maxY + r) && (py > minY - r)
+    in
+    test
 
 
 
