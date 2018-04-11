@@ -184,7 +184,7 @@ mechThink input dt game unit mechRecord =
             View.Mech.rightGunOffset mechRecord.transformState unit.fireAngle |> Vec2.add unit.position
 
         deltaFire origin =
-            Game.deltaAddProjectile { id = -1, ownerId = unit.ownerId, position = origin, angle = aimAngle }
+            Game.deltaAddProjectile { ownerId = unit.ownerId, position = origin, angle = aimAngle }
 
         fire =
             if input.fire && unit.timeToReload == 0 then

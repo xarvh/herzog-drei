@@ -153,8 +153,10 @@ update pressedKeys msg model =
 
         OnAnimationFrame dtInMilliseconds ->
             let
+                -- All times in the game are in seconds
+                -- Also, cap dt to 0.1 secs, in case the app goes in background
                 dt =
-                    dtInMilliseconds / 1000
+                    dtInMilliseconds / 1000 |> min 0.1
 
                 { x, y } =
                     Keyboard.Extra.wasd pressedKeys

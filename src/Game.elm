@@ -112,27 +112,40 @@ neutralPlayerInput =
 -- Projectiles
 
 
-type alias Projectile =
-    { id : Id
-    , ownerId : Id
+type alias ProjectileSeed =
+    { ownerId : Id
     , position : Vec2
     , angle : Angle
     }
 
 
-addProjectile : Projectile -> Game -> Game
-addProjectile projectile game =
+type alias Projectile =
+    { id : Id
+    , ownerId : Id
+    , position : Vec2
+    , spawnPosition : Vec2
+    , angle : Angle
+    }
+
+
+addProjectile : ProjectileSeed -> Game -> Game
+addProjectile { ownerId, position, angle } game =
     let
-        id =
-            game.lastId + 1
+        projectile =
+            { id = game.lastId + 1
+            , ownerId = ownerId
+            , position = position
+            , spawnPosition = position
+            , angle = angle
+            }
 
         projectileById =
-            Dict.insert id { projectile | id = id } game.projectileById
+            Dict.insert projectile.id projectile game.projectileById
     in
-    { game | projectileById = projectileById, lastId = id }
+    { game | projectileById = projectileById, lastId = projectile.id }
 
 
-deltaAddProjectile : Projectile -> Delta
+deltaAddProjectile : ProjectileSeed -> Delta
 deltaAddProjectile p =
     addProjectile p |> DeltaGame
 
@@ -351,6 +364,10 @@ type alias Game =
     --
     , cosmetics : List Gfx
 
+    -- map size, in tiles
+    , halfWidth : Int
+    , halfHeight : Int
+
     -- includes terrain and bases
     , staticObstacles : Set Tile2
 
@@ -373,6 +390,8 @@ init seed =
 
     --
     , cosmetics = []
+    , halfWidth = 10
+    , halfHeight = 10
     , staticObstacles = Set.empty
     , unpassableTiles = Set.empty
 
