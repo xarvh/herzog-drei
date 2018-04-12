@@ -380,20 +380,15 @@ viewPlayer { game } ( player, viewport ) =
         units =
             Dict.values game.unitById
 
-        mechPosition =
-            PlayerThink.findMech player.id units
-                |> Maybe.map (Tuple.first >> .position)
-                |> Maybe.withDefault (vec2 0 0)
-
         offset =
-            Vec2.negate mechPosition
+            Vec2.negate player.viewportPosition
 
         -- The scale should be enough to fit the mech's shooting range and then some
         viewportMinSizeInTiles =
             10
 
         isWithinViewport =
-            SplitScreen.isWithinViewport viewport mechPosition viewportMinSizeInTiles
+            SplitScreen.isWithinViewport viewport player.viewportPosition viewportMinSizeInTiles
     in
     Svg.svg
         (SplitScreen.viewportToSvgAttributes viewport)

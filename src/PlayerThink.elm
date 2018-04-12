@@ -144,20 +144,26 @@ mechThink input dt game unit mechRecord =
 
         moveTarget =
             if input.rally then
-                DeltaPlayer unit.ownerId (\g u -> { u | markerPosition = unit.position })
+                DeltaPlayer unit.ownerId (\g p -> { p | markerPosition = unit.position })
             else
                 DeltaList []
 
-        deltaMoveOrWalk =
+        updatePosition =
             case transformMode mechRecord of
                 ToMech ->
-                    deltaWalk
+                    walk
 
                 ToPlane ->
-                    deltaFly
+                    fly
+
+        newPosition =
+            updatePosition dx game unit
 
         moveMech =
-            DeltaUnit unit.id (deltaMoveOrWalk dx)
+            DeltaUnit unit.id (\g u -> { u | position = newPosition })
+
+        moveViewport =
+            DeltaPlayer unit.ownerId (\g p -> { p | viewportPosition = newPosition })
 
         reload =
             if unit.timeToReload > 0 then
@@ -200,6 +206,7 @@ mechThink input dt game unit mechRecord =
     in
     DeltaList
         [ moveTarget
+        , moveViewport
         , moveMech
         , reload
         , aim
@@ -208,13 +215,13 @@ mechThink input dt game unit mechRecord =
         ]
 
 
-deltaFly : Vec2 -> Game -> Unit -> Unit
-deltaFly dp game unit =
-    { unit | position = Vec2.add unit.position dp }
+fly : Vec2 -> Game -> Unit -> Vec2
+fly dp game unit =
+    Vec2.add unit.position dp
 
 
-deltaWalk : Vec2 -> Game -> Unit -> Unit
-deltaWalk dp game unit =
+walk : Vec2 -> Game -> Unit -> Vec2
+walk dp game unit =
     let
         isObstacle tile =
             Set.member tile game.staticObstacles
@@ -238,7 +245,7 @@ deltaWalk dp game unit =
             isObstacle idealTile
     in
     if didNotChangeTile || not idealPositionIsObstacle then
-        { unit | position = idealPosition }
+        idealPosition
     else
         let
             ( tX, tY ) =
@@ -295,4 +302,4 @@ deltaWalk dp game unit =
             fY =
                 clamp minY maxY iY
         in
-        { unit | position = vec2 fX fY }
+        vec2 fX fY

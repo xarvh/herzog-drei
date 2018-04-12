@@ -42,6 +42,7 @@ type alias Player =
     { id : Id
     , colorPattern : ColorPattern
     , markerPosition : Vec2
+    , viewportPosition : Vec2
     }
 
 
@@ -65,8 +66,9 @@ addPlayer position game =
 
         player =
             { id = id
-            , markerPosition = position
             , colorPattern = colorPattern
+            , markerPosition = position
+            , viewportPosition = position
             }
 
         playerById =
