@@ -33,6 +33,7 @@ import Svg.Events
 import Task
 import Time exposing (Time)
 import View exposing (..)
+import View.Background
 import View.Gfx
 import View.Mech
 import View.Projectile
@@ -195,8 +196,8 @@ update pressedKeys msg model =
 -- View
 
 
-checkersBackground : Float -> Svg Msg
-checkersBackground size =
+checkersBackground : Game -> Svg Msg
+checkersBackground game =
     let
         squareSize =
             1.0
@@ -237,10 +238,10 @@ checkersBackground size =
             ]
         , Svg.rect
             [ fill "url(#grid)"
-            , x <| -size / 2
-            , y <| -size / 2
-            , width size
-            , height size
+            , x (toFloat -game.halfWidth)
+            , y (toFloat -game.halfHeight)
+            , width (toFloat <| game.halfWidth * 2)
+            , height (toFloat <| game.halfHeight * 2)
             ]
             []
         ]
@@ -375,8 +376,11 @@ testView model =
 
 
 viewPlayer : Model -> ( Player, Viewport ) -> Svg Msg
-viewPlayer { game } ( player, viewport ) =
+viewPlayer model ( player, viewport ) =
     let
+        game =
+            model.game
+
         units =
             Dict.values game.unitById
 
@@ -395,7 +399,8 @@ viewPlayer { game } ( player, viewport ) =
         [ Svg.g
             [ transform [ "scale(1 -1)", scale (1 / viewportMinSizeInTiles), translate offset ]
             ]
-            [ checkersBackground 10
+            --[ View.Background.terrain (model.time / 1000)
+            [ checkersBackground model.game
             , game.staticObstacles
                 |> Set.toList
                 |> List.filter (\pos -> isWithinViewport (tile2Vec pos) 1)
