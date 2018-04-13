@@ -546,6 +546,21 @@ clampToRadius radius v =
         Vec2.scale (radius / sqrt ll) v
 
 
+clampToGameSize : Game -> Float -> Vec2 -> Vec2
+clampToGameSize game radius v =
+    let
+        ( x, y ) =
+            Vec2.toTuple v
+
+        hw =
+            toFloat game.halfWidth - radius
+
+        hh =
+            toFloat game.halfHeight - radius
+    in
+    vec2 (clamp -hw hw x) (clamp -hh hh y)
+
+
 vec2Tile : Vec2 -> Tile2
 vec2Tile v =
     let

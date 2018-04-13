@@ -157,7 +157,7 @@ mechThink input dt game unit mechRecord =
                     fly
 
         newPosition =
-            updatePosition dx game unit
+            updatePosition dx game unit |> Game.clampToGameSize game 1
 
         moveMech =
             DeltaUnit unit.id (\g u -> { u | position = newPosition })
