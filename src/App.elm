@@ -20,7 +20,7 @@ import Game
         )
 import Game.Update
 import Html exposing (div)
-import Html.Attributes exposing (class)
+import Html.Attributes exposing (class, style)
 import Keyboard.Extra
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
@@ -60,6 +60,7 @@ type alias Model =
     , viewports : List Viewport
     , windowSize : Window.Size
     , time : Time
+    , fps : List Float
     }
 
 
@@ -120,6 +121,7 @@ init =
                 , viewports = []
                 , windowSize = { width = 1, height = 1 }
                 , time = 0
+                , fps = []
                 }
            )
         |> flip (,) (Window.size |> Task.perform OnWindowResizes)
@@ -191,6 +193,7 @@ update pressedKeys msg model =
                 { model
                     | game = game
                     , time = model.time + dt
+                    , fps = (1 / dt) :: List.take 20 model.fps
                 }
 
 
@@ -332,7 +335,7 @@ viewSub game ( unit, subRecord ) =
 mechVsUnit : List Unit -> ( List ( Unit, UnitTypeMechRecord ), List ( Unit, UnitTypeSubRecord ) )
 mechVsUnit units =
     let
-        folder unit ( mechs, subs )=
+        folder unit ( mechs, subs ) =
             case unit.type_ of
                 UnitTypeMech mechRecord ->
                     ( ( unit, mechRecord ) :: mechs, subs )
@@ -411,7 +414,7 @@ viewPlayer model ( player, viewport ) =
 
         -- The scale should be enough to fit the mech's shooting range and then some
         viewportMinSizeInTiles =
-            10
+            20
 
         isWithinViewport =
             SplitScreen.isWithinViewport viewport player.viewportPosition viewportMinSizeInTiles
@@ -465,12 +468,18 @@ splitView model =
 
         viewportsAndPlayers =
             List.map2 (,) sortedPlayers model.viewports
+
+        fps =
+            List.sum model.fps / toFloat (List.length model.fps) |> round
     in
     div
         []
         [ viewportsAndPlayers
             |> List.map (viewPlayer model)
             |> SplitScreen.viewportsWrapper
+        , div
+            [ style [ ( "position", "absolute" ), ( "top", "0" ) ] ]
+            [ Html.text <| "FPS " ++ toString fps ]
         ]
 
 

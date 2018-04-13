@@ -392,7 +392,7 @@ init seed =
 
     --
     , cosmetics = []
-    , halfWidth = 10
+    , halfWidth = 20
     , halfHeight = 10
     , staticObstacles = Set.empty
     , unpassableTiles = Set.empty
