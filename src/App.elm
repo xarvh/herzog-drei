@@ -12,6 +12,8 @@ import Game
         , Projectile
         , Unit
         , UnitType(..)
+        , UnitTypeMechRecord
+        , UnitTypeSubRecord
         , clampToRadius
         , tile2Vec
         , vec2Tile
@@ -293,34 +295,52 @@ viewBase game base =
         ]
 
 
-viewUnit : Game -> Unit -> Svg Msg
-viewUnit game unit =
+viewMech : Game -> ( Unit, UnitTypeMechRecord ) -> Svg a
+viewMech game ( unit, mechRecord ) =
     let
         colorPattern =
             Game.playerColorPattern game unit.ownerId
     in
-    case unit.type_ of
-        UnitTypeMech mechRecord ->
-            Svg.g
-                [ transform [ translate unit.position ] ]
-                [ View.Mech.mech
-                    mechRecord.transformState
-                    unit.lookAngle
-                    unit.fireAngle
-                    colorPattern.bright
-                    colorPattern.dark
-                ]
+    Svg.g
+        [ transform [ translate unit.position ] ]
+        [ View.Mech.mech
+            mechRecord.transformState
+            unit.lookAngle
+            unit.fireAngle
+            colorPattern.bright
+            colorPattern.dark
+        ]
 
-        UnitTypeSub subRecord ->
-            Svg.g
-                [ transform [ translate unit.position ] ]
-                [ View.Unit.unit
-                    unit.lookAngle
-                    unit.moveAngle
-                    unit.fireAngle
-                    colorPattern.bright
-                    colorPattern.dark
-                ]
+
+viewSub : Game -> ( Unit, UnitTypeSubRecord ) -> Svg a
+viewSub game ( unit, subRecord ) =
+    let
+        colorPattern =
+            Game.playerColorPattern game unit.ownerId
+    in
+    Svg.g
+        [ transform [ translate unit.position ] ]
+        [ View.Unit.unit
+            unit.lookAngle
+            unit.moveAngle
+            unit.fireAngle
+            colorPattern.bright
+            colorPattern.dark
+        ]
+
+
+mechVsUnit : List Unit -> ( List ( Unit, UnitTypeMechRecord ), List ( Unit, UnitTypeSubRecord ) )
+mechVsUnit units =
+    let
+        folder unit ( mechs, subs )=
+            case unit.type_ of
+                UnitTypeMech mechRecord ->
+                    ( ( unit, mechRecord ) :: mechs, subs )
+
+                UnitTypeSub subRecord ->
+                    ( mechs, ( unit, subRecord ) :: subs )
+    in
+    List.foldl folder ( [], [] ) units
 
 
 viewMarker : Game -> Player -> Svg a
@@ -381,8 +401,10 @@ viewPlayer model ( player, viewport ) =
         game =
             model.game
 
-        units =
-            Dict.values game.unitById
+        ( mechs, subs ) =
+            game.unitById
+                |> Dict.values
+                |> mechVsUnit
 
         offset =
             Vec2.negate player.viewportPosition
@@ -411,9 +433,13 @@ viewPlayer model ( player, viewport ) =
                 |> List.filter (\b -> isWithinViewport (tile2Vec b.position) 3)
                 |> List.map (viewBase game)
                 |> Svg.g []
-            , units
-                |> List.filter (\u -> isWithinViewport u.position 1.5)
-                |> List.map (viewUnit game)
+            , subs
+                |> List.filter (\( u, s ) -> isWithinViewport u.position 0.7)
+                |> List.map (viewSub game)
+                |> Svg.g []
+            , mechs
+                |> List.filter (\( u, m ) -> isWithinViewport u.position 1.5)
+                |> List.map (viewMech game)
                 |> Svg.g []
             , viewMarker game player
             , game.projectileById
