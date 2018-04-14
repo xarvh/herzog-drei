@@ -3,6 +3,7 @@ module Game exposing (..)
 import AStar
 import ColorPattern exposing (ColorPattern)
 import Dict exposing (Dict)
+import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Random
 import Random.List
@@ -290,8 +291,14 @@ updateUnitMechRecord updateMechRecord game unit =
 -- Bases
 
 
+type BaseType
+    = BaseMain
+    | BaseSmall
+
+
 type alias Base =
     { id : Id
+    , type_ : BaseType
     , isActive : Bool
     , containedUnits : Int
     , maybeOwnerId : Maybe Id
@@ -299,14 +306,15 @@ type alias Base =
     }
 
 
-addBase : Tile2 -> Game -> ( Game, Base )
-addBase position game =
+addBase : BaseType -> Tile2 -> Game -> ( Game, Base )
+addBase type_ position game =
     let
         id =
             game.lastId + 1
 
         base =
             { id = id
+            , type_ = type_
             , isActive = False
             , containedUnits = 0
             , maybeOwnerId = Nothing
@@ -317,22 +325,36 @@ addBase position game =
             Dict.insert id base game.baseById
 
         staticObstacles =
-            Set.union (tiles base |> Set.fromList) game.staticObstacles
+            Set.union (baseTiles base |> Set.fromList) game.staticObstacles
     in
     ( { game | lastId = id, staticObstacles = staticObstacles, baseById = baseById }, base )
 
 
-tiles : Base -> List Tile2
-tiles base =
+baseSize : Base -> Int
+baseSize base =
+    case base.type_ of
+        BaseSmall ->
+            2
+
+        BaseMain ->
+            4
+
+
+baseTiles : Base -> List Tile2
+baseTiles base =
     let
         ( x, y ) =
             base.position
+
+        size =
+            baseSize base
+
+        range =
+            List.range (-size // 2) ((size - 1) // 2)
     in
-    [ ( x + 0, y - 1 )
-    , ( x - 1, y - 1 )
-    , ( x - 1, y + 0 )
-    , ( x + 0, y + 0 )
-    ]
+    range
+        |> List.map (\x -> range |> List.map (\y -> ( x, y )))
+        |> List.concat
 
 
 
@@ -382,8 +404,8 @@ type alias Game =
     }
 
 
-init : Random.Seed -> Game
-init seed =
+new : Random.Seed -> Game
+new seed =
     { baseById = Dict.empty
     , playerById = Dict.empty
     , projectileById = Dict.empty
@@ -505,10 +527,7 @@ baseCorners base =
 
 baseMaxContainedUnits : Int
 baseMaxContainedUnits =
-    -- A very convoluted way to write `4`
-    Base 0 False 0 Nothing ( 0, 0 )
-        |> baseCorners
-        |> List.length
+    4
 
 
 

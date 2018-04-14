@@ -18,6 +18,7 @@ import Game
         , tile2Vec
         , vec2Tile
         )
+import Game.Init
 import Game.Update
 import Html exposing (div)
 import Html.Attributes exposing (class, style)
@@ -66,65 +67,16 @@ type alias Model =
 
 init : ( Model, Cmd Msg )
 init =
-    let
-        addPlayerAndMech : Vec2 -> Game -> ( Game, Player )
-        addPlayerAndMech position game =
-            let
-                ( game_, player ) =
-                    Game.addPlayer position game
-            in
-            ( game_
-                |> Game.addUnit player.id True position
-                |> Tuple.first
-            , player
-            )
-
-        addAiUnit : Id -> Vec2 -> Game -> Game
-        addAiUnit ownerId position game =
-            Game.addUnit ownerId False position game |> Tuple.first
-
-        terrainObstacles =
-            [ ( 0, 0 )
-            , ( 1, 0 )
-            , ( 2, 0 )
-            , ( 3, 0 )
-            , ( 3, 1 )
-            , ( 4, 2 )
-            ]
-
-        game =
-            Random.initialSeed 0
-                |> Game.init
-                |> Game.addBase ( 0, 0 )
-                |> Tuple.first
-
-        ( game_, player1 ) =
-            game |> addPlayerAndMech (vec2 -3 -3)
-
-        ( game__, player2 ) =
-            game_ |> addPlayerAndMech (vec2 3 3)
-    in
-    game__
-        |> Game.addStaticObstacles terrainObstacles
-        |> addAiUnit player1.id (vec2 0 -4)
-        |> addAiUnit player1.id (vec2 1 -4)
-        |> addAiUnit player1.id (vec2 2 -4)
-        |> addAiUnit player1.id (vec2 3 -4)
-        |> addAiUnit player2.id (vec2 0 4.8)
-        |> addAiUnit player2.id (vec2 -1 4.8)
-        |> addAiUnit player2.id (vec2 -2 4.8)
-        |> addAiUnit player2.id (vec2 -3 4.8)
-        |> (\game ->
-                { game = game
-                , mousePosition = { x = 0, y = 0 }
-                , mouseIsPressed = False
-                , viewports = []
-                , windowSize = { width = 1, height = 1 }
-                , time = 0
-                , fps = []
-                }
-           )
-        |> flip (,) (Window.size |> Task.perform OnWindowResizes)
+    ( { game = Game.Init.basicGame
+      , mousePosition = { x = 0, y = 0 }
+      , mouseIsPressed = False
+      , viewports = []
+      , windowSize = { width = 1, height = 1 }
+      , time = 0
+      , fps = []
+      }
+    , Window.size |> Task.perform OnWindowResizes
+    )
 
 
 

@@ -2,39 +2,30 @@ module Game.Init exposing (..)
 
 import ColorPattern
 import Dict exposing (Dict)
-import Game exposing (Game)
-import Game.Base
-import Game.Player
-import Game.Unit
+import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Random
 import Random.List
-import Set exposing (Set)
 
 
-init : Random.Seed -> Game
-init seed =
+basicGame : Game
+basicGame =
     let
-        shuffledColorPatterns =
-            Random.step (Random.List.shuffle ColorPattern.patterns) seed |> Tuple.first
+        addPlayerAndMech : Vec2 -> Game -> ( Game, Player )
+        addPlayerAndMech position game =
+            let
+                ( game_, player ) =
+                    Game.addPlayer position game
+            in
+            ( game_
+                |> Game.addUnit player.id True position
+                |> Tuple.first
+            , player
+            )
 
-        playerById =
-            Dict.empty
-                |> Game.Player.add shuffledColorPatterns 10 (vec2 -3 -3)
-
-        baseById =
-            Dict.empty
-                |> Game.Base.add 99 ( 0, 0 )
-
-        unitById =
-            Dict.empty
-                |> Game.Unit.add 0 10 (vec2 -2 -5)
-                |> Game.Unit.add 1 10 (vec2 2 -4.1)
-                |> Game.Unit.add 2 10 (vec2 2 -4.2)
-                |> Game.Unit.add 3 10 (vec2 2 -4.3)
-                |> Game.Unit.add 4 10 (vec2 2 -4.11)
-                |> Game.Unit.add 5 10 (vec2 2 -4.3)
-                |> Game.Unit.add 6 10 (vec2 2 -4.02)
+        addAiUnit : Id -> Vec2 -> Game -> Game
+        addAiUnit ownerId position game =
+            Game.addUnit ownerId False position game |> Tuple.first
 
         terrainObstacles =
             [ ( 0, 0 )
@@ -44,24 +35,26 @@ init seed =
             , ( 3, 1 )
             , ( 4, 2 )
             ]
-                |> Set.fromList
 
-        staticObstacles =
-            baseById
-                |> Dict.values
-                |> List.map Game.Base.tiles
-                |> List.foldl Set.union terrainObstacles
+        game =
+            Random.initialSeed 0
+                |> Game.new
+                |> Game.addBase BaseSmall ( 0, 0 )
+                |> Tuple.first
+
+        ( game_, player1 ) =
+            game |> addPlayerAndMech (vec2 -3 -3)
+
+        ( game__, player2 ) =
+            game_ |> addPlayerAndMech (vec2 3 3)
     in
-    { baseById = baseById
-    , unitById = unitById
-    , playerById = playerById
-    , lastId = 0
-
-    --
-    , staticObstacles = staticObstacles
-    , unpassableTiles = Set.empty
-
-    --
-    , seed = seed
-    , shuffledColorPatterns = shuffledColorPatterns
-    }
+    game__
+        |> Game.addStaticObstacles terrainObstacles
+        |> addAiUnit player1.id (vec2 0 -4)
+        |> addAiUnit player1.id (vec2 1 -4)
+        |> addAiUnit player1.id (vec2 2 -4)
+        |> addAiUnit player1.id (vec2 3 -4)
+        |> addAiUnit player2.id (vec2 0 4.8)
+        |> addAiUnit player2.id (vec2 -1 4.8)
+        |> addAiUnit player2.id (vec2 -2 4.8)
+        |> addAiUnit player2.id (vec2 -3 4.8)
