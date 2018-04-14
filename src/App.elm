@@ -56,6 +56,7 @@ type Msg
 
 type alias Model =
     { game : Game
+    , inputPlayerId : Id
     , mousePosition : Mouse.Position
     , mouseIsPressed : Bool
     , viewports : List Viewport
@@ -67,7 +68,20 @@ type alias Model =
 
 init : ( Model, Cmd Msg )
 init =
-    ( { game = Game.Init.basicGame
+    let
+        game =
+            Game.Init.basicGame
+
+        inputPlayerId =
+            game.playerById
+                |> Dict.values
+                |> List.map .id
+                |> List.sort
+                |> List.head
+                |> Maybe.withDefault 0
+    in
+    ( { game = game
+      , inputPlayerId = inputPlayerId
       , mousePosition = { x = 0, y = 0 }
       , mouseIsPressed = False
       , viewports = []
@@ -139,7 +153,7 @@ update pressedKeys msg model =
                     }
 
                 game =
-                    Game.Update.update dt (Dict.singleton 2 input) model.game
+                    Game.Update.update dt (Dict.singleton model.inputPlayerId input) model.game
             in
             noCmd
                 { model

@@ -39,8 +39,15 @@ basicGame =
         game =
             Random.initialSeed 0
                 |> Game.new
-                |> Game.addBase BaseSmall ( 0, 0 )
+                |> Game.addBase BaseSmall ( -5, 2 )
                 |> Tuple.first
+                |> Game.addBase BaseSmall ( 5, -2 )
+                |> Tuple.first
+                |> Game.addBase BaseMain ( -16, -6 )
+                |> Tuple.first
+                |> Game.addBase BaseMain ( 16, 6 )
+                |> Tuple.first
+
 
         ( game_, player1 ) =
             game |> addPlayerAndMech (vec2 -3 -3)

@@ -342,19 +342,42 @@ baseSize base =
 
 baseTiles : Base -> List Tile2
 baseTiles base =
+    squareArea (baseSize base) base.position
+
+
+maximumDistanceForUnitToEnterBase : Float
+maximumDistanceForUnitToEnterBase =
+    2.1
+
+
+baseColorPattern : Game -> Base -> ColorPattern
+baseColorPattern game base =
+    base.maybeOwnerId
+        |> Maybe.map (playerColorPattern game)
+        |> Maybe.withDefault ColorPattern.neutral
+
+
+baseCorners : Base -> List Vec2
+baseCorners base =
     let
         ( x, y ) =
             base.position
+                |> tile2Vec
+                |> Vec2.toTuple
 
-        size =
-            baseSize base
-
-        range =
-            List.range (-size // 2) ((size - 1) // 2)
+        r =
+            toFloat (baseSize base) * 0.4
     in
-    range
-        |> List.map (\x -> range |> List.map (\y -> ( x, y )))
-        |> List.concat
+    [ vec2 (x + r) (y + r)
+    , vec2 (x - r) (y + r)
+    , vec2 (x - r) (y - r)
+    , vec2 (x + r) (y - r)
+    ]
+
+
+baseMaxContainedUnits : Int
+baseMaxContainedUnits =
+    4
 
 
 
@@ -492,46 +515,35 @@ addStaticObstacles tiles game =
 
 
 
--- Bases
-
-
-maximumDistanceForUnitToEnterBase : Float
-maximumDistanceForUnitToEnterBase =
-    2.1
-
-
-baseColorPattern : Game -> Base -> ColorPattern
-baseColorPattern game base =
-    base.maybeOwnerId
-        |> Maybe.map (playerColorPattern game)
-        |> Maybe.withDefault ColorPattern.neutral
-
-
-baseCorners : Base -> List Vec2
-baseCorners base =
-    let
-        ( x, y ) =
-            base.position
-                |> tile2Vec
-                |> Vec2.toTuple
-
-        r =
-            0.8
-    in
-    [ vec2 (x + r) (y + r)
-    , vec2 (x - r) (y + r)
-    , vec2 (x - r) (y - r)
-    , vec2 (x + r) (y - r)
-    ]
-
-
-baseMaxContainedUnits : Int
-baseMaxContainedUnits =
-    4
-
-
-
 -- Geometry helpers
+
+
+centeredTileInterval : Int -> List Int
+centeredTileInterval length =
+    List.range (-length // 2) ((length - 1) // 2)
+
+
+squareArea : Int -> Tile2 -> List Tile2
+squareArea sideLength ( centerX, centerY ) =
+    let
+        range =
+            centeredTileInterval sideLength
+    in
+    range
+        |> List.map (\x -> range |> List.map (\y -> ( centerX + x, centerY + y )))
+        |> List.concat
+
+
+squarePerimeter : Int -> Tile2 -> List Tile2
+squarePerimeter sideLength center =
+    let
+        outer =
+            squareArea sideLength center |> Set.fromList
+
+        inner =
+            squareArea (sideLength - 1) center |> Set.fromList
+    in
+    Set.diff outer inner |> Set.toList
 
 
 tileDistance : Tile2 -> Tile2 -> Float
