@@ -94,10 +94,10 @@ mechThink input dt game unit mechRecord =
         speed =
             case transformMode mechRecord of
                 ToMech ->
-                    2.0
+                    5.0
 
                 ToPlane ->
-                    6.0
+                    12.0
 
         dx =
             input.move

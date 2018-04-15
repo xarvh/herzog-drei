@@ -167,13 +167,6 @@ deltaRemoveProjectile id =
 -- Units
 
 
-type UnitOrder
-    = UnitOrderStay
-    | UnitOrderFollowMarker
-    | UnitOrderMoveTo Vec2
-    | UnitOrderEnterBase Id
-
-
 type UnitMode
     = UnitModeFree
     | UnitModeBase Id
@@ -188,7 +181,6 @@ type alias UnitTypeMechRecord =
 type alias UnitTypeSubRecord =
     { mode : UnitMode
     , maybeTargetId : Maybe Id
-    , order : UnitOrder
     }
 
 
@@ -250,8 +242,7 @@ addUnit ownerId isMech position game =
                         }
                 else
                     UnitTypeSub
-                        { order = UnitOrderFollowMarker
-                        , mode = UnitModeFree
+                        { mode = UnitModeFree
                         , maybeTargetId = Nothing
                         }
             }
@@ -366,7 +357,7 @@ baseCorners base =
                 |> Vec2.toTuple
 
         r =
-            toFloat (baseSize base) * 0.4
+            toFloat (baseSize base // 2) - 0.2
     in
     [ vec2 (x + r) (y + r)
     , vec2 (x - r) (y + r)
