@@ -320,14 +320,14 @@ addBase type_ position game =
             , maybeOwnerId = Nothing
             , position = position
             }
-
-        baseById =
-            Dict.insert id base game.baseById
-
-        staticObstacles =
-            Set.union (baseTiles base |> Set.fromList) game.staticObstacles
     in
-    ( { game | lastId = id, staticObstacles = staticObstacles, baseById = baseById }, base )
+    ( { game
+        | lastId = id
+        , baseById = Dict.insert id base game.baseById
+      }
+        |> addStaticObstacles (baseTiles base)
+    , base
+    )
 
 
 baseSize : Base -> Int
@@ -415,7 +415,10 @@ type alias Game =
     , halfWidth : Int
     , halfHeight : Int
 
-    -- includes terrain and bases
+    -- walls are just tile blockers
+    , wallTiles : Set Tile2
+
+    -- includes walls and bases
     , staticObstacles : Set Tile2
 
     -- this is the union between static obstacles and unit positions
@@ -439,6 +442,7 @@ new seed =
     , cosmetics = []
     , halfWidth = 20
     , halfHeight = 10
+    , wallTiles = Set.empty
     , staticObstacles = Set.empty
     , unpassableTiles = Set.empty
 

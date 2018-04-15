@@ -253,14 +253,18 @@ viewBase game base =
             else
                 colorPattern.dark
 
+        size =
+            Game.baseSize base
+
+        halfSize =
+            size // 2 |> toFloat
+
         v =
-            Vec2.add (tile2Vec base.position) (vec2 -1 -1)
+            Vec2.add (tile2Vec base.position) (vec2 -halfSize -halfSize)
     in
     Svg.g
         []
-        [ square v color 2
-
-        --, square v "#00c" (toFloat base.containedUnits * 0.5)
+        [ square v color (toFloat size)
         ]
 
 
@@ -392,7 +396,7 @@ viewPlayer model ( player, viewport ) =
             ]
             --[ View.Background.terrain (model.time / 1000)
             [ checkersBackground model.game
-            , game.staticObstacles
+            , game.wallTiles
                 |> Set.toList
                 |> List.filter (\pos -> isWithinViewport (tile2Vec pos) 1)
                 |> List.map (\pos -> square (tile2Vec pos) "gray" 1)
