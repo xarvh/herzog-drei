@@ -50,10 +50,10 @@ basicGame =
                 |> Tuple.first
 
         ( game_, player1 ) =
-            game |> addPlayerAndMech (vec2 -3 -3)
+            game |> addPlayerAndMech (vec2 -12 -4)
 
         ( game__, player2 ) =
-            game_ |> addPlayerAndMech (vec2 3 3)
+            game_ |> addPlayerAndMech (vec2 12 4)
     in
     { game__ | wallTiles = Set.fromList walls }
         |> Game.addStaticObstacles walls
