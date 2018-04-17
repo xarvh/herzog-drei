@@ -400,6 +400,7 @@ type alias Game =
     , projectileById : Dict Id Projectile
     , unitById : Dict Id Unit
     , lastId : Id
+    , maybeWinnerId : Maybe Id
 
     --
     , cosmetics : List Gfx
@@ -430,6 +431,7 @@ new seed =
     , projectileById = Dict.empty
     , unitById = Dict.empty
     , lastId = 0
+    , maybeWinnerId = Nothing
 
     --
     , cosmetics = []

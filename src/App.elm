@@ -259,8 +259,6 @@ viewBase game base =
         ]
 
 
-
-
 viewMech : Game -> ( Unit, UnitTypeMechRecord ) -> Svg a
 viewMech game ( unit, mechRecord ) =
     let
@@ -359,6 +357,37 @@ testView model =
 
 
 
+--
+
+
+viewVictory : Game -> Player -> Svg a
+viewVictory game player =
+    case game.maybeWinnerId of
+        Nothing ->
+            Svg.g [] []
+
+        Just winnerId ->
+            let
+                ( text, pattern ) =
+                    if player.id == winnerId then
+                        ( "Victory!", player.colorPattern )
+                    else
+                        ( "Defeat!", neutral )
+            in
+            Svg.text_
+                [ Svg.Attributes.textAnchor "middle"
+                , Svg.Attributes.fontSize "0.2"
+                , Svg.Attributes.fontFamily "'proxima-nova', sans-serif"
+                , Svg.Attributes.fontWeight "700"
+                , Svg.Attributes.fill pattern.bright
+                , Svg.Attributes.stroke pattern.dark
+                , Svg.Attributes.strokeWidth "0.005"
+                , Svg.Attributes.y "-0.2"
+                ]
+                [ Svg.text text ]
+
+
+
 -- Game view
 
 
@@ -419,6 +448,7 @@ viewPlayer model ( player, viewport ) =
                 |> List.map View.Gfx.render
                 |> Svg.g []
             ]
+        , viewVictory game player
         ]
 
 
