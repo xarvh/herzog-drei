@@ -319,12 +319,15 @@ deltaGameUnitEntersBase unitId baseId game =
                                     containedUnits =
                                         1 + List.length takenCorners
 
-                                    newUnit =
+                                    angle =
+                                        Vec2.sub corner (tile2Vec base.position) |> Game.vecToAngle
+
+                                    updatedUnit =
                                         unit
                                             |> updateUnitSubRecord (\s -> { s | mode = Game.UnitModeBase base.id }) game
-                                            |> (\u -> { u | position = corner })
+                                            |> (\u -> { u | position = corner, moveAngle = angle })
 
-                                    newBase =
+                                    updatedBase =
                                         { base
                                             | containedUnits = containedUnits
                                             , isActive = base.isActive || containedUnits == List.length corners
@@ -332,8 +335,8 @@ deltaGameUnitEntersBase unitId baseId game =
                                         }
                                 in
                                 game
-                                    |> Game.updateUnit newUnit
-                                    |> Game.updateBase newBase
+                                    |> Game.updateUnit updatedUnit
+                                    |> Game.updateBase updatedBase
 
 
 thinkMovement : Float -> Game -> Unit -> UnitTypeSubRecord -> Delta
