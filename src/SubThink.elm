@@ -213,12 +213,13 @@ move dt game targetPosition unit =
                 vec2Tile unit.position
 
             path =
-                AStar.findPath
-                    tileDistance
-                    (getAvailableMoves game.unpassableTiles)
-                    unitTile
-                    (vec2Tile targetPosition)
-                    targetDistance
+              []
+--                 AStar.findPath
+--                     tileDistance
+--                     (getAvailableMoves game.unpassableTiles)
+--                     unitTile
+--                     (vec2Tile targetPosition)
+--                     targetDistance
 
             idealDelta =
                 case path of
