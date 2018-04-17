@@ -294,6 +294,7 @@ type alias Base =
     , containedUnits : Int
     , maybeOwnerId : Maybe Id
     , position : Tile2
+    , buildCompletion : Float
     }
 
 
@@ -310,6 +311,7 @@ addBase type_ position game =
             , containedUnits = 0
             , maybeOwnerId = Nothing
             , position = position
+            , buildCompletion = 0
             }
     in
     ( { game

@@ -1,5 +1,6 @@
 module Game.Update exposing (..)
 
+import BaseThink
 import Dict exposing (Dict)
 import Game
     exposing
@@ -54,6 +55,9 @@ update dt playerInputById game =
     , game.playerById
         |> Dict.values
         |> List.map playerThink
+    , game.baseById
+        |> Dict.values
+        |> List.map (BaseThink.think dt oldGameWithUpdatedUnpassableTiles)
     , game.projectileById
         |> Dict.values
         |> List.map (ProjectileThink.think dt oldGameWithUpdatedUnpassableTiles)
