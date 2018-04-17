@@ -15,7 +15,6 @@ import Game
         , Tile2
         , Unit
         , UnitMode(..)
-        , UnitOrder(..)
         , UnitType(..)
         , UnitTypeSubRecord
         , clampToRadius
@@ -320,12 +319,15 @@ deltaGameUnitEntersBase unitId baseId game =
                                     containedUnits =
                                         1 + List.length takenCorners
 
-                                    newUnit =
+                                    angle =
+                                        Vec2.sub corner (tile2Vec base.position) |> Game.vecToAngle
+
+                                    updatedUnit =
                                         unit
                                             |> updateUnitSubRecord (\s -> { s | mode = Game.UnitModeBase base.id }) game
-                                            |> (\u -> { u | position = corner })
+                                            |> (\u -> { u | position = corner, moveAngle = angle })
 
-                                    newBase =
+                                    updatedBase =
                                         { base
                                             | containedUnits = containedUnits
                                             , isActive = base.isActive || containedUnits == List.length corners
@@ -333,8 +335,8 @@ deltaGameUnitEntersBase unitId baseId game =
                                         }
                                 in
                                 game
-                                    |> Game.updateUnit newUnit
-                                    |> Game.updateBase newBase
+                                    |> Game.updateUnit updatedUnit
+                                    |> Game.updateBase updatedBase
 
 
 thinkMovement : Float -> Game -> Unit -> UnitTypeSubRecord -> Delta
@@ -344,54 +346,35 @@ thinkMovement dt game unit subRecord =
             DeltaList []
 
         UnitModeFree ->
-            case subRecord.order of
-                UnitOrderStay ->
+            {-
+               Movement:
+                 if base nearby && can be entered -> move / enter
+                 else -> move to marker
+            -}
+            case Dict.get unit.ownerId game.playerById of
+                Nothing ->
                     DeltaList []
 
-                UnitOrderEnterBase baseId ->
-                    case Dict.get baseId game.baseById of
-                        Nothing ->
-                            DeltaList []
+                Just player ->
+                    let
+                        conquerBaseDistanceThreshold =
+                            3.0
 
+                        baseDistance base =
+                            vectorDistance (tile2Vec base.position) unit.position - toFloat (Game.baseSize base // 2)
+
+                        baseIsConquerable base =
+                            baseDistance base
+                                < conquerBaseDistanceThreshold
+                                && (base.maybeOwnerId == Nothing || base.maybeOwnerId == Just unit.ownerId)
+                                && (base.containedUnits < Game.baseMaxContainedUnits)
+                    in
+                    case List.Extra.find baseIsConquerable (Dict.values game.baseById) of
                         Just base ->
-                            if vectorDistance unit.position (tile2Vec base.position) > Game.maximumDistanceForUnitToEnterBase then
+                            if baseDistance base > Game.maximumDistanceForUnitToEnterBase then
                                 move dt game (tile2Vec base.position) unit
                             else
                                 DeltaGame (deltaGameUnitEntersBase unit.id base.id)
 
-                UnitOrderMoveTo targetPosition ->
-                    move dt game targetPosition unit
-
-                {-
-                   Movement:
-                     if base nearby && can be entered -> move / enter
-                     else -> move to marker
-                -}
-                UnitOrderFollowMarker ->
-                    case Dict.get unit.ownerId game.playerById of
                         Nothing ->
-                            DeltaList []
-
-                        Just player ->
-                            let
-                                conquerBaseDistanceThreshold =
-                                    3.0
-
-                                baseDistance base =
-                                    vectorDistance (tile2Vec base.position) unit.position
-
-                                baseIsConquerable base =
-                                    baseDistance base
-                                        < conquerBaseDistanceThreshold
-                                        && (base.maybeOwnerId == Nothing || base.maybeOwnerId == Just unit.ownerId)
-                                        && (base.containedUnits < Game.baseMaxContainedUnits)
-                            in
-                            case List.Extra.find baseIsConquerable (Dict.values game.baseById) of
-                                Just base ->
-                                    if baseDistance base > Game.maximumDistanceForUnitToEnterBase then
-                                        move dt game (tile2Vec base.position) unit
-                                    else
-                                        DeltaGame (deltaGameUnitEntersBase unit.id base.id)
-
-                                Nothing ->
-                                    move dt game player.markerPosition unit
+                            move dt game player.markerPosition unit

@@ -94,10 +94,10 @@ mechThink input dt game unit mechRecord =
         speed =
             case transformMode mechRecord of
                 ToMech ->
-                    2.0
+                    5.0
 
                 ToPlane ->
-                    6.0
+                    12.0
 
         dx =
             input.move
@@ -157,7 +157,7 @@ mechThink input dt game unit mechRecord =
                     fly
 
         newPosition =
-            updatePosition dx game unit
+            updatePosition dx game unit |> Game.clampToGameSize game 1
 
         moveMech =
             DeltaUnit unit.id (\g u -> { u | position = newPosition })

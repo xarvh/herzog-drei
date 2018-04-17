@@ -2,41 +2,109 @@ module Game.Init exposing (..)
 
 import ColorPattern
 import Dict exposing (Dict)
-import Game exposing (Game)
-import Game.Base
-import Game.Player
-import Game.Unit
+import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Random
 import Random.List
-import Set exposing (Set)
+import Set
+import SubThink
 
 
-init : Random.Seed -> Game
-init seed =
+{-
+
+   type GameInsert a
+       = GameInsert (Game -> ( a, Game ))
+
+
+   andThen : (a -> GameInsert b) -> GameInsert a -> GameInsert b
+   andThen callback (GameInsert insertA) =
+       GameInsert <|
+           \game ->
+               let
+                   ( result, newGame ) =
+                       insertA game
+
+                   (GameInsert insertB) =
+                       callback result
+               in
+               insertB game
+
+
+
+   insertAll : GameInsert a -> Game -> ( a, Game )
+   insertAll (GameInsert gameInsert) game =
+               gameInsert game
+
+
+-}
+--
+
+
+addPlayerAndMech : Vec2 -> Game -> ( Game, Player )
+addPlayerAndMech position game =
     let
-        shuffledColorPatterns =
-            Random.step (Random.List.shuffle ColorPattern.patterns) seed |> Tuple.first
+        ( game_, player ) =
+            Game.addPlayer position game
+    in
+    ( game_
+        |> Game.addUnit player.id True position
+        |> Tuple.first
+    , player
+    )
 
-        playerById =
-            Dict.empty
-                |> Game.Player.add shuffledColorPatterns 10 (vec2 -3 -3)
 
-        baseById =
-            Dict.empty
-                |> Game.Base.add 99 ( 0, 0 )
+addSub : Id -> Vec2 -> Game -> Game
+addSub ownerId position game =
+    Game.addUnit ownerId False position game |> Tuple.first
 
-        unitById =
-            Dict.empty
-                |> Game.Unit.add 0 10 (vec2 -2 -5)
-                |> Game.Unit.add 1 10 (vec2 2 -4.1)
-                |> Game.Unit.add 2 10 (vec2 2 -4.2)
-                |> Game.Unit.add 3 10 (vec2 2 -4.3)
-                |> Game.Unit.add 4 10 (vec2 2 -4.11)
-                |> Game.Unit.add 5 10 (vec2 2 -4.3)
-                |> Game.Unit.add 6 10 (vec2 2 -4.02)
 
-        terrainObstacles =
+addEmbeddedSub : Base -> Game -> Game
+addEmbeddedSub base game =
+    let
+        ownerId =
+            base.maybeOwnerId |> Maybe.withDefault -1
+
+        ( game_, unit ) =
+            Game.addUnit ownerId False (vec2 0 0) game
+    in
+    SubThink.deltaGameUnitEntersBase unit.id base.id game_
+
+
+addSmallBase : Tile2 -> Game -> Game
+addSmallBase tile game =
+    let
+        ( game_, base ) =
+            Game.addBase BaseSmall tile game
+    in
+    game_
+        |> addEmbeddedSub base
+        |> addEmbeddedSub base
+        |> addEmbeddedSub base
+        |> addEmbeddedSub base
+
+
+addMainBase : Id -> Tile2 -> Game -> Game
+addMainBase ownerId tile game =
+    let
+        ( game_, base ) =
+            Game.addBase BaseMain tile game
+                |> Tuple.mapSecond (\b -> { b | maybeOwnerId = Just ownerId })
+    in
+    game_
+        |> addEmbeddedSub base
+        |> addEmbeddedSub base
+        |> addEmbeddedSub base
+        |> addEmbeddedSub base
+
+
+
+--
+
+
+basicGame : Game
+basicGame =
+    let
+        walls =
             [ ( 0, 0 )
             , ( 1, 0 )
             , ( 2, 0 )
@@ -44,24 +112,19 @@ init seed =
             , ( 3, 1 )
             , ( 4, 2 )
             ]
-                |> Set.fromList
 
-        staticObstacles =
-            baseById
-                |> Dict.values
-                |> List.map Game.Base.tiles
-                |> List.foldl Set.union terrainObstacles
+        game =
+            Random.initialSeed 0 |> Game.new
+
+        ( game_, player1 ) =
+            game |> addPlayerAndMech (vec2 -12 -4)
+
+        ( game__, player2 ) =
+            game_ |> addPlayerAndMech (vec2 12 4)
     in
-    { baseById = baseById
-    , unitById = unitById
-    , playerById = playerById
-    , lastId = 0
-
-    --
-    , staticObstacles = staticObstacles
-    , unpassableTiles = Set.empty
-
-    --
-    , seed = seed
-    , shuffledColorPatterns = shuffledColorPatterns
-    }
+    { game__ | wallTiles = Set.fromList walls }
+        |> Game.addStaticObstacles walls
+        |> addSmallBase ( -5, 2 )
+        |> addSmallBase ( 5, -2 )
+        |> addMainBase player1.id ( -16, -6 )
+        |> addMainBase player2.id ( 16, 6 )

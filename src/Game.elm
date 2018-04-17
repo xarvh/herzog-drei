@@ -3,6 +3,7 @@ module Game exposing (..)
 import AStar
 import ColorPattern exposing (ColorPattern)
 import Dict exposing (Dict)
+import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Random
 import Random.List
@@ -166,13 +167,6 @@ deltaRemoveProjectile id =
 -- Units
 
 
-type UnitOrder
-    = UnitOrderStay
-    | UnitOrderFollowMarker
-    | UnitOrderMoveTo Vec2
-    | UnitOrderEnterBase Id
-
-
 type UnitMode
     = UnitModeFree
     | UnitModeBase Id
@@ -187,7 +181,6 @@ type alias UnitTypeMechRecord =
 type alias UnitTypeSubRecord =
     { mode : UnitMode
     , maybeTargetId : Maybe Id
-    , order : UnitOrder
     }
 
 
@@ -249,8 +242,7 @@ addUnit ownerId isMech position game =
                         }
                 else
                     UnitTypeSub
-                        { order = UnitOrderFollowMarker
-                        , mode = UnitModeFree
+                        { mode = UnitModeFree
                         , maybeTargetId = Nothing
                         }
             }
@@ -290,8 +282,14 @@ updateUnitMechRecord updateMechRecord game unit =
 -- Bases
 
 
+type BaseType
+    = BaseMain
+    | BaseSmall
+
+
 type alias Base =
     { id : Id
+    , type_ : BaseType
     , isActive : Bool
     , containedUnits : Int
     , maybeOwnerId : Maybe Id
@@ -299,40 +297,78 @@ type alias Base =
     }
 
 
-addBase : Tile2 -> Game -> ( Game, Base )
-addBase position game =
+addBase : BaseType -> Tile2 -> Game -> ( Game, Base )
+addBase type_ position game =
     let
         id =
             game.lastId + 1
 
         base =
             { id = id
+            , type_ = type_
             , isActive = False
             , containedUnits = 0
             , maybeOwnerId = Nothing
             , position = position
             }
-
-        baseById =
-            Dict.insert id base game.baseById
-
-        staticObstacles =
-            Set.union (tiles base |> Set.fromList) game.staticObstacles
     in
-    ( { game | lastId = id, staticObstacles = staticObstacles, baseById = baseById }, base )
+    ( { game
+        | lastId = id
+        , baseById = Dict.insert id base game.baseById
+      }
+        |> addStaticObstacles (baseTiles base)
+    , base
+    )
 
 
-tiles : Base -> List Tile2
-tiles base =
+baseSize : Base -> Int
+baseSize base =
+    case base.type_ of
+        BaseSmall ->
+            2
+
+        BaseMain ->
+            4
+
+
+baseTiles : Base -> List Tile2
+baseTiles base =
+    squareArea (baseSize base) base.position
+
+
+maximumDistanceForUnitToEnterBase : Float
+maximumDistanceForUnitToEnterBase =
+    2.1
+
+
+baseColorPattern : Game -> Base -> ColorPattern
+baseColorPattern game base =
+    base.maybeOwnerId
+        |> Maybe.map (playerColorPattern game)
+        |> Maybe.withDefault ColorPattern.neutral
+
+
+baseCorners : Base -> List Vec2
+baseCorners base =
     let
         ( x, y ) =
             base.position
+                |> tile2Vec
+                |> Vec2.toTuple
+
+        r =
+            toFloat (baseSize base // 2) - 0.2
     in
-    [ ( x + 0, y - 1 )
-    , ( x - 1, y - 1 )
-    , ( x - 1, y + 0 )
-    , ( x + 0, y + 0 )
+    [ vec2 (x + r) (y + r)
+    , vec2 (x - r) (y + r)
+    , vec2 (x - r) (y - r)
+    , vec2 (x + r) (y - r)
     ]
+
+
+baseMaxContainedUnits : Int
+baseMaxContainedUnits =
+    4
 
 
 
@@ -370,7 +406,10 @@ type alias Game =
     , halfWidth : Int
     , halfHeight : Int
 
-    -- includes terrain and bases
+    -- walls are just tile blockers
+    , wallTiles : Set Tile2
+
+    -- includes walls and bases
     , staticObstacles : Set Tile2
 
     -- this is the union between static obstacles and unit positions
@@ -382,8 +421,8 @@ type alias Game =
     }
 
 
-init : Random.Seed -> Game
-init seed =
+new : Random.Seed -> Game
+new seed =
     { baseById = Dict.empty
     , playerById = Dict.empty
     , projectileById = Dict.empty
@@ -392,8 +431,9 @@ init seed =
 
     --
     , cosmetics = []
-    , halfWidth = 10
+    , halfWidth = 20
     , halfHeight = 10
+    , wallTiles = Set.empty
     , staticObstacles = Set.empty
     , unpassableTiles = Set.empty
 
@@ -470,49 +510,35 @@ addStaticObstacles tiles game =
 
 
 
--- Bases
-
-
-maximumDistanceForUnitToEnterBase : Float
-maximumDistanceForUnitToEnterBase =
-    2.1
-
-
-baseColorPattern : Game -> Base -> ColorPattern
-baseColorPattern game base =
-    base.maybeOwnerId
-        |> Maybe.map (playerColorPattern game)
-        |> Maybe.withDefault ColorPattern.neutral
-
-
-baseCorners : Base -> List Vec2
-baseCorners base =
-    let
-        ( x, y ) =
-            base.position
-                |> tile2Vec
-                |> Vec2.toTuple
-
-        r =
-            0.8
-    in
-    [ vec2 (x + r) (y + r)
-    , vec2 (x - r) (y + r)
-    , vec2 (x - r) (y - r)
-    , vec2 (x + r) (y - r)
-    ]
-
-
-baseMaxContainedUnits : Int
-baseMaxContainedUnits =
-    -- A very convoluted way to write `4`
-    Base 0 False 0 Nothing ( 0, 0 )
-        |> baseCorners
-        |> List.length
-
-
-
 -- Geometry helpers
+
+
+centeredTileInterval : Int -> List Int
+centeredTileInterval length =
+    List.range (-length // 2) ((length - 1) // 2)
+
+
+squareArea : Int -> Tile2 -> List Tile2
+squareArea sideLength ( centerX, centerY ) =
+    let
+        range =
+            centeredTileInterval sideLength
+    in
+    range
+        |> List.map (\x -> range |> List.map (\y -> ( centerX + x, centerY + y )))
+        |> List.concat
+
+
+squarePerimeter : Int -> Tile2 -> List Tile2
+squarePerimeter sideLength center =
+    let
+        outer =
+            squareArea sideLength center |> Set.fromList
+
+        inner =
+            squareArea (sideLength - 1) center |> Set.fromList
+    in
+    Set.diff outer inner |> Set.toList
 
 
 tileDistance : Tile2 -> Tile2 -> Float
@@ -544,6 +570,21 @@ clampToRadius radius v =
         v
     else
         Vec2.scale (radius / sqrt ll) v
+
+
+clampToGameSize : Game -> Float -> Vec2 -> Vec2
+clampToGameSize game radius v =
+    let
+        ( x, y ) =
+            Vec2.toTuple v
+
+        hw =
+            toFloat game.halfWidth - radius
+
+        hh =
+            toFloat game.halfHeight - radius
+    in
+    vec2 (clamp -hw hw x) (clamp -hh hh y)
 
 
 vec2Tile : Vec2 -> Tile2

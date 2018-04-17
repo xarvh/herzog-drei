@@ -12,13 +12,16 @@ import Game
         , Projectile
         , Unit
         , UnitType(..)
+        , UnitTypeMechRecord
+        , UnitTypeSubRecord
         , clampToRadius
         , tile2Vec
         , vec2Tile
         )
+import Game.Init
 import Game.Update
 import Html exposing (div)
-import Html.Attributes exposing (class)
+import Html.Attributes exposing (class, style)
 import Keyboard.Extra
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
@@ -33,6 +36,7 @@ import Svg.Events
 import Task
 import Time exposing (Time)
 import View exposing (..)
+import View.Background
 import View.Gfx
 import View.Mech
 import View.Projectile
@@ -52,74 +56,41 @@ type Msg
 
 type alias Model =
     { game : Game
+    , inputPlayerId : Id
     , mousePosition : Mouse.Position
     , mouseIsPressed : Bool
     , viewports : List Viewport
     , windowSize : Window.Size
     , time : Time
+    , fps : List Float
     }
 
 
 init : ( Model, Cmd Msg )
 init =
     let
-        addPlayerAndMech : Vec2 -> Game -> ( Game, Player )
-        addPlayerAndMech position game =
-            let
-                ( game_, player ) =
-                    Game.addPlayer position game
-            in
-            ( game_
-                |> Game.addUnit player.id True position
-                |> Tuple.first
-            , player
-            )
-
-        addAiUnit : Id -> Vec2 -> Game -> Game
-        addAiUnit ownerId position game =
-            Game.addUnit ownerId False position game |> Tuple.first
-
-        terrainObstacles =
-            [ ( 0, 0 )
-            , ( 1, 0 )
-            , ( 2, 0 )
-            , ( 3, 0 )
-            , ( 3, 1 )
-            , ( 4, 2 )
-            ]
-
         game =
-            Random.initialSeed 0
-                |> Game.init
-                |> Game.addBase ( 0, 0 )
-                |> Tuple.first
+            Game.Init.basicGame
 
-        ( game_, player1 ) =
-            game |> addPlayerAndMech (vec2 -3 -3)
-
-        ( game__, player2 ) =
-            game_ |> addPlayerAndMech (vec2 3 3)
+        inputPlayerId =
+            game.playerById
+                |> Dict.values
+                |> List.map .id
+                |> List.sort
+                |> List.head
+                |> Maybe.withDefault 0
     in
-    game__
-        |> Game.addStaticObstacles terrainObstacles
-        |> addAiUnit player1.id (vec2 0 -4)
-        |> addAiUnit player1.id (vec2 1 -4)
-        |> addAiUnit player1.id (vec2 2 -4)
-        |> addAiUnit player1.id (vec2 3 -4)
-        |> addAiUnit player2.id (vec2 0 4.8)
-        |> addAiUnit player2.id (vec2 -1 4.8)
-        |> addAiUnit player2.id (vec2 -2 4.8)
-        |> addAiUnit player2.id (vec2 -3 4.8)
-        |> (\game ->
-                { game = game
-                , mousePosition = { x = 0, y = 0 }
-                , mouseIsPressed = False
-                , viewports = []
-                , windowSize = { width = 1, height = 1 }
-                , time = 0
-                }
-           )
-        |> flip (,) (Window.size |> Task.perform OnWindowResizes)
+    ( { game = game
+      , inputPlayerId = inputPlayerId
+      , mousePosition = { x = 0, y = 0 }
+      , mouseIsPressed = False
+      , viewports = []
+      , windowSize = { width = 1, height = 1 }
+      , time = 0
+      , fps = []
+      }
+    , Window.size |> Task.perform OnWindowResizes
+    )
 
 
 
@@ -182,12 +153,13 @@ update pressedKeys msg model =
                     }
 
                 game =
-                    Game.Update.update dt (Dict.singleton 2 input) model.game
+                    Game.Update.update dt (Dict.singleton model.inputPlayerId input) model.game
             in
             noCmd
                 { model
                     | game = game
                     , time = model.time + dt
+                    , fps = (1 / dt) :: List.take 20 model.fps
                 }
 
 
@@ -195,8 +167,8 @@ update pressedKeys msg model =
 -- View
 
 
-checkersBackground : Float -> Svg Msg
-checkersBackground size =
+checkersBackground : Game -> Svg Msg
+checkersBackground game =
     let
         squareSize =
             1.0
@@ -237,10 +209,10 @@ checkersBackground size =
             ]
         , Svg.rect
             [ fill "url(#grid)"
-            , x <| -size / 2
-            , y <| -size / 2
-            , width size
-            , height size
+            , x (toFloat -game.halfWidth)
+            , y (toFloat -game.halfHeight)
+            , width (toFloat <| game.halfWidth * 2)
+            , height (toFloat <| game.halfHeight * 2)
             ]
             []
         ]
@@ -281,45 +253,67 @@ viewBase game base =
             else
                 colorPattern.dark
 
+        size =
+            Game.baseSize base
+
+        halfSize =
+            size // 2 |> toFloat
+
         v =
-            Vec2.add (tile2Vec base.position) (vec2 -1 -1)
+            Vec2.add (tile2Vec base.position) (vec2 -halfSize -halfSize)
     in
     Svg.g
         []
-        [ square v color 2
-
-        --, square v "#00c" (toFloat base.containedUnits * 0.5)
+        [ square v color (toFloat size)
         ]
 
 
-viewUnit : Game -> Unit -> Svg Msg
-viewUnit game unit =
+viewMech : Game -> ( Unit, UnitTypeMechRecord ) -> Svg a
+viewMech game ( unit, mechRecord ) =
     let
         colorPattern =
             Game.playerColorPattern game unit.ownerId
     in
-    case unit.type_ of
-        UnitTypeMech mechRecord ->
-            Svg.g
-                [ transform [ translate unit.position ] ]
-                [ View.Mech.mech
-                    mechRecord.transformState
-                    unit.lookAngle
-                    unit.fireAngle
-                    colorPattern.bright
-                    colorPattern.dark
-                ]
+    Svg.g
+        [ transform [ translate unit.position ] ]
+        [ View.Mech.mech
+            mechRecord.transformState
+            unit.lookAngle
+            unit.fireAngle
+            colorPattern.bright
+            colorPattern.dark
+        ]
 
-        UnitTypeSub subRecord ->
-            Svg.g
-                [ transform [ translate unit.position ] ]
-                [ View.Unit.unit
-                    unit.lookAngle
-                    unit.moveAngle
-                    unit.fireAngle
-                    colorPattern.bright
-                    colorPattern.dark
-                ]
+
+viewSub : Game -> ( Unit, UnitTypeSubRecord ) -> Svg a
+viewSub game ( unit, subRecord ) =
+    let
+        colorPattern =
+            Game.playerColorPattern game unit.ownerId
+    in
+    Svg.g
+        [ transform [ translate unit.position ] ]
+        [ View.Unit.unit
+            unit.lookAngle
+            unit.moveAngle
+            unit.fireAngle
+            colorPattern.bright
+            colorPattern.dark
+        ]
+
+
+mechVsUnit : List Unit -> ( List ( Unit, UnitTypeMechRecord ), List ( Unit, UnitTypeSubRecord ) )
+mechVsUnit units =
+    let
+        folder unit ( mechs, subs ) =
+            case unit.type_ of
+                UnitTypeMech mechRecord ->
+                    ( ( unit, mechRecord ) :: mechs, subs )
+
+                UnitTypeSub subRecord ->
+                    ( mechs, ( unit, subRecord ) :: subs )
+    in
+    List.foldl folder ( [], [] ) units
 
 
 viewMarker : Game -> Player -> Svg a
@@ -375,17 +369,22 @@ testView model =
 
 
 viewPlayer : Model -> ( Player, Viewport ) -> Svg Msg
-viewPlayer { game } ( player, viewport ) =
+viewPlayer model ( player, viewport ) =
     let
-        units =
-            Dict.values game.unitById
+        game =
+            model.game
+
+        ( mechs, subs ) =
+            game.unitById
+                |> Dict.values
+                |> mechVsUnit
 
         offset =
             Vec2.negate player.viewportPosition
 
         -- The scale should be enough to fit the mech's shooting range and then some
         viewportMinSizeInTiles =
-            10
+            20
 
         isWithinViewport =
             SplitScreen.isWithinViewport viewport player.viewportPosition viewportMinSizeInTiles
@@ -395,8 +394,9 @@ viewPlayer { game } ( player, viewport ) =
         [ Svg.g
             [ transform [ "scale(1 -1)", scale (1 / viewportMinSizeInTiles), translate offset ]
             ]
-            [ checkersBackground 10
-            , game.staticObstacles
+            --[ View.Background.terrain (model.time / 1000)
+            [ checkersBackground model.game
+            , game.wallTiles
                 |> Set.toList
                 |> List.filter (\pos -> isWithinViewport (tile2Vec pos) 1)
                 |> List.map (\pos -> square (tile2Vec pos) "gray" 1)
@@ -406,9 +406,13 @@ viewPlayer { game } ( player, viewport ) =
                 |> List.filter (\b -> isWithinViewport (tile2Vec b.position) 3)
                 |> List.map (viewBase game)
                 |> Svg.g []
-            , units
-                |> List.filter (\u -> isWithinViewport u.position 1.5)
-                |> List.map (viewUnit game)
+            , subs
+                |> List.filter (\( u, s ) -> isWithinViewport u.position 0.7)
+                |> List.map (viewSub game)
+                |> Svg.g []
+            , mechs
+                |> List.filter (\( u, m ) -> isWithinViewport u.position 1.5)
+                |> List.map (viewMech game)
                 |> Svg.g []
             , viewMarker game player
             , game.projectileById
@@ -434,12 +438,18 @@ splitView model =
 
         viewportsAndPlayers =
             List.map2 (,) sortedPlayers model.viewports
+
+        fps =
+            List.sum model.fps / toFloat (List.length model.fps) |> round
     in
     div
         []
         [ viewportsAndPlayers
             |> List.map (viewPlayer model)
             |> SplitScreen.viewportsWrapper
+        , div
+            [ style [ ( "position", "absolute" ), ( "top", "0" ) ] ]
+            [ Html.text <| "FPS " ++ toString fps ]
         ]
 
 
