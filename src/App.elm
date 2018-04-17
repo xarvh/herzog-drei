@@ -37,6 +37,7 @@ import Task
 import Time exposing (Time)
 import View exposing (..)
 import View.Background
+import View.Base
 import View.Gfx
 import View.Mech
 import View.Projectile
@@ -246,26 +247,18 @@ viewBase game base =
     let
         colorPattern =
             Game.baseColorPattern game base
-
-        color =
-            if base.isActive then
-                colorPattern.bright
-            else
-                colorPattern.dark
-
-        size =
-            Game.baseSize base
-
-        halfSize =
-            size // 2 |> toFloat
-
-        v =
-            Vec2.add (tile2Vec base.position) (vec2 -halfSize -halfSize)
     in
     Svg.g
-        []
-        [ square v color (toFloat size)
+        [ transform [ translate (tile2Vec base.position) ] ]
+        [ case base.type_ of
+            Game.BaseSmall ->
+                View.Base.small colorPattern.bright colorPattern.dark
+
+            Game.BaseMain ->
+                View.Base.main_ base.buildCompletion colorPattern.bright colorPattern.dark
         ]
+
+
 
 
 viewMech : Game -> ( Unit, UnitTypeMechRecord ) -> Svg a
@@ -341,26 +334,27 @@ testView model =
             turns 0.1
 
         period =
-            1
+            5
 
         wrap n p =
             n - (toFloat (floor (n / p)) * p)
 
         age =
-            wrap model.time period
-
-        start =
-            View.Unit.gunOffset moveAngle
-
-        end =
-            vec2 0 0
+            wrap model.time period / 5
     in
-    Svg.g
-        [ transform [ "scale(0.4, 0.4)" ] ]
-        [ View.Projectile.projectile (vec2 0 0) (pi / 6)
+    Svg.svg
+        [ Svg.Attributes.viewBox "-1 -1 2 2"
+        , Svg.Attributes.width "100vh"
+        , Svg.Attributes.height "100vh"
+        ]
+        [ Svg.g
+            [ transform [ "scale(0.1, -0.1)" ]
+            ]
+            [ View.Base.main_ age neutral.bright neutral.dark
 
-        --[ View.Mech.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
-        --[ View.Unit.unit (pi / 4) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
+            --[ View.Mech.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
+            --[ View.Unit.unit (pi / 4) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
+            ]
         ]
 
 
