@@ -8,14 +8,14 @@ import View exposing (..)
 
 leftGunOffset : Float -> Float -> Vec2
 leftGunOffset t torsoAngle =
-    vec2 -(View.smooth t 0.13 0.15) (View.smooth t 0.21 0.26)
+    vec2 -(View.smooth t 0.13 0.09) (View.smooth t 0.21 0.26)
         |> Game.rotateVector torsoAngle
         |> Vec2.scale 3
 
 
 rightGunOffset : Float -> Float -> Vec2
 rightGunOffset t torsoAngle =
-    vec2 (View.smooth t 0.13 0.15) (View.smooth t 0.21 0.26)
+    vec2 (View.smooth t 0.13 0.09) (View.smooth t 0.21 0.26)
         |> Game.rotateVector torsoAngle
         |> Vec2.scale 3
 
@@ -63,8 +63,8 @@ mech t headAngle topAngle darkColor brightColor =
         [ g
             [ transform [ scale 3, rotateRad topAngle ] ]
             -- guns
-            [ rectPlate "#666" "#808080" -(smooth 0.14 0.15) (smooth 0.21 0.26) 0.08 0.26 0
-            , rectPlate "#666" "#808080" (smooth 0.14 0.15) (smooth 0.21 0.26) 0.08 0.26 0
+            [ rectPlate "#666" "#808080" -(smooth 0.14 0.1) (smooth 0.21 0.26) (smooth 0.08 0.05) 0.26 0
+            , rectPlate "#666" "#808080" (smooth 0.14 0.1) (smooth 0.21 0.26) (smooth 0.08 0.05) 0.26 0
 
             -- arms / front wings
             , plates
