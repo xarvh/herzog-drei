@@ -14,7 +14,7 @@ unitSize =
 
 
 maxRange =
-    8.0
+    Unit.mechShootRange
 
 
 maxRangeSquared =
@@ -79,7 +79,7 @@ think dt game projectile =
                 DeltaList
                     [ Game.deltaRemoveProjectile projectile.id
                     , View.Gfx.deltaAddExplosion (Vec2.add newPosition oldPosition |> Vec2.scale 0.5) 0.2
-                    , DeltaUnit unit.id (Unit.takeDamage 2)
+                    , DeltaUnit unit.id (Unit.takeDamage Unit.mechShootDamage)
                     ]
 
             Nothing ->

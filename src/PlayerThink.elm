@@ -6,13 +6,13 @@ import Game
         ( Delta(..)
         , Game
         , Id
+        , MechComponent
         , Player
         , PlayerInput
         , Seconds
         , TransformMode(..)
         , Unit
         , UnitComponent(..)
-        , MechComponent
         , clampToRadius
         , tile2Vec
         , vec2Tile
@@ -20,6 +20,7 @@ import Game
         )
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
+import Unit
 import View.Gfx
 import View.Mech
 
@@ -30,36 +31,6 @@ import View.Mech
 transformTime : Float
 transformTime =
     0.2
-
-
-mechFireInterval : MechComponent -> Seconds
-mechFireInterval mech =
-    case transformMode mech of
-        ToMech ->
-            0.1
-
-        ToPlane ->
-            0.3
-
-
-
---
-
-
-transformMode : MechComponent -> TransformMode
-transformMode mech =
-    case mech.transformingTo of
-        ToMech ->
-            if mech.transformState < 1 then
-                ToMech
-            else
-                ToPlane
-
-        ToPlane ->
-            if mech.transformState > 0 then
-                ToPlane
-            else
-                ToMech
 
 
 
@@ -98,7 +69,7 @@ mechThink : PlayerInput -> Float -> Game -> Unit -> MechComponent -> Delta
 mechThink input dt game unit mech =
     let
         speed =
-            case transformMode mech of
+            case Unit.transformMode mech of
                 ToMech ->
                     5.0
 
@@ -155,7 +126,7 @@ mechThink input dt game unit mech =
                 DeltaList []
 
         updatePosition =
-            case transformMode mech of
+            case Unit.transformMode mech of
                 ToMech ->
                     walk
 
@@ -201,7 +172,7 @@ mechThink input dt game unit mech =
         fire =
             if input.fire && unit.timeToReload == 0 then
                 DeltaList
-                    [ DeltaUnit unit.id (\g u -> { u | timeToReload = mechFireInterval mech })
+                    [ DeltaUnit unit.id (\g u -> { u | timeToReload = Unit.mechReloadTime mech })
                     , deltaFire leftOrigin
                     , View.Gfx.deltaAddProjectileCase leftOrigin (aimAngle - pi - pi / 12)
                     , deltaFire rightOrigin

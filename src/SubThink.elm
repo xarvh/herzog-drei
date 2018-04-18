@@ -32,20 +32,6 @@ import View.Gfx
 import View.Unit
 
 
--- Constants
-
-
-unitReloadTime : Float
-unitReloadTime =
-    5.0
-
-
-unitShootRange : Float
-unitShootRange =
-    7.0
-
-
-
 -- Think
 
 
@@ -94,7 +80,7 @@ searchForTargets : Game -> Unit -> Maybe Delta
 searchForTargets game unit =
     let
         ifCloseEnough ( target, distance ) =
-            if distance > unitShootRange then
+            if distance > Unit.subShootRange then
                 Nothing
             else
                 (\sub -> { sub | maybeTargetId = Just target.id })
@@ -138,7 +124,7 @@ thinkTarget dt game unit sub =
             searchForTargetOrAlignToMovement dt game unit
 
         Just target ->
-            if vectorDistance unit.position target.position > unitShootRange then
+            if vectorDistance unit.position target.position > Unit.subShootRange then
                 searchForTargetOrAlignToMovement dt game unit
             else
                 let
@@ -154,11 +140,11 @@ thinkTarget dt game unit sub =
                             }
                         )
                     , DeltaList <|
-                        if unit.timeToReload > 0 || Vec2.lengthSquared dp > unitShootRange ^ 2 then
+                        if unit.timeToReload > 0 || Vec2.lengthSquared dp > Unit.subShootRange ^ 2 then
                             []
                         else
-                            [ DeltaUnit unit.id (\g u -> { u | timeToReload = unitReloadTime })
-                            , DeltaUnit target.id (Unit.takeDamage 5)
+                            [ DeltaUnit unit.id (\g u -> { u | timeToReload = Unit.subReloadTime })
+                            , DeltaUnit target.id (Unit.takeDamage Unit.subShootDamage)
                             , View.Gfx.deltaAddBeam
                                 (Vec2.add unit.position (View.Unit.gunOffset unit.moveAngle))
                                 target.position
