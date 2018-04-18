@@ -37,7 +37,7 @@ mechReloadTime mech =
             0.1
 
         ToPlane ->
-            0.3
+            0.15
 
 
 

@@ -1,5 +1,6 @@
 module PlayerThink exposing (..)
 
+import ColorPattern
 import Dict exposing (Dict)
 import Game
     exposing
@@ -18,6 +19,7 @@ import Game
         , vec2Tile
         , vecToAngle
         )
+import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 import Unit
@@ -193,9 +195,77 @@ mechThink input dt game unit mech =
         ]
 
 
+
+--
+
+
+baseRepairsMech : Seconds -> Id -> Id -> Game -> Game
+baseRepairsMech dt baseId unitId game =
+    Game.withBase game baseId <|
+        \base ->
+            Game.withUnit game unitId <|
+                \unit ->
+                    let
+                        -- Don't need to repair beyond integrity 1
+                        requirementLimit =
+                            1 - unit.integrity
+
+                        -- Limit speed
+                        repairRate =
+                            0.3
+
+                        timeLimit =
+                            repairRate * dt
+
+                        -- Can't use more than the base has
+                        productionToIntegrityRatio =
+                            1.5
+
+                        baseLimit =
+                            base.buildCompletion * productionToIntegrityRatio
+
+                        --
+                        actualRepair =
+                            1.0
+                                |> min requirementLimit
+                                |> min timeLimit
+                                |> min baseLimit
+
+                        updatedUnit =
+                            { unit | integrity = unit.integrity + actualRepair }
+
+                        updatedBase =
+                            { base | buildCompletion = base.buildCompletion - actualRepair / productionToIntegrityRatio }
+                    in
+                    game
+                        |> Game.updateBase updatedBase
+                        |> Game.updateUnit updatedUnit
+
+
 repairDelta : Seconds -> Game -> Unit -> MechComponent -> Delta
 repairDelta dt game unit mech =
-    DeltaList []
+    if unit.integrity >= 1 then
+        DeltaList []
+    else
+        let
+            canRepair base =
+                base.buildCompletion
+                    > 0
+                    && base.maybeOwnerId
+                    == Just unit.ownerId
+                    && Vec2.distanceSquared (tile2Vec base.position) unit.position
+                    < 3
+                    * 3
+        in
+        case List.Extra.find canRepair (Dict.values game.baseById) of
+            Nothing ->
+                DeltaList []
+
+            Just base ->
+                DeltaList
+                    [ DeltaGame (baseRepairsMech dt base.id unit.id)
+                    , View.Gfx.deltaAddBeam (tile2Vec base.position) unit.position ColorPattern.neutral
+                    ]
 
 
 fly : Vec2 -> Game -> Unit -> Vec2
