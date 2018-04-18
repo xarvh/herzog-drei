@@ -8,12 +8,12 @@ import Game
         ( Base
         , Game
         , Id
+        , MechComponent
         , Player
         , Projectile
+        , SubComponent
         , Unit
         , UnitComponent(..)
-        , MechComponent
-        , SubComponent
         , clampToRadius
         , tile2Vec
         , vec2Tile
@@ -39,6 +39,7 @@ import View exposing (..)
 import View.Background
 import View.Base
 import View.Gfx
+import View.Hud
 import View.Mech
 import View.Projectile
 import View.Unit
@@ -317,6 +318,14 @@ viewProjectile projectile =
     View.Projectile.projectile projectile.position projectile.angle
 
 
+viewHealthbar : Unit -> Svg a
+viewHealthbar unit =
+    if unit.integrity > 0.95 then
+        Svg.text ""
+    else
+        View.Hud.healthBar unit.position unit.integrity
+
+
 
 -- Test View
 
@@ -397,10 +406,11 @@ viewPlayer model ( player, viewport ) =
         game =
             model.game
 
+        units =
+            game.unitById |> Dict.values
+
         ( mechs, subs ) =
-            game.unitById
-                |> Dict.values
-                |> mechVsUnit
+            mechVsUnit units
 
         offset =
             Vec2.negate player.viewportPosition
@@ -446,6 +456,10 @@ viewPlayer model ( player, viewport ) =
             , game.cosmetics
                 -- TODO viewport cull
                 |> List.map View.Gfx.render
+                |> Svg.g []
+            , units
+                |> List.filter (\u -> u.ownerId == player.id)
+                |> List.map viewHealthbar
                 |> Svg.g []
             ]
         , viewVictory game player
