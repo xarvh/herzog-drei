@@ -8,14 +8,14 @@ import View exposing (..)
 
 leftGunOffset : Float -> Float -> Vec2
 leftGunOffset t torsoAngle =
-    vec2 -(View.smooth t 0.39 0.15) (View.smooth t 0.21 0.26)
+    vec2 -(View.smooth t 0.15 0.15) (View.smooth t 0.21 0.26)
         |> Game.rotateVector torsoAngle
         |> Vec2.scale 3
 
 
 rightGunOffset : Float -> Float -> Vec2
 rightGunOffset t torsoAngle =
-    vec2 (View.smooth t 0.39 0.15) (View.smooth t 0.21 0.26)
+    vec2 (View.smooth t 0.15 0.15) (View.smooth t 0.21 0.26)
         |> Game.rotateVector torsoAngle
         |> Vec2.scale 3
 
@@ -63,14 +63,14 @@ mech t headAngle topAngle darkColor brightColor =
         [ g
             [ transform [ scale 3, rotateRad topAngle ] ]
             -- guns
-            [ rectPlate "#666" "#808080" -(smooth 0.39 0.15) (smooth 0.21 0.26) 0.08 0.26 0
-            , rectPlate "#666" "#808080" (smooth 0.39 0.15) (smooth 0.21 0.26) 0.08 0.26 0
+            [ rectPlate "#666" "#808080" -(smooth 0.14 0.15) (smooth 0.21 0.26) 0.08 0.26 0
+            , rectPlate "#666" "#808080" (smooth 0.14 0.15) (smooth 0.21 0.26) 0.08 0.26 0
 
             -- arms / front wings
             , plates
-                (smooth 0.35 0.25)
-                (smooth 0.02 0.03)
-                (smooth 0.2 0.4)
+                (smooth 0.18 0.25)
+                (smooth 0.10 0.03)
+                (smooth 0.1 0.4)
                 (smooth 0.23 0.15)
                 (smooth 0 15)
 
@@ -80,17 +80,17 @@ mech t headAngle topAngle darkColor brightColor =
                 darkColor
                 0
                 (smooth -0.04 0.04)
-                (smooth 0.65 0.3)
+                (smooth 0.45 0.3)
                 (smooth 0.17 0.12)
                 0
 
             -- shoulders / rear wings
             , plates
-                (smooth 0.29 0.12)
+                (smooth 0.21 0.12)
                 (smooth -0.04 -0.25)
-                (smooth 0.2 0.15)
+                (smooth 0.15 0.15)
                 (smooth 0.23 0.25)
-                (smooth 0 -45)
+                (smooth 10 -45)
             ]
         , g
             [ transform [ scale 3, rotateRad (step headAngle topAngle) ] ]
