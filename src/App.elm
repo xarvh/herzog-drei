@@ -8,12 +8,12 @@ import Game
         ( Base
         , Game
         , Id
+        , MechComponent
         , Player
         , Projectile
+        , SubComponent
         , Unit
-        , UnitType(..)
-        , UnitTypeMechRecord
-        , UnitTypeSubRecord
+        , UnitComponent(..)
         , clampToRadius
         , tile2Vec
         , vec2Tile
@@ -39,6 +39,7 @@ import View exposing (..)
 import View.Background
 import View.Base
 import View.Gfx
+import View.Hud
 import View.Mech
 import View.Projectile
 import View.Unit
@@ -259,7 +260,7 @@ viewBase game base =
         ]
 
 
-viewMech : Game -> ( Unit, UnitTypeMechRecord ) -> Svg a
+viewMech : Game -> ( Unit, MechComponent ) -> Svg a
 viewMech game ( unit, mechRecord ) =
     let
         colorPattern =
@@ -276,7 +277,7 @@ viewMech game ( unit, mechRecord ) =
         ]
 
 
-viewSub : Game -> ( Unit, UnitTypeSubRecord ) -> Svg a
+viewSub : Game -> ( Unit, SubComponent ) -> Svg a
 viewSub game ( unit, subRecord ) =
     let
         colorPattern =
@@ -293,15 +294,15 @@ viewSub game ( unit, subRecord ) =
         ]
 
 
-mechVsUnit : List Unit -> ( List ( Unit, UnitTypeMechRecord ), List ( Unit, UnitTypeSubRecord ) )
+mechVsUnit : List Unit -> ( List ( Unit, MechComponent ), List ( Unit, SubComponent ) )
 mechVsUnit units =
     let
         folder unit ( mechs, subs ) =
-            case unit.type_ of
-                UnitTypeMech mechRecord ->
+            case unit.component of
+                UnitMech mechRecord ->
                     ( ( unit, mechRecord ) :: mechs, subs )
 
-                UnitTypeSub subRecord ->
+                UnitSub subRecord ->
                     ( mechs, ( unit, subRecord ) :: subs )
     in
     List.foldl folder ( [], [] ) units
@@ -315,6 +316,14 @@ viewMarker game player =
 viewProjectile : Projectile -> Svg a
 viewProjectile projectile =
     View.Projectile.projectile projectile.position projectile.angle
+
+
+viewHealthbar : Unit -> Svg a
+viewHealthbar unit =
+    if unit.integrity > 0.95 then
+        Svg.text ""
+    else
+        View.Hud.healthBar unit.position unit.integrity
 
 
 
@@ -397,10 +406,11 @@ viewPlayer model ( player, viewport ) =
         game =
             model.game
 
+        units =
+            game.unitById |> Dict.values
+
         ( mechs, subs ) =
-            game.unitById
-                |> Dict.values
-                |> mechVsUnit
+            mechVsUnit units
 
         offset =
             Vec2.negate player.viewportPosition
@@ -446,6 +456,10 @@ viewPlayer model ( player, viewport ) =
             , game.cosmetics
                 -- TODO viewport cull
                 |> List.map View.Gfx.render
+                |> Svg.g []
+            , units
+                |> List.filter (\u -> u.ownerId == player.id)
+                |> List.map viewHealthbar
                 |> Svg.g []
             ]
         , viewVictory game player

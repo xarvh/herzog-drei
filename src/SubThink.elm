@@ -12,47 +12,34 @@ import Game
         , Delta(..)
         , Game
         , Id
+        , SubComponent
         , Tile2
         , Unit
+        , UnitComponent(..)
         , UnitMode(..)
-        , UnitType(..)
-        , UnitTypeSubRecord
         , clampToRadius
         , tile2Vec
         , tileDistance
-        , updateUnitSubRecord
+        , updateSub
         , vec2Tile
         , vectorDistance
         )
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
+import Unit
 import View.Gfx
 import View.Unit
-
-
--- Constants
-
-
-unitReloadTime : Float
-unitReloadTime =
-    5.0
-
-
-unitShootRange : Float
-unitShootRange =
-    7.0
-
 
 
 -- Think
 
 
-think : Float -> Game -> Unit -> UnitTypeSubRecord -> Delta
-think dt game unit subRecord =
+think : Float -> Game -> Unit -> SubComponent -> Delta
+think dt game unit sub =
     DeltaList
-        [ thinkTarget dt game unit subRecord
-        , thinkMovement dt game unit subRecord
+        [ thinkTarget dt game unit sub
+        , thinkMovement dt game unit sub
         ]
 
 
@@ -75,9 +62,9 @@ deltaBaseLosesUnit game base =
     { base | maybeOwnerId = maybeOwnerId, containedUnits = containedUnits }
 
 
-destroy : Game -> Unit -> UnitTypeSubRecord -> Delta
-destroy game unit subRecord =
-    case subRecord.mode of
+destroy : Game -> Unit -> SubComponent -> Delta
+destroy game unit sub =
+    case sub.mode of
         UnitModeBase baseId ->
             DeltaBase baseId deltaBaseLosesUnit
 
@@ -93,11 +80,11 @@ searchForTargets : Game -> Unit -> Maybe Delta
 searchForTargets game unit =
     let
         ifCloseEnough ( target, distance ) =
-            if distance > unitShootRange then
+            if distance > Unit.subShootRange then
                 Nothing
             else
-                (\subRecord -> { subRecord | maybeTargetId = Just target.id })
-                    |> updateUnitSubRecord
+                (\sub -> { sub | maybeTargetId = Just target.id })
+                    |> updateSub
                     |> DeltaUnit unit.id
                     |> Just
     in
@@ -130,14 +117,14 @@ searchForTargetOrAlignToMovement dt game unit =
             unitAlignsAimToMovement dt unit
 
 
-thinkTarget : Float -> Game -> Unit -> UnitTypeSubRecord -> Delta
-thinkTarget dt game unit subRecord =
-    case subRecord.maybeTargetId |> Maybe.andThen (\id -> Dict.get id game.unitById) of
+thinkTarget : Float -> Game -> Unit -> SubComponent -> Delta
+thinkTarget dt game unit sub =
+    case sub.maybeTargetId |> Maybe.andThen (\id -> Dict.get id game.unitById) of
         Nothing ->
             searchForTargetOrAlignToMovement dt game unit
 
         Just target ->
-            if vectorDistance unit.position target.position > unitShootRange then
+            if vectorDistance unit.position target.position > Unit.subShootRange then
                 searchForTargetOrAlignToMovement dt game unit
             else
                 let
@@ -153,22 +140,17 @@ thinkTarget dt game unit subRecord =
                             }
                         )
                     , DeltaList <|
-                        if unit.timeToReload > 0 || Vec2.lengthSquared dp > unitShootRange ^ 2 then
+                        if unit.timeToReload > 0 || Vec2.lengthSquared dp > Unit.subShootRange ^ 2 then
                             []
                         else
-                            [ DeltaUnit unit.id (\g u -> { u | timeToReload = unitReloadTime })
-                            , DeltaUnit target.id (deltaUnitTakeDamage 1)
+                            [ DeltaUnit unit.id (\g u -> { u | timeToReload = Unit.subReloadTime })
+                            , DeltaUnit target.id (Unit.takeDamage Unit.subShootDamage)
                             , View.Gfx.deltaAddBeam
                                 (Vec2.add unit.position (View.Unit.gunOffset unit.moveAngle))
                                 target.position
                                 (Game.playerColorPattern game unit.ownerId)
                             ]
                     ]
-
-
-deltaUnitTakeDamage : Int -> Game -> Unit -> Unit
-deltaUnitTakeDamage damage game unit =
-    { unit | hp = unit.hp - damage }
 
 
 
@@ -213,14 +195,14 @@ move dt game targetPosition unit =
                 vec2Tile unit.position
 
             path =
-              []
---                 AStar.findPath
---                     tileDistance
---                     (getAvailableMoves game.unpassableTiles)
---                     unitTile
---                     (vec2Tile targetPosition)
---                     targetDistance
+                []
 
+            --                 AStar.findPath
+            --                     tileDistance
+            --                     (getAvailableMoves game.unpassableTiles)
+            --                     unitTile
+            --                     (vec2Tile targetPosition)
+            --                     targetDistance
             idealDelta =
                 case path of
                     [] ->
@@ -280,9 +262,9 @@ deltaGameUnitMoves unitId moveAngle dx game =
 
 unitIsInBase : Id -> Unit -> Bool
 unitIsInBase baseId unit =
-    case unit.type_ of
-        UnitTypeSub subRecord ->
-            subRecord.mode == UnitModeBase baseId
+    case unit.component of
+        UnitSub sub ->
+            sub.mode == UnitModeBase baseId
 
         _ ->
             False
@@ -325,7 +307,7 @@ deltaGameUnitEntersBase unitId baseId game =
 
                                     updatedUnit =
                                         unit
-                                            |> updateUnitSubRecord (\s -> { s | mode = Game.UnitModeBase base.id }) game
+                                            |> updateSub (\s -> { s | mode = Game.UnitModeBase base.id }) game
                                             |> (\u -> { u | position = corner, moveAngle = angle })
 
                                     updatedBase =
@@ -340,9 +322,9 @@ deltaGameUnitEntersBase unitId baseId game =
                                     |> Game.updateBase updatedBase
 
 
-thinkMovement : Float -> Game -> Unit -> UnitTypeSubRecord -> Delta
-thinkMovement dt game unit subRecord =
-    case subRecord.mode of
+thinkMovement : Float -> Game -> Unit -> SubComponent -> Delta
+thinkMovement dt game unit sub =
+    case sub.mode of
         UnitModeBase baseId ->
             DeltaList []
 

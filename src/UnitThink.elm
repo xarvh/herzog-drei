@@ -6,9 +6,7 @@ import Game
         , Game
         , Id
         , Unit
-        , UnitType(..)
-        , UnitTypeMechRecord
-        , UnitTypeSubRecord
+        , UnitComponent(..)
         )
 import SubThink
 import View.Gfx
@@ -20,27 +18,28 @@ import View.Unit
 
 think : Float -> Game -> Unit -> Delta
 think dt game unit =
-    if unit.hp < 1 then
+    if unit.integrity <= 0 then
         DeltaList
             [ DeltaList
                 [ DeltaGame (Game.removeUnit unit.id)
                 , View.Gfx.deltaAddExplosion unit.position 1.0
                 ]
-            , case unit.type_ of
-                UnitTypeSub subRecord ->
-                    SubThink.destroy game unit subRecord
+            , case unit.component of
+                UnitSub sub ->
+                    SubThink.destroy game unit sub
 
-                UnitTypeMech mechRecord ->
-                   DeltaList []
+                UnitMech mech ->
+                    -- TODO respawn mech at main base
+                    DeltaList []
             ]
     else
         DeltaList
             [ thinkReload dt game unit
-            , case unit.type_ of
-                UnitTypeSub subRecord ->
-                    SubThink.think dt game unit subRecord
+            , case unit.component of
+                UnitSub sub ->
+                    SubThink.think dt game unit sub
 
-                UnitTypeMech mechRecord ->
+                UnitMech mech ->
                     DeltaList []
             ]
 

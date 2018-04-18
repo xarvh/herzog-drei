@@ -9,9 +9,7 @@ import Game
         , Id
         , Tile2
         , Unit
-        , UnitType(..)
-        , UnitTypeMechRecord
-        , UnitTypeSubRecord
+        , UnitComponent(..)
         )
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 
@@ -55,5 +53,5 @@ think dt game base =
               in
                 DeltaList
                     [ DeltaBase base.id (\g b -> { b | buildCompletion = 0 })
-                    , DeltaGame (\g -> Game.addUnit ownerId False position g |> Tuple.first)
+                    , DeltaGame (\g -> Game.addSub ownerId position g |> Tuple.first)
                     ]

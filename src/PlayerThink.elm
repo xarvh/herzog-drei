@@ -1,25 +1,28 @@
 module PlayerThink exposing (..)
 
+import ColorPattern
 import Dict exposing (Dict)
 import Game
     exposing
         ( Delta(..)
         , Game
         , Id
+        , MechComponent
         , Player
         , PlayerInput
         , Seconds
         , TransformMode(..)
         , Unit
-        , UnitType(..)
-        , UnitTypeMechRecord
+        , UnitComponent(..)
         , clampToRadius
         , tile2Vec
         , vec2Tile
         , vecToAngle
         )
+import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
+import Unit
 import View.Gfx
 import View.Mech
 
@@ -32,35 +35,11 @@ transformTime =
     0.2
 
 
-mechFireInterval =
-    0.1
-
-
 
 --
 
 
-transformMode : UnitTypeMechRecord -> TransformMode
-transformMode mechRecord =
-    case mechRecord.transformingTo of
-        ToMech ->
-            if mechRecord.transformState < 1 then
-                ToMech
-            else
-                ToPlane
-
-        ToPlane ->
-            if mechRecord.transformState > 0 then
-                ToPlane
-            else
-                ToMech
-
-
-
---
-
-
-findMech : Id -> List Unit -> Maybe ( Unit, UnitTypeMechRecord )
+findMech : Id -> List Unit -> Maybe ( Unit, MechComponent )
 findMech playerId units =
     case units of
         [] ->
@@ -70,9 +49,9 @@ findMech playerId units =
             if u.ownerId /= playerId then
                 findMech playerId us
             else
-                case u.type_ of
-                    UnitTypeMech mechRecord ->
-                        Just ( u, mechRecord )
+                case u.component of
+                    UnitMech mech ->
+                        Just ( u, mech )
 
                     _ ->
                         findMech playerId us
@@ -84,15 +63,15 @@ think input dt game player =
         Nothing ->
             DeltaList []
 
-        Just ( unit, mechRecord ) ->
-            mechThink input dt game unit mechRecord
+        Just ( unit, mech ) ->
+            mechThink input dt game unit mech
 
 
-mechThink : PlayerInput -> Float -> Game -> Unit -> UnitTypeMechRecord -> Delta
-mechThink input dt game unit mechRecord =
+mechThink : PlayerInput -> Float -> Game -> Unit -> MechComponent -> Delta
+mechThink input dt game unit mech =
     let
         speed =
-            case transformMode mechRecord of
+            case Unit.transformMode mech of
                 ToMech ->
                     5.0
 
@@ -109,20 +88,20 @@ mechThink input dt game unit mechRecord =
 
         transformingTo =
             if input.transform && hasFreeGround unit then
-                case mechRecord.transformingTo of
+                case mech.transformingTo of
                     ToPlane ->
-                        if mechRecord.transformState == 1 then
+                        if mech.transformState == 1 then
                             ToMech
                         else
-                            mechRecord.transformingTo
+                            mech.transformingTo
 
                     ToMech ->
-                        if mechRecord.transformState == 0 then
+                        if mech.transformState == 0 then
                             ToPlane
                         else
-                            mechRecord.transformingTo
+                            mech.transformingTo
             else
-                mechRecord.transformingTo
+                mech.transformingTo
 
         transformDirection =
             case transformingTo of
@@ -133,13 +112,13 @@ mechThink input dt game unit mechRecord =
                     (+)
 
         transform =
-            (\mechRecord ->
-                { mechRecord
+            (\mech ->
+                { mech
                     | transformingTo = transformingTo
-                    , transformState = clamp 0 1 (transformDirection mechRecord.transformState (dt / transformTime))
+                    , transformState = clamp 0 1 (transformDirection mech.transformState (dt / transformTime))
                 }
             )
-                |> Game.updateUnitMechRecord
+                |> Game.updateMech
                 |> DeltaUnit unit.id
 
         moveTarget =
@@ -149,7 +128,7 @@ mechThink input dt game unit mechRecord =
                 DeltaList []
 
         updatePosition =
-            case transformMode mechRecord of
+            case Unit.transformMode mech of
                 ToMech ->
                     walk
 
@@ -184,10 +163,10 @@ mechThink input dt game unit mechRecord =
                 |> DeltaUnit unit.id
 
         leftOrigin =
-            View.Mech.leftGunOffset mechRecord.transformState unit.fireAngle |> Vec2.add unit.position
+            View.Mech.leftGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
 
         rightOrigin =
-            View.Mech.rightGunOffset mechRecord.transformState unit.fireAngle |> Vec2.add unit.position
+            View.Mech.rightGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
 
         deltaFire origin =
             Game.deltaAddProjectile { ownerId = unit.ownerId, position = origin, angle = aimAngle }
@@ -195,7 +174,7 @@ mechThink input dt game unit mechRecord =
         fire =
             if input.fire && unit.timeToReload == 0 then
                 DeltaList
-                    [ DeltaUnit unit.id (\g u -> { u | timeToReload = mechFireInterval })
+                    [ DeltaUnit unit.id (\g u -> { u | timeToReload = Unit.mechReloadTime mech })
                     , deltaFire leftOrigin
                     , View.Gfx.deltaAddProjectileCase leftOrigin (aimAngle - pi - pi / 12)
                     , deltaFire rightOrigin
@@ -212,7 +191,81 @@ mechThink input dt game unit mechRecord =
         , aim
         , fire
         , transform
+        , repairDelta dt game unit mech
         ]
+
+
+
+--
+
+
+baseRepairsMech : Seconds -> Id -> Id -> Game -> Game
+baseRepairsMech dt baseId unitId game =
+    Game.withBase game baseId <|
+        \base ->
+            Game.withUnit game unitId <|
+                \unit ->
+                    let
+                        -- Don't need to repair beyond integrity 1
+                        requirementLimit =
+                            1 - unit.integrity
+
+                        -- Limit speed
+                        repairRate =
+                            0.3
+
+                        timeLimit =
+                            repairRate * dt
+
+                        -- Can't use more than the base has
+                        productionToIntegrityRatio =
+                            1.5
+
+                        baseLimit =
+                            base.buildCompletion * productionToIntegrityRatio
+
+                        --
+                        actualRepair =
+                            1.0
+                                |> min requirementLimit
+                                |> min timeLimit
+                                |> min baseLimit
+
+                        updatedUnit =
+                            { unit | integrity = unit.integrity + actualRepair }
+
+                        updatedBase =
+                            { base | buildCompletion = base.buildCompletion - actualRepair / productionToIntegrityRatio }
+                    in
+                    game
+                        |> Game.updateBase updatedBase
+                        |> Game.updateUnit updatedUnit
+
+
+repairDelta : Seconds -> Game -> Unit -> MechComponent -> Delta
+repairDelta dt game unit mech =
+    if unit.integrity >= 1 then
+        DeltaList []
+    else
+        let
+            canRepair base =
+                base.buildCompletion
+                    > 0
+                    && base.maybeOwnerId
+                    == Just unit.ownerId
+                    && Vec2.distanceSquared (tile2Vec base.position) unit.position
+                    < 3
+                    * 3
+        in
+        case List.Extra.find canRepair (Dict.values game.baseById) of
+            Nothing ->
+                DeltaList []
+
+            Just base ->
+                DeltaList
+                    [ DeltaGame (baseRepairsMech dt base.id unit.id)
+                    , View.Gfx.deltaAddBeam (tile2Vec base.position) unit.position ColorPattern.neutral
+                    ]
 
 
 fly : Vec2 -> Game -> Unit -> Vec2
