@@ -11,9 +11,9 @@ import Game
         , Player
         , Projectile
         , Unit
-        , UnitType(..)
-        , UnitTypeMechRecord
-        , UnitTypeSubRecord
+        , UnitComponent(..)
+        , MechComponent
+        , SubComponent
         , clampToRadius
         , tile2Vec
         , vec2Tile
@@ -259,7 +259,7 @@ viewBase game base =
         ]
 
 
-viewMech : Game -> ( Unit, UnitTypeMechRecord ) -> Svg a
+viewMech : Game -> ( Unit, MechComponent ) -> Svg a
 viewMech game ( unit, mechRecord ) =
     let
         colorPattern =
@@ -276,7 +276,7 @@ viewMech game ( unit, mechRecord ) =
         ]
 
 
-viewSub : Game -> ( Unit, UnitTypeSubRecord ) -> Svg a
+viewSub : Game -> ( Unit, SubComponent ) -> Svg a
 viewSub game ( unit, subRecord ) =
     let
         colorPattern =
@@ -293,15 +293,15 @@ viewSub game ( unit, subRecord ) =
         ]
 
 
-mechVsUnit : List Unit -> ( List ( Unit, UnitTypeMechRecord ), List ( Unit, UnitTypeSubRecord ) )
+mechVsUnit : List Unit -> ( List ( Unit, MechComponent ), List ( Unit, SubComponent ) )
 mechVsUnit units =
     let
         folder unit ( mechs, subs ) =
-            case unit.type_ of
-                UnitTypeMech mechRecord ->
+            case unit.component of
+                UnitMech mechRecord ->
                     ( ( unit, mechRecord ) :: mechs, subs )
 
-                UnitTypeSub subRecord ->
+                UnitSub subRecord ->
                     ( mechs, ( unit, subRecord ) :: subs )
     in
     List.foldl folder ( [], [] ) units

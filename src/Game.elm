@@ -172,23 +172,21 @@ type UnitMode
     | UnitModeBase Id
 
 
-type alias UnitTypeMechRecord =
+type alias MechComponent =
     { transformState : Float
     , transformingTo : TransformMode
     }
 
 
-type alias UnitTypeSubRecord =
+type alias SubComponent =
     { mode : UnitMode
     , maybeTargetId : Maybe Id
     }
 
 
-type
-    UnitType
-    --TODO Record -> Component
-    = UnitTypeMech UnitTypeMechRecord
-    | UnitTypeSub UnitTypeSubRecord
+type UnitComponent
+    = UnitMech MechComponent
+    | UnitSub SubComponent
 
 
 type alias Unit =
@@ -197,9 +195,7 @@ type alias Unit =
     , ownerId : Id
     , position : Vec2
     , timeToReload : Seconds
-
-    --TODO: rename to 'extra'?
-    , type_ : UnitType
+    , component : UnitComponent
 
     --
     , fireAngle : Float
@@ -208,8 +204,8 @@ type alias Unit =
     }
 
 
-addUnit : Id -> Bool -> Vec2 -> Game -> ( Game, Unit )
-addUnit ownerId isMech position game =
+addUnit : UnitComponent -> Id -> Vec2 -> Game -> ( Game, Unit )
+addUnit component ownerId position game =
     let
         id =
             game.lastId + 1
@@ -221,30 +217,14 @@ addUnit ownerId isMech position game =
             { id = id
             , ownerId = ownerId
             , position = position
-            , hp =
-                if isMech then
-                    40
-                else
-                    10
+            , hp = 1
             , timeToReload = 0
+            , component = component
 
             --
             , lookAngle = faceCenterOfMap
             , fireAngle = faceCenterOfMap
             , moveAngle = faceCenterOfMap
-
-            --
-            , type_ =
-                if isMech then
-                    UnitTypeMech
-                        { transformState = 0
-                        , transformingTo = ToMech
-                        }
-                else
-                    UnitTypeSub
-                        { mode = UnitModeFree
-                        , maybeTargetId = Nothing
-                        }
             }
 
         unitById =
@@ -253,26 +233,44 @@ addUnit ownerId isMech position game =
     ( { game | lastId = id, unitById = unitById }, unit )
 
 
+addSub : Id -> Vec2 -> Game -> ( Game, Unit )
+addSub =
+    { mode = UnitModeFree
+    , maybeTargetId = Nothing
+    }
+        |> UnitSub
+        |> addUnit
+
+
+addMech : Id -> Vec2 -> Game -> ( Game, Unit )
+addMech =
+    { transformState = 0
+    , transformingTo = ToMech
+    }
+        |> UnitMech
+        |> addUnit
+
+
 removeUnit : Id -> Game -> Game
 removeUnit id game =
     { game | unitById = Dict.remove id game.unitById }
 
 
-updateUnitSubRecord : (UnitTypeSubRecord -> UnitTypeSubRecord) -> Game -> Unit -> Unit
-updateUnitSubRecord updateSubRecord game unit =
-    case unit.type_ of
-        UnitTypeSub subRecord ->
-            { unit | type_ = UnitTypeSub (updateSubRecord subRecord) }
+updateSub : (SubComponent -> SubComponent) -> Game -> Unit -> Unit
+updateSub update game unit =
+    case unit.component of
+        UnitSub subRecord ->
+            { unit | component = UnitSub (update subRecord) }
 
         _ ->
             unit
 
 
-updateUnitMechRecord : (UnitTypeMechRecord -> UnitTypeMechRecord) -> Game -> Unit -> Unit
-updateUnitMechRecord updateMechRecord game unit =
-    case unit.type_ of
-        UnitTypeMech mechRecord ->
-            { unit | type_ = UnitTypeMech (updateMechRecord mechRecord) }
+updateMech : (MechComponent -> MechComponent) -> Game -> Unit -> Unit
+updateMech update game unit =
+    case unit.component of
+        UnitMech mech ->
+            { unit | component = UnitMech (update mech) }
 
         _ ->
             unit

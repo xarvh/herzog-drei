@@ -47,7 +47,7 @@ addPlayerAndMech position game =
             Game.addPlayer position game
     in
     ( game_
-        |> Game.addUnit player.id True position
+        |> Game.addMech player.id position
         |> Tuple.first
     , player
     )
@@ -55,7 +55,7 @@ addPlayerAndMech position game =
 
 addSub : Id -> Vec2 -> Game -> Game
 addSub ownerId position game =
-    Game.addUnit ownerId False position game |> Tuple.first
+    Game.addSub ownerId position game |> Tuple.first
 
 
 addEmbeddedSub : Base -> Game -> Game
@@ -65,7 +65,7 @@ addEmbeddedSub base game =
             base.maybeOwnerId |> Maybe.withDefault -1
 
         ( game_, unit ) =
-            Game.addUnit ownerId False (vec2 0 0) game
+            Game.addSub ownerId (vec2 0 0) game
     in
     SubThink.deltaGameUnitEntersBase unit.id base.id game_
 

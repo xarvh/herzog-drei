@@ -6,9 +6,7 @@ import Game
         , Game
         , Id
         , Unit
-        , UnitType(..)
-        , UnitTypeMechRecord
-        , UnitTypeSubRecord
+        , UnitComponent(..)
         )
 import SubThink
 import View.Gfx
@@ -26,21 +24,21 @@ think dt game unit =
                 [ DeltaGame (Game.removeUnit unit.id)
                 , View.Gfx.deltaAddExplosion unit.position 1.0
                 ]
-            , case unit.type_ of
-                UnitTypeSub subRecord ->
-                    SubThink.destroy game unit subRecord
+            , case unit.component of
+                UnitSub sub ->
+                    SubThink.destroy game unit sub
 
-                UnitTypeMech mechRecord ->
+                UnitMech mech ->
                    DeltaList []
             ]
     else
         DeltaList
             [ thinkReload dt game unit
-            , case unit.type_ of
-                UnitTypeSub subRecord ->
-                    SubThink.think dt game unit subRecord
+            , case unit.component of
+                UnitSub sub ->
+                    SubThink.think dt game unit sub
 
-                UnitTypeMech mechRecord ->
+                UnitMech mech ->
                     DeltaList []
             ]
 
