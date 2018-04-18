@@ -1,5 +1,6 @@
 module Game.Update exposing (..)
 
+import BaseThink
 import Dict exposing (Dict)
 import Game
     exposing
@@ -20,6 +21,7 @@ import PlayerThink
 import ProjectileThink
 import Set exposing (Set)
 import UnitThink
+import VictoryThink
 import View.Gfx
 
 
@@ -54,9 +56,15 @@ update dt playerInputById game =
     , game.playerById
         |> Dict.values
         |> List.map playerThink
+    , game.baseById
+        |> Dict.values
+        |> List.map (BaseThink.think dt oldGameWithUpdatedUnpassableTiles)
     , game.projectileById
         |> Dict.values
         |> List.map (ProjectileThink.think dt oldGameWithUpdatedUnpassableTiles)
+    , game
+        |> VictoryThink.think dt
+        |> List.singleton
     ]
         |> List.map DeltaList
         |> applyGameDelta oldGameWithUpdatedUnpassableTiles

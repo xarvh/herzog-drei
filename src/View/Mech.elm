@@ -21,7 +21,7 @@ rightGunOffset t torsoAngle =
 
 
 mech : Float -> Float -> Float -> String -> String -> Svg a
-mech t headAngle topAngle brightColor darkColor =
+mech t headAngle topAngle darkColor brightColor =
     let
         smooth =
             View.smooth t
@@ -34,7 +34,7 @@ mech t headAngle topAngle brightColor darkColor =
                 [ transform [ translate2 xx yy, rotateDeg aa ]
                 , fill fillColor
                 , stroke strokeColor
-                , strokeWidth 0.03
+                , strokeWidth 0.02
                 , width ww
                 , height hh
                 , x (-ww / 2)
@@ -101,7 +101,7 @@ mech t headAngle topAngle brightColor darkColor =
                 , ry <| smooth 0.17 0.34
                 , fill darkColor
                 , stroke brightColor
-                , strokeWidth 0.03
+                , strokeWidth 0.02
                 ]
                 []
             , eye 0.03 (smooth 0.1 0.22) 14

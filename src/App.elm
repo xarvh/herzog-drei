@@ -37,6 +37,7 @@ import Task
 import Time exposing (Time)
 import View exposing (..)
 import View.Background
+import View.Base
 import View.Gfx
 import View.Mech
 import View.Projectile
@@ -246,25 +247,15 @@ viewBase game base =
     let
         colorPattern =
             Game.baseColorPattern game base
-
-        color =
-            if base.isActive then
-                colorPattern.bright
-            else
-                colorPattern.dark
-
-        size =
-            Game.baseSize base
-
-        halfSize =
-            size // 2 |> toFloat
-
-        v =
-            Vec2.add (tile2Vec base.position) (vec2 -halfSize -halfSize)
     in
     Svg.g
-        []
-        [ square v color (toFloat size)
+        [ transform [ translate (tile2Vec base.position) ] ]
+        [ case base.type_ of
+            Game.BaseSmall ->
+                View.Base.small colorPattern.bright colorPattern.dark
+
+            Game.BaseMain ->
+                View.Base.main_ base.buildCompletion colorPattern.bright colorPattern.dark
         ]
 
 
@@ -341,27 +332,59 @@ testView model =
             turns 0.1
 
         period =
-            1
+            5
 
         wrap n p =
             n - (toFloat (floor (n / p)) * p)
 
         age =
-            wrap model.time period
-
-        start =
-            View.Unit.gunOffset moveAngle
-
-        end =
-            vec2 0 0
+            wrap model.time period / 5
     in
-    Svg.g
-        [ transform [ "scale(0.4, 0.4)" ] ]
-        [ View.Projectile.projectile (vec2 0 0) (pi / 6)
-
-        --[ View.Mech.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
-        --[ View.Unit.unit (pi / 4) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
+    Svg.svg
+        [ Svg.Attributes.viewBox "-1 -1 2 2"
+        , Svg.Attributes.width "100vh"
+        , Svg.Attributes.height "100vh"
         ]
+        [ Svg.g
+            [ transform [ "scale(0.1, -0.1)" ]
+            ]
+            [ View.Base.main_ age neutral.bright neutral.dark
+
+            --[ View.Mech.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
+            --[ View.Unit.unit (pi / 4) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
+            ]
+        ]
+
+
+
+--
+
+
+viewVictory : Game -> Player -> Svg a
+viewVictory game player =
+    case game.maybeWinnerId of
+        Nothing ->
+            Svg.g [] []
+
+        Just winnerId ->
+            let
+                ( text, pattern ) =
+                    if player.id == winnerId then
+                        ( "Victory!", player.colorPattern )
+                    else
+                        ( "Defeat!", neutral )
+            in
+            Svg.text_
+                [ Svg.Attributes.textAnchor "middle"
+                , Svg.Attributes.fontSize "0.2"
+                , Svg.Attributes.fontFamily "'proxima-nova', sans-serif"
+                , Svg.Attributes.fontWeight "700"
+                , Svg.Attributes.fill pattern.bright
+                , Svg.Attributes.stroke pattern.dark
+                , Svg.Attributes.strokeWidth "0.005"
+                , Svg.Attributes.y "-0.2"
+                ]
+                [ Svg.text text ]
 
 
 
@@ -425,6 +448,7 @@ viewPlayer model ( player, viewport ) =
                 |> List.map View.Gfx.render
                 |> Svg.g []
             ]
+        , viewVictory game player
         ]
 
 

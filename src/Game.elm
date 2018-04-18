@@ -294,6 +294,7 @@ type alias Base =
     , containedUnits : Int
     , maybeOwnerId : Maybe Id
     , position : Tile2
+    , buildCompletion : Float
     }
 
 
@@ -310,6 +311,7 @@ addBase type_ position game =
             , containedUnits = 0
             , maybeOwnerId = Nothing
             , position = position
+            , buildCompletion = 0
             }
     in
     ( { game
@@ -398,6 +400,7 @@ type alias Game =
     , projectileById : Dict Id Projectile
     , unitById : Dict Id Unit
     , lastId : Id
+    , maybeWinnerId : Maybe Id
 
     --
     , cosmetics : List Gfx
@@ -428,6 +431,7 @@ new seed =
     , projectileById = Dict.empty
     , unitById = Dict.empty
     , lastId = 0
+    , maybeWinnerId = Nothing
 
     --
     , cosmetics = []
