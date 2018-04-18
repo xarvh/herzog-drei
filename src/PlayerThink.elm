@@ -32,8 +32,14 @@ transformTime =
     0.2
 
 
-mechFireInterval =
-    0.1
+mechFireInterval : UnitTypeMechRecord -> Seconds
+mechFireInterval mechRecord =
+    case transformMode mechRecord of
+        ToMech ->
+            0.1
+
+        ToPlane ->
+            0.3
 
 
 
@@ -195,7 +201,7 @@ mechThink input dt game unit mechRecord =
         fire =
             if input.fire && unit.timeToReload == 0 then
                 DeltaList
-                    [ DeltaUnit unit.id (\g u -> { u | timeToReload = mechFireInterval })
+                    [ DeltaUnit unit.id (\g u -> { u | timeToReload = mechFireInterval mechRecord })
                     , deltaFire leftOrigin
                     , View.Gfx.deltaAddProjectileCase leftOrigin (aimAngle - pi - pi / 12)
                     , deltaFire rightOrigin

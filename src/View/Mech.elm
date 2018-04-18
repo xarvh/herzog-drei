@@ -8,14 +8,14 @@ import View exposing (..)
 
 leftGunOffset : Float -> Float -> Vec2
 leftGunOffset t torsoAngle =
-    vec2 -(View.smooth t 0.15 0.15) (View.smooth t 0.21 0.26)
+    vec2 -(View.smooth t 0.13 0.15) (View.smooth t 0.21 0.26)
         |> Game.rotateVector torsoAngle
         |> Vec2.scale 3
 
 
 rightGunOffset : Float -> Float -> Vec2
 rightGunOffset t torsoAngle =
-    vec2 (View.smooth t 0.15 0.15) (View.smooth t 0.21 0.26)
+    vec2 (View.smooth t 0.13 0.15) (View.smooth t 0.21 0.26)
         |> Game.rotateVector torsoAngle
         |> Vec2.scale 3
 
