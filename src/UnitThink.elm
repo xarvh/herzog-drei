@@ -18,7 +18,7 @@ import View.Unit
 
 think : Float -> Game -> Unit -> Delta
 think dt game unit =
-    if unit.hp < 1 then
+    if unit.integrity <= 0 then
         DeltaList
             [ DeltaList
                 [ DeltaGame (Game.removeUnit unit.id)
@@ -29,7 +29,8 @@ think dt game unit =
                     SubThink.destroy game unit sub
 
                 UnitMech mech ->
-                   DeltaList []
+                    -- TODO respawn mech at main base
+                    DeltaList []
             ]
     else
         DeltaList

@@ -12,11 +12,11 @@ import Game
         , Delta(..)
         , Game
         , Id
+        , SubComponent
         , Tile2
         , Unit
-        , UnitMode(..)
         , UnitComponent(..)
-        , SubComponent
+        , UnitMode(..)
         , clampToRadius
         , tile2Vec
         , tileDistance
@@ -27,6 +27,7 @@ import Game
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
+import Unit
 import View.Gfx
 import View.Unit
 
@@ -157,18 +158,13 @@ thinkTarget dt game unit sub =
                             []
                         else
                             [ DeltaUnit unit.id (\g u -> { u | timeToReload = unitReloadTime })
-                            , DeltaUnit target.id (deltaUnitTakeDamage 1)
+                            , DeltaUnit target.id (Unit.takeDamage 5)
                             , View.Gfx.deltaAddBeam
                                 (Vec2.add unit.position (View.Unit.gunOffset unit.moveAngle))
                                 target.position
                                 (Game.playerColorPattern game unit.ownerId)
                             ]
                     ]
-
-
-deltaUnitTakeDamage : Int -> Game -> Unit -> Unit
-deltaUnitTakeDamage damage game unit =
-    { unit | hp = unit.hp - damage }
 
 
 
@@ -213,14 +209,14 @@ move dt game targetPosition unit =
                 vec2Tile unit.position
 
             path =
-              []
---                 AStar.findPath
---                     tileDistance
---                     (getAvailableMoves game.unpassableTiles)
---                     unitTile
---                     (vec2Tile targetPosition)
---                     targetDistance
+                []
 
+            --                 AStar.findPath
+            --                     tileDistance
+            --                     (getAvailableMoves game.unpassableTiles)
+            --                     unitTile
+            --                     (vec2Tile targetPosition)
+            --                     targetDistance
             idealDelta =
                 case path of
                     [] ->

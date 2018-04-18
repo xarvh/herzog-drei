@@ -5,6 +5,7 @@ import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Unit
 import View.Gfx
 
 
@@ -78,7 +79,7 @@ think dt game projectile =
                 DeltaList
                     [ Game.deltaRemoveProjectile projectile.id
                     , View.Gfx.deltaAddExplosion (Vec2.add newPosition oldPosition |> Vec2.scale 0.5) 0.2
-                    , DeltaUnit unit.id (\g u -> { u | hp = u.hp - 1 })
+                    , DeltaUnit unit.id (Unit.takeDamage 2)
                     ]
 
             Nothing ->

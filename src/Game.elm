@@ -191,11 +191,11 @@ type UnitComponent
 
 type alias Unit =
     { id : Id
-    , hp : Int
+    , component : UnitComponent
     , ownerId : Id
+    , integrity : Float
     , position : Vec2
     , timeToReload : Seconds
-    , component : UnitComponent
 
     --
     , fireAngle : Float
@@ -217,7 +217,7 @@ addUnit component ownerId position game =
             { id = id
             , ownerId = ownerId
             , position = position
-            , hp = 1
+            , integrity = 1
             , timeToReload = 0
             , component = component
 
