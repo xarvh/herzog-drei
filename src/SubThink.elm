@@ -338,7 +338,7 @@ deltaGameUnitEntersBase unitId baseId game =
                     else
                         let
                             corners =
-                                Game.baseCorners base
+                                Base.corners base
 
                             unitsInBase =
                                 game.unitById
@@ -400,16 +400,16 @@ thinkMovement dt game unit sub =
                             3.0
 
                         baseDistance base =
-                            vectorDistance (tile2Vec base.position) unit.position - toFloat (Game.baseSize base // 2)
+                            vectorDistance (tile2Vec base.position) unit.position - toFloat (Base.size base // 2)
 
                         baseIsConquerable base =
                             (baseDistance base < conquerBaseDistanceThreshold)
                                 && (Base.isNeutral game base || base.ownerId == unit.ownerId)
-                                && (base.containedUnits < Game.baseMaxContainedUnits)
+                                && (base.containedUnits < Base.maxContainedUnits)
                     in
                     case List.Extra.find baseIsConquerable (Dict.values game.baseById) of
                         Just base ->
-                            if baseDistance base > Game.maximumDistanceForUnitToEnterBase then
+                            if baseDistance base > Base.maximumDistanceForUnitToEnterBase then
                                 move dt game (tile2Vec base.position) unit
                             else
                                 DeltaGame (deltaGameUnitEntersBase unit.id base.id)

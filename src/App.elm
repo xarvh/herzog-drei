@@ -1,6 +1,7 @@
 module App exposing (..)
 
 import AnimationFrame
+import Base
 import ColorPattern exposing (neutral)
 import Dict exposing (Dict)
 import Game
@@ -247,7 +248,7 @@ viewBase : Game -> Base -> Svg Msg
 viewBase game base =
     let
         colorPattern =
-            Game.baseColorPattern game base
+            Base.colorPattern game base
     in
     Svg.g
         [ transform [ translate (tile2Vec base.position) ] ]

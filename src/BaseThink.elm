@@ -2,16 +2,7 @@ module BaseThink exposing (..)
 
 import Base
 import Dict exposing (Dict)
-import Game
-    exposing
-        ( Base
-        , Delta(..)
-        , Game
-        , Id
-        , Tile2
-        , Unit
-        , UnitComponent(..)
-        )
+import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 
 

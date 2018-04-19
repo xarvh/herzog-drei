@@ -1,5 +1,6 @@
 module Game.Init exposing (..)
 
+import Base
 import ColorPattern
 import Dict exposing (Dict)
 import Game exposing (..)
@@ -71,7 +72,7 @@ addSmallBase : Tile2 -> Game -> Game
 addSmallBase tile game =
     let
         ( game_, base ) =
-            Game.addBase BaseSmall tile game
+            Base.add BaseSmall tile game
     in
     game_
         |> addEmbeddedSub base
@@ -84,7 +85,7 @@ addMainBase : Id -> Tile2 -> Game -> Game
 addMainBase ownerId tile game =
     let
         ( game_, base ) =
-            Game.addBase BaseMain tile game
+            Base.add BaseMain tile game
                 |> Tuple.mapSecond (\b -> { b | ownerId = ownerId })
     in
     game_
