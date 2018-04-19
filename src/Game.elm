@@ -290,7 +290,8 @@ type alias Base =
     , type_ : BaseType
     , isActive : Bool
     , containedUnits : Int
-    , maybeOwnerId : Maybe Id
+    -- neutral bases have their id set to -1. Using a maybe was more trouble than it was worth.
+    , ownerId : Id
     , position : Tile2
     , buildCompletion : Float
     }
@@ -307,7 +308,7 @@ addBase type_ position game =
             , type_ = type_
             , isActive = False
             , containedUnits = 0
-            , maybeOwnerId = Nothing
+            , ownerId = -1
             , position = position
             , buildCompletion = 0
             }
@@ -343,9 +344,7 @@ maximumDistanceForUnitToEnterBase =
 
 baseColorPattern : Game -> Base -> ColorPattern
 baseColorPattern game base =
-    base.maybeOwnerId
-        |> Maybe.map (playerColorPattern game)
-        |> Maybe.withDefault ColorPattern.neutral
+    playerColorPattern game base.ownerId
 
 
 baseCorners : Base -> List Vec2

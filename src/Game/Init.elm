@@ -61,11 +61,8 @@ addSub ownerId position game =
 addEmbeddedSub : Base -> Game -> Game
 addEmbeddedSub base game =
     let
-        ownerId =
-            base.maybeOwnerId |> Maybe.withDefault -1
-
         ( game_, unit ) =
-            Game.addSub ownerId (vec2 0 0) game
+            Game.addSub base.ownerId (vec2 0 0) game
     in
     SubThink.deltaGameUnitEntersBase unit.id base.id game_
 
@@ -88,7 +85,7 @@ addMainBase ownerId tile game =
     let
         ( game_, base ) =
             Game.addBase BaseMain tile game
-                |> Tuple.mapSecond (\b -> { b | maybeOwnerId = Just ownerId })
+                |> Tuple.mapSecond (\b -> { b | ownerId = ownerId })
     in
     game_
         |> addEmbeddedSub base

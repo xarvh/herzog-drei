@@ -1,5 +1,6 @@
 module BaseThink exposing (..)
 
+import Base
 import Dict exposing (Dict)
 import Game
     exposing
@@ -32,26 +33,23 @@ playerReachedUnitCapacity playerId game =
 
 think : Float -> Game -> Base -> Delta
 think dt game base =
-    case base.maybeOwnerId of
-        Nothing ->
-            DeltaList []
-
-        Just ownerId ->
+    if Base.isNeutral game base then
+        DeltaList []
+    else
+        let
+            buildCompletion =
+                base.buildCompletion + dt * buildSpeed |> min 1
+        in
+        if buildCompletion < 1 || playerReachedUnitCapacity base.ownerId game then
+            DeltaBase base.id (\g b -> { b | buildCompletion = buildCompletion })
+        else
             let
-                buildCompletion =
-                    base.buildCompletion + dt * buildSpeed |> min 1
-            in
-            if buildCompletion < 1 || playerReachedUnitCapacity ownerId game then
-                DeltaBase base.id (\g b -> { b | buildCompletion = buildCompletion })
-            else
-              let
-                  position =
+                position =
                     base.position
-                      |> Game.tile2Vec
-                      |> Vec2.add (vec2 3 0)
-
-              in
-                DeltaList
-                    [ DeltaBase base.id (\g b -> { b | buildCompletion = 0 })
-                    , DeltaGame (\g -> Game.addSub ownerId position g |> Tuple.first)
-                    ]
+                        |> Game.tile2Vec
+                        |> Vec2.add (vec2 3 0)
+            in
+            DeltaList
+                [ DeltaBase base.id (\g b -> { b | buildCompletion = 0 })
+                , DeltaGame (\g -> Game.addSub base.ownerId position g |> Tuple.first)
+                ]

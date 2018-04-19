@@ -5,6 +5,7 @@ and the Unit.think that decudes which deltas to output.
 -}
 
 import AStar
+import Base
 import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
@@ -108,13 +109,13 @@ deltaBaseLosesUnit game base =
         containedUnits =
             base.containedUnits - 1
 
-        maybeOwnerId =
+        ownerId =
             if containedUnits < 1 then
-                Nothing
+                -1
             else
-                base.maybeOwnerId
+                base.ownerId
     in
-    { base | maybeOwnerId = maybeOwnerId, containedUnits = containedUnits }
+    { base | ownerId = ownerId, containedUnits = containedUnits }
 
 
 destroy : Game -> Unit -> SubComponent -> Delta
@@ -332,7 +333,7 @@ deltaGameUnitEntersBase unitId baseId game =
         \unit ->
             Game.withBase game baseId <|
                 \base ->
-                    if base.maybeOwnerId /= Nothing && base.maybeOwnerId /= Just unit.ownerId then
+                    if Base.hasOwner game base && base.ownerId /= unit.ownerId then
                         game
                     else
                         let
@@ -369,7 +370,7 @@ deltaGameUnitEntersBase unitId baseId game =
                                         { base
                                             | containedUnits = containedUnits
                                             , isActive = base.isActive || containedUnits == List.length corners
-                                            , maybeOwnerId = Just unit.ownerId
+                                            , ownerId = unit.ownerId
                                         }
                                 in
                                 game
@@ -402,9 +403,8 @@ thinkMovement dt game unit sub =
                             vectorDistance (tile2Vec base.position) unit.position - toFloat (Game.baseSize base // 2)
 
                         baseIsConquerable base =
-                            baseDistance base
-                                < conquerBaseDistanceThreshold
-                                && (base.maybeOwnerId == Nothing || base.maybeOwnerId == Just unit.ownerId)
+                            (baseDistance base < conquerBaseDistanceThreshold)
+                                && (Base.isNeutral game base || base.ownerId == unit.ownerId)
                                 && (base.containedUnits < Game.baseMaxContainedUnits)
                     in
                     case List.Extra.find baseIsConquerable (Dict.values game.baseById) of

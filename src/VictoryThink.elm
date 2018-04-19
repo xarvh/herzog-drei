@@ -18,7 +18,7 @@ think dt game =
 
             isOwnedBy : Player -> Base -> Bool
             isOwnedBy player base =
-                base.maybeOwnerId == Just player.id
+                base.ownerId == player.id
 
             playersWithoutMainBases =
                 game.playerById

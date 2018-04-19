@@ -249,13 +249,9 @@ repairDelta dt game unit mech =
     else
         let
             canRepair base =
-                base.buildCompletion
-                    > 0
-                    && base.maybeOwnerId
-                    == Just unit.ownerId
-                    && Vec2.distanceSquared (tile2Vec base.position) unit.position
-                    < 3
-                    * 3
+                (base.buildCompletion > 0)
+                    && (base.ownerId == unit.ownerId)
+                    && (Vec2.distanceSquared (tile2Vec base.position) unit.position < 3 * 3)
         in
         case List.Extra.find canRepair (Dict.values game.baseById) of
             Nothing ->
