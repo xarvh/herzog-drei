@@ -22,7 +22,6 @@ subShootDamage =
 -- Mech constants
 
 
-
 mechShootRange =
     8.0
 
@@ -84,3 +83,27 @@ takeDamage rawDamage game unit =
             toFloat (rawDamage - armor) / healthPoints |> max 0
     in
     { unit | integrity = unit.integrity - damage }
+
+
+
+-- Utilities
+
+
+isMech : Unit -> Bool
+isMech unit =
+    case unit.component of
+        UnitMech _ ->
+            True
+
+        _ ->
+            False
+
+
+isSub : Unit -> Bool
+isSub unit =
+    case unit.component of
+        UnitSub _ ->
+            True
+
+        _ ->
+            False

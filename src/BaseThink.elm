@@ -4,6 +4,12 @@ import Base
 import Dict exposing (Dict)
 import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Unit
+
+
+maxSubsPerPlayer =
+    30
+
 
 
 -- Think
@@ -18,13 +24,12 @@ buildSpeed base =
             0.1
 
 
-playerReachedUnitCapacity : Id -> Game -> Bool
-playerReachedUnitCapacity playerId game =
-    let
-        unitsCount =
-            game.unitById |> Dict.filter (\id u -> u.ownerId == playerId) |> Dict.size
-    in
-    unitsCount >= 20
+playerHasReachedUnitCap : Game -> Id -> Bool
+playerHasReachedUnitCap game playerId =
+    game.unitById
+        |> Dict.filter (\id u -> Unit.isSub u && u.ownerId == playerId)
+        |> Dict.size
+        |> (\unitsCount -> unitsCount >= maxSubsPerPlayer)
 
 
 think : Float -> Game -> Base -> Delta
@@ -36,7 +41,7 @@ think dt game base =
             buildCompletion =
                 base.buildCompletion + dt * buildSpeed base |> min 1
         in
-        if buildCompletion < 1 || (base.buildTarget == BuildSub && playerReachedUnitCapacity base.ownerId game) then
+        if buildCompletion < 1 || (base.buildTarget == BuildSub && playerHasReachedUnitCap game base.ownerId) then
             DeltaBase base.id (\g b -> { b | buildCompletion = buildCompletion })
         else
             let
