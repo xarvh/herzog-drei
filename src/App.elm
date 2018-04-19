@@ -393,6 +393,7 @@ viewVictory game player =
                 , Svg.Attributes.stroke pattern.dark
                 , Svg.Attributes.strokeWidth "0.005"
                 , Svg.Attributes.y "-0.2"
+                , Svg.Attributes.style "user-select: none;"
                 ]
                 [ Svg.text text ]
 
