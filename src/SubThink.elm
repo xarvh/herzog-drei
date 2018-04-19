@@ -5,25 +5,9 @@ and the Unit.think that decudes which deltas to output.
 -}
 
 import AStar
+import Base
 import Dict exposing (Dict)
-import Game
-    exposing
-        ( Base
-        , Delta(..)
-        , Game
-        , Id
-        , SubComponent
-        , Tile2
-        , Unit
-        , UnitComponent(..)
-        , UnitMode(..)
-        , clampToRadius
-        , tile2Vec
-        , tileDistance
-        , updateSub
-        , vec2Tile
-        , vectorDistance
-        )
+import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
@@ -40,7 +24,79 @@ think dt game unit sub =
     DeltaList
         [ thinkTarget dt game unit sub
         , thinkMovement dt game unit sub
+        , thinkRepair dt game unit sub
         ]
+
+
+
+-- Repair
+
+
+{-| TODO: this function is identical to baseRepairsMech. Abstract?
+-}
+baseRepairsSub : Seconds -> Id -> Id -> Game -> Game
+baseRepairsSub dt baseId unitId game =
+    Game.withBase game baseId <|
+        \base ->
+            Game.withUnit game unitId <|
+                \unit ->
+                    let
+                        -- Don't need to repair beyond integrity 1
+                        requirementLimit =
+                            1 - unit.integrity
+
+                        -- Limit speed
+                        repairRate =
+                            0.1
+
+                        timeLimit =
+                            repairRate * dt
+
+                        -- Can't use more than the base has
+                        productionToIntegrityRatio =
+                            3
+
+                        baseLimit =
+                            base.buildCompletion * productionToIntegrityRatio
+
+                        --
+                        actualRepair =
+                            1.0
+                                |> min requirementLimit
+                                |> min timeLimit
+                                |> min baseLimit
+
+                        updatedUnit =
+                            { unit | integrity = unit.integrity + actualRepair }
+
+                        updatedBase =
+                            { base | buildCompletion = base.buildCompletion - actualRepair / productionToIntegrityRatio }
+                    in
+                    game
+                        |> Game.updateBase updatedBase
+                        |> Game.updateUnit updatedUnit
+
+
+thinkRepair : Seconds -> Game -> Unit -> SubComponent -> Delta
+thinkRepair dt game unit sub =
+    -- TODO would be nice to reorganise this as a list of boolean conditions + `andThen`s
+    if unit.integrity >= 1 then
+        DeltaNone
+    else
+        case sub.mode of
+            UnitModeBase baseId ->
+                case Dict.get baseId game.baseById of
+                    Nothing ->
+                        DeltaNone
+
+                    Just base ->
+                        if base.isActive && base.buildCompletion > 0 then
+                            DeltaGame (baseRepairsSub dt baseId unit.id)
+                        else
+                            DeltaNone
+
+            _ ->
+                DeltaNone
 
 
 
@@ -53,13 +109,13 @@ deltaBaseLosesUnit game base =
         containedUnits =
             base.containedUnits - 1
 
-        maybeOwnerId =
+        ownerId =
             if containedUnits < 1 then
-                Nothing
+                -1
             else
-                base.maybeOwnerId
+                base.ownerId
     in
-    { base | maybeOwnerId = maybeOwnerId, containedUnits = containedUnits }
+    { base | ownerId = ownerId, containedUnits = containedUnits }
 
 
 destroy : Game -> Unit -> SubComponent -> Delta
@@ -69,7 +125,7 @@ destroy game unit sub =
             DeltaBase baseId deltaBaseLosesUnit
 
         _ ->
-            DeltaList []
+            DeltaNone
 
 
 
@@ -188,7 +244,7 @@ move dt game targetPosition unit =
             0
     in
     if vectorDistance unit.position targetPosition <= targetDistance then
-        DeltaList []
+        DeltaNone
     else
         let
             unitTile =
@@ -277,12 +333,12 @@ deltaGameUnitEntersBase unitId baseId game =
         \unit ->
             Game.withBase game baseId <|
                 \base ->
-                    if base.maybeOwnerId /= Nothing && base.maybeOwnerId /= Just unit.ownerId then
+                    if Base.hasOwner game base && base.ownerId /= unit.ownerId then
                         game
                     else
                         let
                             corners =
-                                Game.baseCorners base
+                                Base.corners base
 
                             unitsInBase =
                                 game.unitById
@@ -303,7 +359,7 @@ deltaGameUnitEntersBase unitId baseId game =
                                         1 + List.length takenCorners
 
                                     angle =
-                                        Vec2.sub corner (tile2Vec base.position) |> Game.vecToAngle
+                                        Vec2.sub corner base.position |> Game.vecToAngle
 
                                     updatedUnit =
                                         unit
@@ -314,7 +370,7 @@ deltaGameUnitEntersBase unitId baseId game =
                                         { base
                                             | containedUnits = containedUnits
                                             , isActive = base.isActive || containedUnits == List.length corners
-                                            , maybeOwnerId = Just unit.ownerId
+                                            , ownerId = unit.ownerId
                                         }
                                 in
                                 game
@@ -326,7 +382,7 @@ thinkMovement : Float -> Game -> Unit -> SubComponent -> Delta
 thinkMovement dt game unit sub =
     case sub.mode of
         UnitModeBase baseId ->
-            DeltaList []
+            DeltaNone
 
         UnitModeFree ->
             {-
@@ -336,7 +392,7 @@ thinkMovement dt game unit sub =
             -}
             case Dict.get unit.ownerId game.playerById of
                 Nothing ->
-                    DeltaList []
+                    DeltaNone
 
                 Just player ->
                     let
@@ -344,18 +400,17 @@ thinkMovement dt game unit sub =
                             3.0
 
                         baseDistance base =
-                            vectorDistance (tile2Vec base.position) unit.position - toFloat (Game.baseSize base // 2)
+                            vectorDistance base.position unit.position - toFloat (Base.size base // 2)
 
                         baseIsConquerable base =
-                            baseDistance base
-                                < conquerBaseDistanceThreshold
-                                && (base.maybeOwnerId == Nothing || base.maybeOwnerId == Just unit.ownerId)
-                                && (base.containedUnits < Game.baseMaxContainedUnits)
+                            (baseDistance base < conquerBaseDistanceThreshold)
+                                && (Base.isNeutral game base || base.ownerId == unit.ownerId)
+                                && (base.containedUnits < Base.maxContainedUnits)
                     in
                     case List.Extra.find baseIsConquerable (Dict.values game.baseById) of
                         Just base ->
-                            if baseDistance base > Game.maximumDistanceForUnitToEnterBase then
-                                move dt game (tile2Vec base.position) unit
+                            if baseDistance base > Base.maximumDistanceForUnitToEnterBase then
+                                move dt game base.position unit
                             else
                                 DeltaGame (deltaGameUnitEntersBase unit.id base.id)
 

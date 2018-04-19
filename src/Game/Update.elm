@@ -149,6 +149,9 @@ applyGameDelta game deltas =
         foldDeltas : Delta -> GameDeltaDicts -> GameDeltaDicts
         foldDeltas delta deltaStuff =
             case delta of
+                DeltaNone ->
+                    deltaStuff
+
                 DeltaList list ->
                     List.foldl foldDeltas deltaStuff list
 

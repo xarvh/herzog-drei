@@ -1,24 +1,9 @@
 module PlayerThink exposing (..)
 
+import Base
 import ColorPattern
 import Dict exposing (Dict)
-import Game
-    exposing
-        ( Delta(..)
-        , Game
-        , Id
-        , MechComponent
-        , Player
-        , PlayerInput
-        , Seconds
-        , TransformMode(..)
-        , Unit
-        , UnitComponent(..)
-        , clampToRadius
-        , tile2Vec
-        , vec2Tile
-        , vecToAngle
-        )
+import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
@@ -61,13 +46,48 @@ think : PlayerInput -> Seconds -> Game -> Player -> Delta
 think input dt game player =
     case game.unitById |> Dict.values |> findMech player.id of
         Nothing ->
-            DeltaList []
+            moveViewportToBase dt game player
 
         Just ( unit, mech ) ->
             mechThink input dt game unit mech
 
 
-mechThink : PlayerInput -> Float -> Game -> Unit -> MechComponent -> Delta
+moveViewportToBase : Seconds -> Game -> Player -> Delta
+moveViewportToBase dt game player =
+    case Base.playerMainBase game player.id of
+        Nothing ->
+            DeltaNone
+
+        Just mainBase ->
+            let
+                dp =
+                    Vec2.sub mainBase.position player.viewportPosition
+
+                length =
+                    Vec2.length dp
+
+                direction =
+                    Vec2.normalize dp
+
+                speed =
+                    30
+
+                maxLength =
+                    min (speed * dt) length
+
+                maxDp =
+                    Vec2.scale maxLength direction
+
+                position =
+                    Vec2.add player.viewportPosition maxDp
+            in
+            if length < 0.01 then
+                DeltaNone
+            else
+                DeltaPlayer player.id (\g p -> { p | viewportPosition = position })
+
+
+mechThink : PlayerInput -> Seconds -> Game -> Unit -> MechComponent -> Delta
 mechThink input dt game unit mech =
     let
         speed =
@@ -125,7 +145,7 @@ mechThink input dt game unit mech =
             if input.rally then
                 DeltaPlayer unit.ownerId (\g p -> { p | markerPosition = unit.position })
             else
-                DeltaList []
+                DeltaNone
 
         updatePosition =
             case Unit.transformMode mech of
@@ -148,7 +168,7 @@ mechThink input dt game unit mech =
             if unit.timeToReload > 0 then
                 DeltaUnit unit.id (\g u -> { u | timeToReload = max 0 (u.timeToReload - dt) })
             else
-                DeltaList []
+                DeltaNone
 
         aimAngle =
             Game.vecToAngle input.aim
@@ -181,7 +201,7 @@ mechThink input dt game unit mech =
                     , View.Gfx.deltaAddProjectileCase rightOrigin (aimAngle + pi / 12)
                     ]
             else
-                DeltaList []
+                DeltaNone
     in
     DeltaList
         [ moveTarget
@@ -245,26 +265,22 @@ baseRepairsMech dt baseId unitId game =
 repairDelta : Seconds -> Game -> Unit -> MechComponent -> Delta
 repairDelta dt game unit mech =
     if unit.integrity >= 1 then
-        DeltaList []
+        DeltaNone
     else
         let
             canRepair base =
-                base.buildCompletion
-                    > 0
-                    && base.maybeOwnerId
-                    == Just unit.ownerId
-                    && Vec2.distanceSquared (tile2Vec base.position) unit.position
-                    < 3
-                    * 3
+                (base.buildCompletion > 0)
+                    && (base.ownerId == unit.ownerId)
+                    && (Vec2.distanceSquared base.position unit.position < 3 * 3)
         in
         case List.Extra.find canRepair (Dict.values game.baseById) of
             Nothing ->
-                DeltaList []
+                DeltaNone
 
             Just base ->
                 DeltaList
                     [ DeltaGame (baseRepairsMech dt base.id unit.id)
-                    , View.Gfx.deltaAddBeam (tile2Vec base.position) unit.position ColorPattern.neutral
+                    , View.Gfx.deltaAddBeam base.position unit.position ColorPattern.neutral
                     ]
 
 

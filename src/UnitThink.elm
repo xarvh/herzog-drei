@@ -1,13 +1,7 @@
 module UnitThink exposing (..)
 
-import Game
-    exposing
-        ( Delta(..)
-        , Game
-        , Id
-        , Unit
-        , UnitComponent(..)
-        )
+import Base
+import Game exposing (..)
 import SubThink
 import View.Gfx
 import View.Unit
@@ -29,8 +23,7 @@ think dt game unit =
                     SubThink.destroy game unit sub
 
                 UnitMech mech ->
-                    -- TODO respawn mech at main base
-                    DeltaList []
+                    respawnMech game unit.ownerId
             ]
     else
         DeltaList
@@ -40,7 +33,7 @@ think dt game unit =
                     SubThink.think dt game unit sub
 
                 UnitMech mech ->
-                    DeltaList []
+                    DeltaNone
             ]
 
 
@@ -57,4 +50,20 @@ thinkReload dt game unit =
         in
         DeltaUnit unit.id (\g u -> { u | timeToReload = timeToReload })
     else
-        DeltaList []
+        DeltaNone
+
+
+
+-- Respawn
+
+
+respawnMech : Game -> Id -> Delta
+respawnMech game playerId =
+    case Base.playerMainBase game playerId of
+        Nothing ->
+            DeltaNone
+
+        Just mainBase ->
+            DeltaList
+                [ DeltaBase mainBase.id (\g b -> { b | buildCompletion = 0, buildTarget = BuildMech })
+                ]

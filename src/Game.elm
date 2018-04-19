@@ -285,90 +285,24 @@ type BaseType
     | BaseSmall
 
 
+type BuildTarget
+    = BuildMech
+    | BuildSub
+
+
 type alias Base =
     { id : Id
     , type_ : BaseType
     , isActive : Bool
     , containedUnits : Int
-    , maybeOwnerId : Maybe Id
-    , position : Tile2
+
+    -- neutral bases have their id set to -1. Using a maybe was more trouble than it was worth.
+    , ownerId : Id
+    , tile : Tile2
+    , position : Vec2
     , buildCompletion : Float
+    , buildTarget : BuildTarget
     }
-
-
-addBase : BaseType -> Tile2 -> Game -> ( Game, Base )
-addBase type_ position game =
-    let
-        id =
-            game.lastId + 1
-
-        base =
-            { id = id
-            , type_ = type_
-            , isActive = False
-            , containedUnits = 0
-            , maybeOwnerId = Nothing
-            , position = position
-            , buildCompletion = 0
-            }
-    in
-    ( { game
-        | lastId = id
-        , baseById = Dict.insert id base game.baseById
-      }
-        |> addStaticObstacles (baseTiles base)
-    , base
-    )
-
-
-baseSize : Base -> Int
-baseSize base =
-    case base.type_ of
-        BaseSmall ->
-            2
-
-        BaseMain ->
-            4
-
-
-baseTiles : Base -> List Tile2
-baseTiles base =
-    squareArea (baseSize base) base.position
-
-
-maximumDistanceForUnitToEnterBase : Float
-maximumDistanceForUnitToEnterBase =
-    2.1
-
-
-baseColorPattern : Game -> Base -> ColorPattern
-baseColorPattern game base =
-    base.maybeOwnerId
-        |> Maybe.map (playerColorPattern game)
-        |> Maybe.withDefault ColorPattern.neutral
-
-
-baseCorners : Base -> List Vec2
-baseCorners base =
-    let
-        ( x, y ) =
-            base.position
-                |> tile2Vec
-                |> Vec2.toTuple
-
-        r =
-            toFloat (baseSize base // 2) - 0.2
-    in
-    [ vec2 (x + r) (y + r)
-    , vec2 (x - r) (y + r)
-    , vec2 (x - r) (y - r)
-    , vec2 (x + r) (y - r)
-    ]
-
-
-baseMaxContainedUnits : Int
-baseMaxContainedUnits =
-    4
 
 
 
@@ -450,7 +384,8 @@ new seed =
 
 
 type Delta
-    = DeltaList (List Delta)
+    = DeltaNone
+    | DeltaList (List Delta)
     | DeltaGame (Game -> Game)
     | DeltaPlayer Id (Game -> Player -> Player)
     | DeltaUnit Id (Game -> Unit -> Unit)

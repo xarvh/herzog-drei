@@ -1,6 +1,7 @@
 module App exposing (..)
 
 import AnimationFrame
+import Base
 import ColorPattern exposing (neutral)
 import Dict exposing (Dict)
 import Game
@@ -247,10 +248,10 @@ viewBase : Game -> Base -> Svg Msg
 viewBase game base =
     let
         colorPattern =
-            Game.baseColorPattern game base
+            Base.colorPattern game base
     in
     Svg.g
-        [ transform [ translate (tile2Vec base.position) ] ]
+        [ transform [ translate base.position ] ]
         [ case base.type_ of
             Game.BaseSmall ->
                 View.Base.small colorPattern.bright colorPattern.dark
@@ -392,6 +393,7 @@ viewVictory game player =
                 , Svg.Attributes.stroke pattern.dark
                 , Svg.Attributes.strokeWidth "0.005"
                 , Svg.Attributes.y "-0.2"
+                , Svg.Attributes.style "user-select: none;"
                 ]
                 [ Svg.text text ]
 
@@ -436,7 +438,7 @@ viewPlayer model ( player, viewport ) =
                 |> Svg.g []
             , game.baseById
                 |> Dict.values
-                |> List.filter (\b -> isWithinViewport (tile2Vec b.position) 3)
+                |> List.filter (\b -> isWithinViewport b.position 3)
                 |> List.map (viewBase game)
                 |> Svg.g []
             , subs
