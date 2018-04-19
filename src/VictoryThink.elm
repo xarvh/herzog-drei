@@ -1,5 +1,6 @@
 module VictoryThink exposing (..)
 
+import Base
 import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
@@ -11,19 +12,10 @@ think dt game =
         DeltaList []
     else
         let
-            mainBases =
-                game.baseById
-                    |> Dict.values
-                    |> List.filter (\b -> b.type_ == BaseMain)
-
-            isOwnedBy : Player -> Base -> Bool
-            isOwnedBy player base =
-                base.ownerId == player.id
-
             playersWithoutMainBases =
                 game.playerById
                     |> Dict.values
-                    |> List.filter (\player -> List.Extra.find (isOwnedBy player) mainBases == Nothing)
+                    |> List.filter (\player -> Base.playerMainBase game player.id == Nothing)
         in
         case playersWithoutMainBases of
             [] ->

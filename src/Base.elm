@@ -3,6 +3,7 @@ module Base exposing (..)
 import ColorPattern exposing (ColorPattern)
 import Dict exposing (Dict)
 import Game exposing (..)
+import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 
 
@@ -78,6 +79,7 @@ add type_ position game =
             , ownerId = -1
             , position = position
             , buildCompletion = 0
+            , buildTarget = BuildSub
             }
     in
     ( { game
@@ -102,3 +104,10 @@ isNeutral game base =
 hasOwner : Game -> Base -> Bool
 hasOwner game base =
     Dict.member base.ownerId game.playerById
+
+
+playerMainBase : Game -> Id -> Maybe Base
+playerMainBase game playerId =
+    game.baseById
+        |> Dict.values
+        |> List.Extra.find (\b -> b.type_ == BaseMain && b.ownerId == playerId)

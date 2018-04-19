@@ -9,8 +9,13 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 -- Think
 
 
-buildSpeed =
-    0.2
+buildSpeed base =
+    case base.buildTarget of
+        BuildSub ->
+            0.2
+
+        BuildMech ->
+            0.1
 
 
 playerReachedUnitCapacity : Id -> Game -> Bool
@@ -29,9 +34,9 @@ think dt game base =
     else
         let
             buildCompletion =
-                base.buildCompletion + dt * buildSpeed |> min 1
+                base.buildCompletion + dt * buildSpeed base |> min 1
         in
-        if buildCompletion < 1 || playerReachedUnitCapacity base.ownerId game then
+        if buildCompletion < 1 || (base.buildTarget == BuildSub && playerReachedUnitCapacity base.ownerId game) then
             DeltaBase base.id (\g b -> { b | buildCompletion = buildCompletion })
         else
             let
@@ -42,5 +47,13 @@ think dt game base =
             in
             DeltaList
                 [ DeltaBase base.id (\g b -> { b | buildCompletion = 0 })
-                , DeltaGame (\g -> Game.addSub base.ownerId position g |> Tuple.first)
+                , case base.buildTarget of
+                    BuildSub ->
+                        DeltaGame (\g -> Game.addSub base.ownerId position g |> Tuple.first)
+
+                    BuildMech ->
+                        DeltaList
+                            [ DeltaGame (\g -> Game.addMech base.ownerId position g |> Tuple.first)
+                            , DeltaBase base.id (\g b -> { b | buildTarget = BuildSub })
+                            ]
                 ]

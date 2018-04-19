@@ -285,16 +285,24 @@ type BaseType
     | BaseSmall
 
 
+type BuildTarget
+    = BuildMech
+    | BuildSub
+
+
 type alias Base =
     { id : Id
     , type_ : BaseType
     , isActive : Bool
     , containedUnits : Int
+
     -- neutral bases have their id set to -1. Using a maybe was more trouble than it was worth.
     , ownerId : Id
     , position : Tile2
     , buildCompletion : Float
+    , buildTarget : BuildTarget
     }
+
 
 
 -- Gfx
