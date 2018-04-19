@@ -66,5 +66,4 @@ respawnMech game playerId =
         Just mainBase ->
             DeltaList
                 [ DeltaBase mainBase.id (\g b -> { b | buildCompletion = 0, buildTarget = BuildMech })
-                , DeltaPlayer playerId (\g p -> { p | viewportPosition = tile2Vec mainBase.position })
                 ]

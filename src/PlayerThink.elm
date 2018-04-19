@@ -1,24 +1,9 @@
 module PlayerThink exposing (..)
 
+import Base
 import ColorPattern
 import Dict exposing (Dict)
-import Game
-    exposing
-        ( Delta(..)
-        , Game
-        , Id
-        , MechComponent
-        , Player
-        , PlayerInput
-        , Seconds
-        , TransformMode(..)
-        , Unit
-        , UnitComponent(..)
-        , clampToRadius
-        , tile2Vec
-        , vec2Tile
-        , vecToAngle
-        )
+import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
@@ -61,13 +46,48 @@ think : PlayerInput -> Seconds -> Game -> Player -> Delta
 think input dt game player =
     case game.unitById |> Dict.values |> findMech player.id of
         Nothing ->
-            DeltaNone
+            moveViewportToBase dt game player
 
         Just ( unit, mech ) ->
             mechThink input dt game unit mech
 
 
-mechThink : PlayerInput -> Float -> Game -> Unit -> MechComponent -> Delta
+moveViewportToBase : Seconds -> Game -> Player -> Delta
+moveViewportToBase dt game player =
+    case Base.playerMainBase game player.id of
+        Nothing ->
+            DeltaNone
+
+        Just mainBase ->
+            let
+                dp =
+                    Vec2.sub (tile2Vec mainBase.position) player.viewportPosition
+
+                length =
+                    Vec2.length dp
+
+                direction =
+                    Vec2.normalize dp
+
+                speed =
+                    30
+
+                maxLength =
+                    min (speed * dt) length
+
+                maxDp =
+                    Vec2.scale maxLength direction
+
+                position =
+                    Vec2.add player.viewportPosition maxDp
+            in
+            if length < 0.01 then
+                DeltaNone
+            else
+                DeltaPlayer player.id (\g p -> { p | viewportPosition = position })
+
+
+mechThink : PlayerInput -> Seconds -> Game -> Unit -> MechComponent -> Delta
 mechThink input dt game unit mech =
     let
         speed =
