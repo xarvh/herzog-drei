@@ -251,7 +251,7 @@ viewBase game base =
             Base.colorPattern game base
     in
     Svg.g
-        [ transform [ translate (tile2Vec base.position) ] ]
+        [ transform [ translate base.position ] ]
         [ case base.type_ of
             Game.BaseSmall ->
                 View.Base.small colorPattern.bright colorPattern.dark
@@ -437,7 +437,7 @@ viewPlayer model ( player, viewport ) =
                 |> Svg.g []
             , game.baseById
                 |> Dict.values
-                |> List.filter (\b -> isWithinViewport (tile2Vec b.position) 3)
+                |> List.filter (\b -> isWithinViewport b.position 3)
                 |> List.map (viewBase game)
                 |> Svg.g []
             , subs

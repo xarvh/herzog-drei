@@ -28,9 +28,7 @@ corners : Base -> List Vec2
 corners base =
     let
         ( x, y ) =
-            base.position
-                |> tile2Vec
-                |> Vec2.toTuple
+            Vec2.toTuple base.position
 
         r =
             toFloat (size base // 2) - 0.2
@@ -58,7 +56,7 @@ size base =
 
 tiles : Base -> List Tile2
 tiles base =
-    squareArea (size base) base.position
+    squareArea (size base) base.tile
 
 
 
@@ -66,7 +64,7 @@ tiles base =
 
 
 add : BaseType -> Tile2 -> Game -> ( Game, Base )
-add type_ position game =
+add type_ tile game =
     let
         id =
             game.lastId + 1
@@ -77,7 +75,8 @@ add type_ position game =
             , isActive = False
             , containedUnits = 0
             , ownerId = -1
-            , position = position
+            , tile = tile
+            , position = tile2Vec tile
             , buildCompletion = 0
             , buildTarget = BuildSub
             }

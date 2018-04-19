@@ -359,7 +359,7 @@ deltaGameUnitEntersBase unitId baseId game =
                                         1 + List.length takenCorners
 
                                     angle =
-                                        Vec2.sub corner (tile2Vec base.position) |> Game.vecToAngle
+                                        Vec2.sub corner base.position |> Game.vecToAngle
 
                                     updatedUnit =
                                         unit
@@ -400,7 +400,7 @@ thinkMovement dt game unit sub =
                             3.0
 
                         baseDistance base =
-                            vectorDistance (tile2Vec base.position) unit.position - toFloat (Base.size base // 2)
+                            vectorDistance base.position unit.position - toFloat (Base.size base // 2)
 
                         baseIsConquerable base =
                             (baseDistance base < conquerBaseDistanceThreshold)
@@ -410,7 +410,7 @@ thinkMovement dt game unit sub =
                     case List.Extra.find baseIsConquerable (Dict.values game.baseById) of
                         Just base ->
                             if baseDistance base > Base.maximumDistanceForUnitToEnterBase then
-                                move dt game (tile2Vec base.position) unit
+                                move dt game base.position unit
                             else
                                 DeltaGame (deltaGameUnitEntersBase unit.id base.id)
 

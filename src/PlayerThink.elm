@@ -61,7 +61,7 @@ moveViewportToBase dt game player =
         Just mainBase ->
             let
                 dp =
-                    Vec2.sub (tile2Vec mainBase.position) player.viewportPosition
+                    Vec2.sub mainBase.position player.viewportPosition
 
                 length =
                     Vec2.length dp
@@ -271,7 +271,7 @@ repairDelta dt game unit mech =
             canRepair base =
                 (base.buildCompletion > 0)
                     && (base.ownerId == unit.ownerId)
-                    && (Vec2.distanceSquared (tile2Vec base.position) unit.position < 3 * 3)
+                    && (Vec2.distanceSquared base.position unit.position < 3 * 3)
         in
         case List.Extra.find canRepair (Dict.values game.baseById) of
             Nothing ->
@@ -280,7 +280,7 @@ repairDelta dt game unit mech =
             Just base ->
                 DeltaList
                     [ DeltaGame (baseRepairsMech dt base.id unit.id)
-                    , View.Gfx.deltaAddBeam (tile2Vec base.position) unit.position ColorPattern.neutral
+                    , View.Gfx.deltaAddBeam base.position unit.position ColorPattern.neutral
                     ]
 
 

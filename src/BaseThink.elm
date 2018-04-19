@@ -46,9 +46,7 @@ think dt game base =
         else
             let
                 position =
-                    base.position
-                        |> Game.tile2Vec
-                        |> Vec2.add (vec2 3 0)
+                    Vec2.add base.position (vec2 3 0)
             in
             DeltaList
                 [ DeltaBase base.id (\g b -> { b | buildCompletion = 0 })

@@ -298,7 +298,8 @@ type alias Base =
 
     -- neutral bases have their id set to -1. Using a maybe was more trouble than it was worth.
     , ownerId : Id
-    , position : Tile2
+    , tile : Tile2
+    , position : Vec2
     , buildCompletion : Float
     , buildTarget : BuildTarget
     }
