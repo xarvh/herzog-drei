@@ -30,7 +30,7 @@ playerReachedUnitCapacity playerId game =
 think : Float -> Game -> Base -> Delta
 think dt game base =
     if Base.isNeutral game base then
-        DeltaList []
+        DeltaNone
     else
         let
             buildCompletion =

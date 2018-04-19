@@ -383,7 +383,8 @@ new seed =
 
 
 type Delta
-    = DeltaList (List Delta)
+    = DeltaNone
+    | DeltaList (List Delta)
     | DeltaGame (Game -> Game)
     | DeltaPlayer Id (Game -> Player -> Player)
     | DeltaUnit Id (Game -> Unit -> Unit)

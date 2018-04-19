@@ -9,7 +9,7 @@ import List.Extra
 think : Seconds -> Game -> Delta
 think dt game =
     if game.maybeWinnerId /= Nothing then
-        DeltaList []
+        DeltaNone
     else
         let
             playersWithoutMainBases =
@@ -19,7 +19,7 @@ think dt game =
         in
         case playersWithoutMainBases of
             [] ->
-                DeltaList []
+                DeltaNone
 
             [ oneLoser ] ->
                 let

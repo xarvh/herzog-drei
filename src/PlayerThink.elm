@@ -61,7 +61,7 @@ think : PlayerInput -> Seconds -> Game -> Player -> Delta
 think input dt game player =
     case game.unitById |> Dict.values |> findMech player.id of
         Nothing ->
-            DeltaList []
+            DeltaNone
 
         Just ( unit, mech ) ->
             mechThink input dt game unit mech
@@ -125,7 +125,7 @@ mechThink input dt game unit mech =
             if input.rally then
                 DeltaPlayer unit.ownerId (\g p -> { p | markerPosition = unit.position })
             else
-                DeltaList []
+                DeltaNone
 
         updatePosition =
             case Unit.transformMode mech of
@@ -148,7 +148,7 @@ mechThink input dt game unit mech =
             if unit.timeToReload > 0 then
                 DeltaUnit unit.id (\g u -> { u | timeToReload = max 0 (u.timeToReload - dt) })
             else
-                DeltaList []
+                DeltaNone
 
         aimAngle =
             Game.vecToAngle input.aim
@@ -181,7 +181,7 @@ mechThink input dt game unit mech =
                     , View.Gfx.deltaAddProjectileCase rightOrigin (aimAngle + pi / 12)
                     ]
             else
-                DeltaList []
+                DeltaNone
     in
     DeltaList
         [ moveTarget
@@ -245,7 +245,7 @@ baseRepairsMech dt baseId unitId game =
 repairDelta : Seconds -> Game -> Unit -> MechComponent -> Delta
 repairDelta dt game unit mech =
     if unit.integrity >= 1 then
-        DeltaList []
+        DeltaNone
     else
         let
             canRepair base =
@@ -255,7 +255,7 @@ repairDelta dt game unit mech =
         in
         case List.Extra.find canRepair (Dict.values game.baseById) of
             Nothing ->
-                DeltaList []
+                DeltaNone
 
             Just base ->
                 DeltaList

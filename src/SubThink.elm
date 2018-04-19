@@ -81,22 +81,22 @@ thinkRepair : Seconds -> Game -> Unit -> SubComponent -> Delta
 thinkRepair dt game unit sub =
     -- TODO would be nice to reorganise this as a list of boolean conditions + `andThen`s
     if unit.integrity >= 1 then
-        DeltaList []
+        DeltaNone
     else
         case sub.mode of
             UnitModeBase baseId ->
                 case Dict.get baseId game.baseById of
                     Nothing ->
-                        DeltaList []
+                        DeltaNone
 
                     Just base ->
                         if base.isActive && base.buildCompletion > 0 then
                             DeltaGame (baseRepairsSub dt baseId unit.id)
                         else
-                            DeltaList []
+                            DeltaNone
 
             _ ->
-                DeltaList []
+                DeltaNone
 
 
 
@@ -125,7 +125,7 @@ destroy game unit sub =
             DeltaBase baseId deltaBaseLosesUnit
 
         _ ->
-            DeltaList []
+            DeltaNone
 
 
 
@@ -244,7 +244,7 @@ move dt game targetPosition unit =
             0
     in
     if vectorDistance unit.position targetPosition <= targetDistance then
-        DeltaList []
+        DeltaNone
     else
         let
             unitTile =
@@ -382,7 +382,7 @@ thinkMovement : Float -> Game -> Unit -> SubComponent -> Delta
 thinkMovement dt game unit sub =
     case sub.mode of
         UnitModeBase baseId ->
-            DeltaList []
+            DeltaNone
 
         UnitModeFree ->
             {-
@@ -392,7 +392,7 @@ thinkMovement dt game unit sub =
             -}
             case Dict.get unit.ownerId game.playerById of
                 Nothing ->
-                    DeltaList []
+                    DeltaNone
 
                 Just player ->
                     let

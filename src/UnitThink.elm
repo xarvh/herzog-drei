@@ -33,7 +33,7 @@ think dt game unit =
                     SubThink.think dt game unit sub
 
                 UnitMech mech ->
-                    DeltaList []
+                    DeltaNone
             ]
 
 
@@ -50,7 +50,7 @@ thinkReload dt game unit =
         in
         DeltaUnit unit.id (\g u -> { u | timeToReload = timeToReload })
     else
-        DeltaList []
+        DeltaNone
 
 
 
@@ -61,7 +61,7 @@ respawnMech : Game -> Id -> Delta
 respawnMech game playerId =
     case Base.playerMainBase game playerId of
         Nothing ->
-            DeltaList []
+            DeltaNone
 
         Just mainBase ->
             DeltaList
