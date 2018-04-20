@@ -59,11 +59,11 @@ addSub ownerId position game =
     Game.addSub ownerId position game |> Tuple.first
 
 
-addEmbeddedSub : Base -> Game -> Game
-addEmbeddedSub base game =
+addEmbeddedSub : Id -> Base -> Game -> Game
+addEmbeddedSub playerId base game =
     let
         ( game_, unit ) =
-            Game.addSub base.ownerId (vec2 0 0) game
+            Game.addSub playerId (vec2 0 0) game
     in
     SubThink.deltaGameUnitEntersBase unit.id base.id game_
 
@@ -75,10 +75,10 @@ addSmallBase tile game =
             Base.add BaseSmall tile game
     in
     game_
-        |> addEmbeddedSub base
-        |> addEmbeddedSub base
-        |> addEmbeddedSub base
-        |> addEmbeddedSub base
+        |> addEmbeddedSub -1 base
+        |> addEmbeddedSub -1 base
+        |> addEmbeddedSub -1 base
+        |> addEmbeddedSub -1 base
 
 
 addMainBase : Id -> Tile2 -> Game -> Game
@@ -86,13 +86,12 @@ addMainBase ownerId tile game =
     let
         ( game_, base ) =
             Base.add BaseMain tile game
-                |> Tuple.mapSecond (\b -> { b | ownerId = ownerId })
     in
     game_
-        |> addEmbeddedSub base
-        |> addEmbeddedSub base
-        |> addEmbeddedSub base
-        |> addEmbeddedSub base
+        |> addEmbeddedSub ownerId base
+        |> addEmbeddedSub ownerId base
+        |> addEmbeddedSub ownerId base
+        |> addEmbeddedSub ownerId base
 
 
 

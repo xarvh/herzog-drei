@@ -249,6 +249,11 @@ viewBase game base =
     let
         colorPattern =
             Base.colorPattern game base
+
+        completion =
+            base.maybeOccupied
+                |> Maybe.map .buildCompletion
+                |> Maybe.withDefault 0
     in
     Svg.g
         [ transform [ translate base.position ] ]
@@ -257,7 +262,7 @@ viewBase game base =
                 View.Base.small colorPattern.bright colorPattern.dark
 
             Game.BaseMain ->
-                View.Base.main_ base.buildCompletion colorPattern.bright colorPattern.dark
+                View.Base.main_ completion colorPattern.bright colorPattern.dark
         ]
 
 

@@ -24,105 +24,38 @@ think dt game unit sub =
     DeltaList
         [ thinkTarget dt game unit sub
         , thinkMovement dt game unit sub
-        , thinkRepair dt game unit sub
         ]
-
-
-
--- Repair
-
-
-{-| TODO: this function is identical to baseRepairsMech. Abstract?
--}
-baseRepairsSub : Seconds -> Id -> Id -> Game -> Game
-baseRepairsSub dt baseId unitId game =
-    Game.withBase game baseId <|
-        \base ->
-            Game.withUnit game unitId <|
-                \unit ->
-                    let
-                        -- Don't need to repair beyond integrity 1
-                        requirementLimit =
-                            1 - unit.integrity
-
-                        -- Limit speed
-                        repairRate =
-                            0.1
-
-                        timeLimit =
-                            repairRate * dt
-
-                        -- Can't use more than the base has
-                        productionToIntegrityRatio =
-                            3
-
-                        baseLimit =
-                            base.buildCompletion * productionToIntegrityRatio
-
-                        --
-                        actualRepair =
-                            1.0
-                                |> min requirementLimit
-                                |> min timeLimit
-                                |> min baseLimit
-
-                        updatedUnit =
-                            { unit | integrity = unit.integrity + actualRepair }
-
-                        updatedBase =
-                            { base | buildCompletion = base.buildCompletion - actualRepair / productionToIntegrityRatio }
-                    in
-                    game
-                        |> Game.updateBase updatedBase
-                        |> Game.updateUnit updatedUnit
-
-
-thinkRepair : Seconds -> Game -> Unit -> SubComponent -> Delta
-thinkRepair dt game unit sub =
-    -- TODO would be nice to reorganise this as a list of boolean conditions + `andThen`s
-    if unit.integrity >= 1 then
-        DeltaNone
-    else
-        case sub.mode of
-            UnitModeBase baseId ->
-                case Dict.get baseId game.baseById of
-                    Nothing ->
-                        DeltaNone
-
-                    Just base ->
-                        if base.isActive && base.buildCompletion > 0 then
-                            DeltaGame (baseRepairsSub dt baseId unit.id)
-                        else
-                            DeltaNone
-
-            _ ->
-                DeltaNone
 
 
 
 -- Destroy
 
 
-deltaBaseLosesUnit : Game -> Base -> Base
-deltaBaseLosesUnit game base =
-    let
-        containedUnits =
-            base.containedUnits - 1
+updateBaseLosesUnit : Id -> Game -> Base -> Base
+updateBaseLosesUnit unitId game base =
+    case base.maybeOccupied of
+        Nothing ->
+            base
 
-        ownerId =
-            if containedUnits < 1 then
-                -1
-            else
-                base.ownerId
-    in
-    { base | ownerId = ownerId, containedUnits = containedUnits }
+        Just occupied ->
+            let
+                unitIds =
+                    Set.remove unitId occupied.unitIds
+            in
+            { base
+                | maybeOccupied =
+                    if unitIds == Set.empty then
+                        Nothing
+                    else
+                        Just { occupied | unitIds = unitIds }
+            }
 
 
 destroy : Game -> Unit -> SubComponent -> Delta
 destroy game unit sub =
     case sub.mode of
         UnitModeBase baseId ->
-            DeltaBase baseId deltaBaseLosesUnit
+            DeltaBase baseId (updateBaseLosesUnit unit.id)
 
         _ ->
             DeltaNone
@@ -333,49 +266,66 @@ deltaGameUnitEntersBase unitId baseId game =
         \unit ->
             Game.withBase game baseId <|
                 \base ->
-                    if Base.hasOwner game base && base.ownerId /= unit.ownerId then
-                        game
+                    if Base.unitCanEnter unit base then
+                        updateUnitEntersBase unit base game
                     else
-                        let
-                            corners =
-                                Base.corners base
+                        game
 
-                            unitsInBase =
-                                game.unitById
-                                    |> Dict.values
-                                    |> List.filter (unitIsInBase base.id)
 
-                            takenCorners =
-                                unitsInBase
-                                    |> List.map .position
-                        in
-                        case List.Extra.find (\c -> not (List.member c takenCorners)) corners of
-                            Nothing ->
-                                game
+updateUnitEntersBase : Unit -> Base -> Game -> Game
+updateUnitEntersBase unit base game =
+    let
+        ( isActive, idsOfUnitsAlreadyInBase ) =
+            case base.maybeOccupied of
+                Nothing ->
+                    ( False, Set.empty )
 
-                            Just corner ->
-                                let
-                                    containedUnits =
-                                        1 + List.length takenCorners
+                Just occupied ->
+                    ( occupied.isActive, occupied.unitIds )
 
-                                    angle =
-                                        Vec2.sub corner base.position |> Game.vecToAngle
+        unitsInBase =
+            idsOfUnitsAlreadyInBase
+                |> Set.toList
+                |> List.filterMap (\id -> Dict.get id game.unitById)
 
-                                    updatedUnit =
-                                        unit
-                                            |> updateSub (\s -> { s | mode = Game.UnitModeBase base.id }) game
-                                            |> (\u -> { u | position = corner, moveAngle = angle })
+        baseCorners =
+            Base.corners base
 
-                                    updatedBase =
-                                        { base
-                                            | containedUnits = containedUnits
-                                            , isActive = base.isActive || containedUnits == List.length corners
-                                            , ownerId = unit.ownerId
-                                        }
-                                in
-                                game
-                                    |> Game.updateUnit updatedUnit
-                                    |> Game.updateBase updatedBase
+        takenCorners =
+            unitsInBase |> List.map .position
+    in
+    case List.Extra.find (\corner -> not (List.member corner takenCorners)) baseCorners of
+        Nothing ->
+            -- This should not happen -_-
+            game
+
+        Just corner ->
+            let
+                unitIds =
+                    Set.insert unit.id idsOfUnitsAlreadyInBase
+
+                occupied =
+                    { unitIds = unitIds
+                    , isActive = isActive || Set.size unitIds >= Base.maxContainedUnits
+                    , playerId = unit.ownerId
+                    , buildCompletion = 0
+                    , buildTarget = BuildSub
+                    }
+
+                angle =
+                    Vec2.sub corner base.position |> Game.vecToAngle
+
+                updatedUnit =
+                    unit
+                        |> updateSub (\s -> { s | mode = Game.UnitModeBase base.id }) game
+                        |> (\u -> { u | position = corner, moveAngle = angle })
+
+                updatedBase =
+                    { base | maybeOccupied = Just occupied }
+            in
+            game
+                |> Game.updateUnit updatedUnit
+                |> Game.updateBase updatedBase
 
 
 thinkMovement : Float -> Game -> Unit -> SubComponent -> Delta
@@ -403,9 +353,7 @@ thinkMovement dt game unit sub =
                             vectorDistance base.position unit.position - toFloat (Base.size base // 2)
 
                         baseIsConquerable base =
-                            (baseDistance base < conquerBaseDistanceThreshold)
-                                && (Base.isNeutral game base || base.ownerId == unit.ownerId)
-                                && (base.containedUnits < Base.maxContainedUnits)
+                            (baseDistance base < conquerBaseDistanceThreshold) && Base.unitCanEnter unit base
                     in
                     case List.Extra.find baseIsConquerable (Dict.values game.baseById) of
                         Just base ->

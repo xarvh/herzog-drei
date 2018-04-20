@@ -290,18 +290,21 @@ type BuildTarget
     | BuildSub
 
 
+type alias BaseOccupied =
+    { playerId : Id
+    , unitIds : Set Id
+    , isActive : Bool
+    , buildCompletion : Float
+    , buildTarget : BuildTarget
+    }
+
+
 type alias Base =
     { id : Id
     , type_ : BaseType
-    , isActive : Bool
-    , containedUnits : Int
-
-    -- neutral bases have their id set to -1. Using a maybe was more trouble than it was worth.
-    , ownerId : Id
+    , maybeOccupied : Maybe BaseOccupied
     , tile : Tile2
     , position : Vec2
-    , buildCompletion : Float
-    , buildTarget : BuildTarget
     }
 
 

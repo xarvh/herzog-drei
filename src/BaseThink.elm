@@ -4,6 +4,7 @@ import Base
 import Dict exposing (Dict)
 import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Set exposing (Set)
 import Unit
 
 
@@ -15,8 +16,9 @@ maxSubsPerPlayer =
 -- Think
 
 
-buildSpeed base =
-    case base.buildTarget of
+buildSpeed : BaseOccupied -> Float
+buildSpeed occupied =
+    case occupied.buildTarget of
         BuildSub ->
             0.2
 
@@ -30,33 +32,61 @@ playerHasReachedUnitCap game playerId =
         |> Dict.filter (\id u -> Unit.isSub u && u.ownerId == playerId)
         |> Dict.size
         |> (\unitsCount -> unitsCount >= maxSubsPerPlayer)
+        -- Prevent neutral bases from spawning
+        |> (||) (not <| Dict.member playerId game.playerById)
 
 
 think : Float -> Game -> Base -> Delta
 think dt game base =
-    if Base.isNeutral game base then
+    case base.maybeOccupied of
+        Nothing ->
+            DeltaNone
+
+        Just occupied ->
+            if not occupied.isActive then
+                DeltaNone
+            else
+                DeltaList
+                    [ deltaBuildProgress dt game base occupied
+                    , deltaRepairEmbeddedSubs dt game base occupied
+                    ]
+
+
+deltaRepairEmbeddedSubs : Seconds -> Game -> Base -> BaseOccupied -> Delta
+deltaRepairEmbeddedSubs dt game base occupied =
+    if occupied.buildCompletion <= 0 then
         DeltaNone
     else
-        let
-            buildCompletion =
-                base.buildCompletion + dt * buildSpeed base |> min 1
-        in
-        if buildCompletion < 1 || (base.buildTarget == BuildSub && playerHasReachedUnitCap game base.ownerId) then
-            DeltaBase base.id (\g b -> { b | buildCompletion = buildCompletion })
-        else
-            let
-                position =
-                    Vec2.add base.position (vec2 3 0)
-            in
-            DeltaList
-                [ DeltaBase base.id (\g b -> { b | buildCompletion = 0 })
-                , case base.buildTarget of
-                    BuildSub ->
-                        DeltaGame (\g -> Game.addSub base.ownerId position g |> Tuple.first)
+        occupied.unitIds
+            |> Set.toList
+            |> List.filterMap (\id -> Dict.get id game.unitById)
+            |> List.filter (\u -> u.integrity < 1)
+            |> List.map (\u -> Base.deltaRepairUnit dt base.id u.id)
+            |> DeltaList
 
-                    BuildMech ->
-                        DeltaList
-                            [ DeltaGame (\g -> Game.addMech base.ownerId position g |> Tuple.first)
-                            , DeltaBase base.id (\g b -> { b | buildTarget = BuildSub })
-                            ]
-                ]
+
+deltaBuildProgress : Seconds -> Game -> Base -> BaseOccupied -> Delta
+deltaBuildProgress dt game base occupied =
+    let
+        completionIncrease =
+            dt * buildSpeed occupied
+    in
+    if occupied.buildCompletion + completionIncrease < 1 || (occupied.buildTarget == BuildSub && playerHasReachedUnitCap game occupied.playerId) then
+        DeltaBase base.id (Base.updateOccupied (\o -> { o | buildCompletion = o.buildCompletion + completionIncrease |> min 1 }))
+    else
+        let
+            position =
+                Vec2.add base.position (vec2 3 0)
+        in
+        DeltaList
+            [ DeltaBase base.id (Base.updateOccupied (\o -> { o | buildCompletion = 0 }))
+            , case occupied.buildTarget of
+                BuildSub ->
+                    DeltaGame (\g -> Game.addSub occupied.playerId position g |> Tuple.first)
+
+                BuildMech ->
+                    DeltaList
+                        [ DeltaGame (\g -> Game.addMech occupied.playerId position g |> Tuple.first)
+                        , DeltaBase base.id (Base.updateOccupied <| \o -> { o | buildTarget = BuildSub })
+                        ]
+            ]
