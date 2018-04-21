@@ -13,7 +13,7 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 import Unit
 import View.Gfx
-import View.Unit
+import View.Sub
 
 
 -- Think
@@ -135,7 +135,7 @@ thinkTarget dt game unit sub =
                             [ DeltaUnit unit.id (\g u -> { u | timeToReload = Unit.subReloadTime })
                             , DeltaUnit target.id (Unit.takeDamage Unit.subShootDamage)
                             , View.Gfx.deltaAddBeam
-                                (Vec2.add unit.position (View.Unit.gunOffset unit.moveAngle))
+                                (Vec2.add unit.position (View.Sub.gunOffset unit.moveAngle))
                                 target.position
                                 (Game.playerColorPattern game unit.ownerId)
                             ]

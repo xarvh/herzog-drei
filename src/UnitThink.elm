@@ -4,7 +4,7 @@ import Base
 import Game exposing (..)
 import SubThink
 import View.Gfx
-import View.Unit
+import View.Sub
 
 
 -- Think

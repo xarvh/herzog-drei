@@ -1,9 +1,23 @@
 module View.Mech exposing (..)
 
-import Game
+import Game exposing (Angle)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import View exposing (..)
+
+
+-- Physics
+
+
+collider : Angle -> Vec2 -> List Vec2
+collider topAngle position =
+    [ vec2 -0.8 -0.4
+    , vec2 0.8 -0.4
+    , vec2 0.7 0.6
+    , vec2 -0.7 0.6
+    ]
+        |> List.map (Game.rotateVector topAngle)
+        |> List.map (Vec2.add position)
 
 
 leftGunOffset : Float -> Float -> Vec2
@@ -20,7 +34,11 @@ rightGunOffset t torsoAngle =
         |> Vec2.scale 3
 
 
-mech : Float -> Float -> Float -> String -> String -> Svg a
+
+-- Render
+
+
+mech : Float -> Angle -> Angle -> String -> String -> Svg a
 mech t headAngle topAngle darkColor brightColor =
     let
         smooth =
@@ -45,7 +63,7 @@ mech t headAngle topAngle darkColor brightColor =
         plates xx yy ww hh aa =
             g []
                 [ rectPlate brightColor darkColor -xx yy ww hh -aa
-                , rectPlate  brightColor darkColor xx yy ww hh aa
+                , rectPlate brightColor darkColor xx yy ww hh aa
                 ]
 
         eye xx yy aa =
@@ -69,7 +87,7 @@ mech t headAngle topAngle darkColor brightColor =
             -- arms / front wings
             , plates
                 (smooth 0.18 0.25)
-                (smooth 0.10 0.03)
+                (smooth 0.1 0.03)
                 (smooth 0.1 0.4)
                 (smooth 0.23 0.15)
                 (smooth 0 15)

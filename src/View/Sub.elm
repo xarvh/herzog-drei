@@ -1,9 +1,23 @@
-module View.Unit exposing (..)
+module View.Sub exposing (..)
 
 import Game exposing (normalizeAngle, Angle)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import View exposing (..)
+
+
+-- Physics
+
+
+collider : Angle -> Vec2 -> List Vec2
+collider topAngle position =
+    [ vec2 -0.5 -0.4
+    , vec2 0.5 -0.4
+    , vec2 0.5 0.4
+    , vec2 -0.5 0.4
+    ]
+        |> List.map (Game.rotateVector topAngle)
+        |> List.map (Vec2.add position)
 
 
 gunOffset : Float -> Vec2
@@ -12,11 +26,12 @@ gunOffset torsoAngle =
 
 
 
--- Unit
+
+-- Render
 
 
-unit : Angle -> Angle -> Angle -> String -> String -> Svg a
-unit lookAngle moveAngle aimAngle brightColor darkColor =
+sub : Angle -> Angle -> Angle -> String -> String -> Svg a
+sub lookAngle moveAngle aimAngle brightColor darkColor =
     let
         {-
            -- aimAngle - moveAngle

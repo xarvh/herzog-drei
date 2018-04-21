@@ -43,7 +43,7 @@ import View.Gfx
 import View.Hud
 import View.Mech
 import View.Projectile
-import View.Unit
+import View.Sub
 import Window
 
 
@@ -280,6 +280,8 @@ viewMech game ( unit, mechRecord ) =
             unit.fireAngle
             colorPattern.bright
             colorPattern.dark
+
+        --, View.Mech.collider unit.fireAngle (vec2 0 0) |> View.renderCollider
         ]
 
 
@@ -291,12 +293,14 @@ viewSub game ( unit, subRecord ) =
     in
     Svg.g
         [ transform [ translate unit.position ] ]
-        [ View.Unit.unit
+        [ View.Sub.sub
             unit.lookAngle
             unit.moveAngle
             unit.fireAngle
             colorPattern.bright
             colorPattern.dark
+
+        --, View.Sub.collider unit.moveAngle (vec2 0 0) |> View.renderCollider
         ]
 
 
@@ -366,7 +370,7 @@ testView model =
             [ View.Base.main_ age neutral.bright neutral.dark
 
             --[ View.Mech.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
-            --[ View.Unit.unit (pi / 4) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
+            --[ View.Sub.sub (pi / 4) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
             ]
         ]
 
