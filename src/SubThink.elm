@@ -275,16 +275,21 @@ deltaGameUnitEntersBase unitId baseId game =
 updateUnitEntersBase : Unit -> Base -> Game -> Game
 updateUnitEntersBase unit base game =
     let
-        ( isActive, idsOfUnitsAlreadyInBase ) =
+        originalOccupied =
             case base.maybeOccupied of
                 Nothing ->
-                    ( False, Set.empty )
+                    { unitIds = Set.empty
+                    , isActive = False
+                    , playerId = unit.ownerId
+                    , buildCompletion = 0
+                    , buildTarget = BuildSub
+                    }
 
                 Just occupied ->
-                    ( occupied.isActive, occupied.unitIds )
+                    occupied
 
         unitsInBase =
-            idsOfUnitsAlreadyInBase
+            originalOccupied.unitIds
                 |> Set.toList
                 |> List.filterMap (\id -> Dict.get id game.unitById)
 
@@ -302,14 +307,12 @@ updateUnitEntersBase unit base game =
         Just corner ->
             let
                 unitIds =
-                    Set.insert unit.id idsOfUnitsAlreadyInBase
+                    Set.insert unit.id originalOccupied.unitIds
 
                 occupied =
-                    { unitIds = unitIds
-                    , isActive = isActive || Set.size unitIds >= Base.maxContainedUnits
-                    , playerId = unit.ownerId
-                    , buildCompletion = 0
-                    , buildTarget = BuildSub
+                    { originalOccupied
+                        | unitIds = unitIds
+                        , isActive = originalOccupied.isActive || Set.size unitIds >= Base.maxContainedUnits
                     }
 
                 angle =
