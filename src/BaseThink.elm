@@ -86,7 +86,7 @@ deltaBuildProgress dt game base occupied =
 
                 BuildMech ->
                     DeltaList
-                        [ DeltaGame (\g -> Game.addMech occupied.playerId position g |> Tuple.first)
+                        [ DeltaGame (\g -> Game.addMech occupied.playerId base.position g |> Tuple.first)
                         , DeltaBase base.id (Base.updateOccupied <| \o -> { o | buildTarget = BuildSub })
                         ]
             ]

@@ -244,8 +244,8 @@ addSub =
 
 addMech : Id -> Vec2 -> Game -> ( Game, Unit )
 addMech =
-    { transformState = 0
-    , transformingTo = ToMech
+    { transformState = 1
+    , transformingTo = ToPlane
     }
         |> UnitMech
         |> addUnit

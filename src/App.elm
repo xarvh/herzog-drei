@@ -250,10 +250,13 @@ viewBase game base =
         colorPattern =
             Base.colorPattern game base
 
-        completion =
-            base.maybeOccupied
-                |> Maybe.map .buildCompletion
-                |> Maybe.withDefault 0
+        ( completion, target ) =
+            case base.maybeOccupied of
+                Nothing ->
+                    ( 0, Game.BuildSub )
+
+                Just occupied ->
+                    ( occupied.buildCompletion, occupied.buildTarget )
     in
     Svg.g
         [ transform [ translate base.position ] ]
@@ -263,6 +266,18 @@ viewBase game base =
 
             Game.BaseMain ->
                 View.Base.main_ completion colorPattern.bright colorPattern.dark
+        , if target /= Game.BuildMech then
+            Svg.text ""
+          else
+            Svg.g
+                [ 0.9
+                    * completion
+                    + 0.1
+                    * sin (pi * completion * 10)
+                    |> toString
+                    |> Svg.Attributes.opacity
+                ]
+                [ View.Mech.mech 1 0 0 neutral.dark colorPattern.dark ]
         ]
 
 
