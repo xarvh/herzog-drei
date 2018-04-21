@@ -20,6 +20,46 @@ small bright dark =
         []
 
 
+teeth : Float -> String -> String -> Svg a
+teeth completion bright dark =
+    let
+        n =
+            30
+
+        radius =
+            1.1
+
+        amplitude =
+            2 * pi / n
+
+        phase =
+            2 * pi * completion
+
+        shiftAngle angle =
+            angle + amplitude * sin (angle + phase)
+
+        indexToAngle index =
+            toFloat index / toFloat n |> turns
+
+        angleToDot angle =
+            path
+                [ transform [ rotateRad angle, translate2 radius 0, scale 0.15, rotateDeg -90, "scale(0.6,1)" ]
+                , d "M0,0 L0,1 L1,0 L1,-1 L-1,-1 L-1,0 Z"
+                , fill dark
+                , stroke bright
+                , strokeWidth 0.3
+                ]
+                []
+
+        dots =
+            List.range 0 (n - 1)
+                |> List.map (indexToAngle >> shiftAngle >> angleToDot)
+    in
+    g
+        []
+        dots
+
+
 main_ : Float -> String -> String -> Svg a
 main_ completion bright dark =
     let
@@ -98,6 +138,7 @@ main_ completion bright dark =
             , r (1.1 * completion)
             ]
             []
+        , teeth completion dark bright
 
         --
         , cir 1.8 1.8 0.4
