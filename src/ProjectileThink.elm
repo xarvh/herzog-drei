@@ -7,6 +7,8 @@ import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Unit
 import View.Gfx
+import View.Mech
+import View.Sub
 
 
 unitSize =
@@ -27,11 +29,12 @@ speed =
 
 unitToPolygon : Unit -> Collision.Polygon
 unitToPolygon unit =
-    [ Vec2.add (vec2 0 unitSize) unit.position
-    , Vec2.add (vec2 unitSize 0) unit.position
-    , Vec2.add (vec2 0 -unitSize) unit.position
-    , Vec2.add (vec2 -unitSize 0) unit.position
-    ]
+    case unit.component of
+        UnitSub _ ->
+            View.Sub.collider unit.moveAngle unit.position
+
+        UnitMech mech ->
+            View.Mech.collider mech.transformState unit.fireAngle unit.position
 
 
 checkUnitCollision : Vec2 -> Vec2 -> Id -> Unit -> Bool

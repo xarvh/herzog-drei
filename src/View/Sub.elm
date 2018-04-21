@@ -11,10 +11,10 @@ import View exposing (..)
 
 collider : Angle -> Vec2 -> List Vec2
 collider topAngle position =
-    [ vec2 -0.5 -0.4
-    , vec2 0.5 -0.4
+    [ vec2 -0.5 0.4
     , vec2 0.5 0.4
-    , vec2 -0.5 0.4
+    , vec2 0.5 -0.4
+    , vec2 -0.5 -0.4
     ]
         |> List.map (Game.rotateVector topAngle)
         |> List.map (Vec2.add position)

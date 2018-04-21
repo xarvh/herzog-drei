@@ -281,7 +281,7 @@ viewMech game ( unit, mechRecord ) =
             colorPattern.bright
             colorPattern.dark
 
-        --, View.Mech.collider unit.fireAngle (vec2 0 0) |> View.renderCollider
+        --, View.Mech.collider mechRecord.transformState unit.fireAngle (vec2 0 0) |> View.renderCollider
         ]
 
 

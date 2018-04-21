@@ -9,12 +9,16 @@ import View exposing (..)
 -- Physics
 
 
-collider : Angle -> Vec2 -> List Vec2
-collider topAngle position =
-    [ vec2 -0.8 -0.4
-    , vec2 0.8 -0.4
-    , vec2 0.7 0.6
-    , vec2 -0.7 0.6
+collider : Float -> Angle -> Vec2 -> List Vec2
+collider t topAngle position =
+    let
+        s =
+            View.smooth t
+    in
+    [ vec2 (s -0.8 -0.5) (s -0.4 -0.9)
+    , vec2 (s -0.7 -0.5) (s 0.6 0.9)
+    , vec2 (s 0.7 0.5) (s 0.6 0.9)
+    , vec2 (s 0.8 0.5) (s -0.4 -0.9)
     ]
         |> List.map (Game.rotateVector topAngle)
         |> List.map (Vec2.add position)
