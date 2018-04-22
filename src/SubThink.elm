@@ -146,28 +146,27 @@ thinkTarget dt game unit sub =
 -- Movement
 
 
+getAvailableMovesLimitMapBoundaries : ( Int, Int ) -> Tile2 -> Set Tile2
+getAvailableMovesLimitMapBoundaries ( halfWidth, halfHeight ) ( x, y ) =
+    let
+        add : Bool -> Tile2 -> Set Tile2 -> Set Tile2
+        add condition tile =
+            if condition then
+                Set.insert tile
+            else
+                identity
+    in
+    Set.empty
+        |> add (x > -halfWidth) ( x - 1, y )
+        |> add (x < halfWidth) ( x + 1, y )
+        |> add (y > -halfHeight) ( x, y - 1 )
+        |> add (y < halfHeight) ( x, y + 1 )
+
+
 getAvailableMoves : Set Tile2 -> Tile2 -> Set Tile2
-getAvailableMoves occupiedPositions ( x, y ) =
-    [ if x > -5 then
-        [ ( x - 1, y ) ]
-      else
-        []
-    , if x < 4 then
-        [ ( x + 1, y ) ]
-      else
-        []
-    , if y > -5 then
-        [ ( x, y - 1 ) ]
-      else
-        []
-    , if y < 4 then
-        [ ( x, y + 1 ) ]
-      else
-        []
-    ]
-        |> List.concat
-        |> List.filter (\pos -> not <| Set.member pos occupiedPositions)
-        |> Set.fromList
+getAvailableMoves occupiedPositions tile =
+    getAvailableMovesLimitMapBoundaries ( 10, 10 ) tile
+        |> flip Set.diff occupiedPositions
 
 
 move : Float -> Game -> Vec2 -> Unit -> Delta
