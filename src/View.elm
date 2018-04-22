@@ -3,7 +3,7 @@ module View exposing (..)
 import Ease
 import Game exposing (Angle, Seconds)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
-import Svg
+import Svg exposing (Svg)
 import Svg.Attributes
 
 
@@ -38,6 +38,23 @@ vecToString v =
             Vec2.toTuple v
     in
     toString x ++ "," ++ toString y
+
+
+
+-- Colliders
+
+
+renderCollider : List Vec2 -> Svg a
+renderCollider collider =
+    Svg.path
+        [ collider
+            |> List.map vecToString
+            |> String.join " L"
+            |> (\s -> "M" ++ s ++ " Z")
+            |> d
+        , opacity 0.5
+        ]
+        []
 
 
 

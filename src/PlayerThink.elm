@@ -215,53 +215,6 @@ mechThink input dt game unit mech =
         ]
 
 
-
---
-
-
-baseRepairsMech : Seconds -> Id -> Id -> Game -> Game
-baseRepairsMech dt baseId unitId game =
-    Game.withBase game baseId <|
-        \base ->
-            Game.withUnit game unitId <|
-                \unit ->
-                    let
-                        -- Don't need to repair beyond integrity 1
-                        requirementLimit =
-                            1 - unit.integrity
-
-                        -- Limit speed
-                        repairRate =
-                            0.3
-
-                        timeLimit =
-                            repairRate * dt
-
-                        -- Can't use more than the base has
-                        productionToIntegrityRatio =
-                            1.5
-
-                        baseLimit =
-                            base.buildCompletion * productionToIntegrityRatio
-
-                        --
-                        actualRepair =
-                            1.0
-                                |> min requirementLimit
-                                |> min timeLimit
-                                |> min baseLimit
-
-                        updatedUnit =
-                            { unit | integrity = unit.integrity + actualRepair }
-
-                        updatedBase =
-                            { base | buildCompletion = base.buildCompletion - actualRepair / productionToIntegrityRatio }
-                    in
-                    game
-                        |> Game.updateBase updatedBase
-                        |> Game.updateUnit updatedUnit
-
-
 repairDelta : Seconds -> Game -> Unit -> MechComponent -> Delta
 repairDelta dt game unit mech =
     if unit.integrity >= 1 then
@@ -269,9 +222,13 @@ repairDelta dt game unit mech =
     else
         let
             canRepair base =
-                (base.buildCompletion > 0)
-                    && (base.ownerId == unit.ownerId)
-                    && (Vec2.distanceSquared base.position unit.position < 3 * 3)
+                case base.maybeOccupied of
+                    Nothing ->
+                        False
+
+                    Just occupied ->
+                        (occupied.isActive && occupied.playerId == unit.ownerId && occupied.buildCompletion > 0)
+                            && (Vec2.distanceSquared base.position unit.position < 3 * 3)
         in
         case List.Extra.find canRepair (Dict.values game.baseById) of
             Nothing ->
@@ -279,7 +236,7 @@ repairDelta dt game unit mech =
 
             Just base ->
                 DeltaList
-                    [ DeltaGame (baseRepairsMech dt base.id unit.id)
+                    [ Base.deltaRepairUnit dt base.id unit.id
                     , View.Gfx.deltaAddBeam base.position unit.position ColorPattern.neutral
                     ]
 

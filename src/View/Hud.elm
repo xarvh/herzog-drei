@@ -42,7 +42,7 @@ healthBar unitPosition integrity =
             []
         , rect
             [ fill color
-            , width (innerWidth * integrity)
+            , width (innerWidth * max 0 integrity)
             , height innerHeight
             ]
             []

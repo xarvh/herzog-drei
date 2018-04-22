@@ -4,7 +4,7 @@ import Base
 import Game exposing (..)
 import SubThink
 import View.Gfx
-import View.Unit
+import View.Sub
 
 
 -- Think
@@ -64,6 +64,4 @@ respawnMech game playerId =
             DeltaNone
 
         Just mainBase ->
-            DeltaList
-                [ DeltaBase mainBase.id (\g b -> { b | buildCompletion = 0, buildTarget = BuildMech })
-                ]
+            DeltaBase mainBase.id (Base.updateOccupied <| \o -> { o | buildCompletion = 0, buildTarget = BuildMech })

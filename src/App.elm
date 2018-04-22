@@ -43,7 +43,7 @@ import View.Gfx
 import View.Hud
 import View.Mech
 import View.Projectile
-import View.Unit
+import View.Sub
 import Window
 
 
@@ -249,6 +249,14 @@ viewBase game base =
     let
         colorPattern =
             Base.colorPattern game base
+
+        ( completion, target ) =
+            case base.maybeOccupied of
+                Nothing ->
+                    ( 0, Game.BuildSub )
+
+                Just occupied ->
+                    ( occupied.buildCompletion, occupied.buildTarget )
     in
     Svg.g
         [ transform [ translate base.position ] ]
@@ -257,7 +265,19 @@ viewBase game base =
                 View.Base.small colorPattern.bright colorPattern.dark
 
             Game.BaseMain ->
-                View.Base.main_ base.buildCompletion colorPattern.bright colorPattern.dark
+                View.Base.main_ completion colorPattern.bright colorPattern.dark
+        , if target /= Game.BuildMech then
+            Svg.text ""
+          else
+            Svg.g
+                [ 0.9
+                    * completion
+                    + 0.1
+                    * sin (pi * completion * 10)
+                    |> toString
+                    |> Svg.Attributes.opacity
+                ]
+                [ View.Mech.mech 1 0 0 neutral.dark colorPattern.dark ]
         ]
 
 
@@ -275,6 +295,8 @@ viewMech game ( unit, mechRecord ) =
             unit.fireAngle
             colorPattern.bright
             colorPattern.dark
+
+        --, View.Mech.collider mechRecord.transformState unit.fireAngle (vec2 0 0) |> View.renderCollider
         ]
 
 
@@ -286,12 +308,14 @@ viewSub game ( unit, subRecord ) =
     in
     Svg.g
         [ transform [ translate unit.position ] ]
-        [ View.Unit.unit
+        [ View.Sub.sub
             unit.lookAngle
             unit.moveAngle
             unit.fireAngle
             colorPattern.bright
             colorPattern.dark
+
+        --, View.Sub.collider unit.moveAngle (vec2 0 0) |> View.renderCollider
         ]
 
 
@@ -361,7 +385,7 @@ testView model =
             [ View.Base.main_ age neutral.bright neutral.dark
 
             --[ View.Mech.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
-            --[ View.Unit.unit (pi / 4) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
+            --[ View.Sub.sub (pi / 4) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
             ]
         ]
 
