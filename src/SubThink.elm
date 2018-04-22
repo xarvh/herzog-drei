@@ -163,10 +163,10 @@ getAvailableMovesLimitMapBoundaries ( halfWidth, halfHeight ) ( x, y ) =
         |> add (y < halfHeight) ( x, y + 1 )
 
 
-getAvailableMoves : Set Tile2 -> Tile2 -> Set Tile2
+getAvailableMoves : Game -> Tile2 -> Set Tile2
 getAvailableMoves occupiedPositions tile =
-    getAvailableMovesLimitMapBoundaries ( 10, 10 ) tile
-        |> flip Set.diff occupiedPositions
+    getAvailableMovesLimitMapBoundaries ( game.halfWidth, game.halfHeight ) tile
+        |> flip Set.diff game.unpassableTiles
 
 
 move : Float -> Game -> Vec2 -> Unit -> Delta
