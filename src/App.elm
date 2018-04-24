@@ -262,7 +262,7 @@ viewBase game base =
         [ transform [ translate base.position ] ]
         [ case base.type_ of
             Game.BaseSmall ->
-                View.Base.small colorPattern.bright colorPattern.dark
+                View.Base.small completion colorPattern.bright colorPattern.dark
 
             Game.BaseMain ->
                 View.Base.main_ completion colorPattern.bright colorPattern.dark
