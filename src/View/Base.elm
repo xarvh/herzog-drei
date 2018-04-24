@@ -6,28 +6,11 @@ import Svg exposing (..)
 import View exposing (..)
 
 
-small : String -> String -> Svg a
-small bright dark =
-    rect
-        [ fill bright
-        , stroke dark
-        , strokeWidth 0.02
-        , width 2
-        , height 2
-        , x -1
-        , y -1
-        ]
-        []
-
-
-teeth : Float -> String -> String -> Svg a
-teeth completion bright dark =
+teeth : Float -> Float -> String -> String -> Svg a
+teeth completion radius bright dark =
     let
         n =
             30
-
-        radius =
-            1.1
 
         amplitude =
             2 * pi / n
@@ -60,6 +43,51 @@ teeth completion bright dark =
         dots
 
 
+small : Float -> String -> String -> Svg a
+small completion bright dark =
+    let
+        re xx yy ww hh =
+            rect
+                [ fill bright
+                , stroke dark
+                , strokeWidth 0.06
+                , width ww
+                , height hh
+                , x (xx - ww / 2)
+                , y (yy - hh / 2)
+                ]
+                []
+
+        cir xx yy rr =
+            circle
+                [ fill bright
+                , stroke dark
+                , strokeWidth 0.08
+                , cx xx
+                , cy yy
+                , r rr
+                ]
+                []
+    in
+    g
+        []
+        [ cir 0 0 1
+        , circle
+            [ fill dark
+            , r (0.6 * completion)
+            ]
+            []
+        , teeth completion 0.7 bright dark
+        , re -1 0 0.2 0.4
+        , re 1 0.15 0.2 0.15
+        , re 1 -0.15 0.2 0.15
+        , cir 0.8 0.8 0.4
+        , cir -0.8 0.8 0.4
+        , cir -0.8 -0.8 0.4
+        , cir 0.8 -0.8 0.4
+        ]
+
+
 main_ : Float -> String -> String -> Svg a
 main_ completion bright dark =
     let
@@ -67,7 +95,7 @@ main_ completion bright dark =
             rect
                 [ fill bright
                 , stroke dark
-                , strokeWidth 0.1
+                , strokeWidth 0.08
                 , width ww
                 , height hh
                 , x (xx - ww / 2)
@@ -89,7 +117,7 @@ main_ completion bright dark =
             circle
                 [ fill bright
                 , stroke dark
-                , strokeWidth 0.1
+                , strokeWidth 0.08
                 , cx xx
                 , cy yy
                 , r rr
@@ -138,7 +166,7 @@ main_ completion bright dark =
             , r (1.1 * completion)
             ]
             []
-        , teeth completion dark bright
+        , teeth completion 1.1 dark bright
 
         --
         , cir 1.8 1.8 0.4
