@@ -164,87 +164,198 @@ getAvailableMovesLimitMapBoundaries ( halfWidth, halfHeight ) ( x, y ) =
 
 
 getAvailableMoves : Game -> Tile2 -> Set Tile2
-getAvailableMoves occupiedPositions tile =
+getAvailableMoves game tile =
     getAvailableMovesLimitMapBoundaries ( game.halfWidth, game.halfHeight ) tile
         |> flip Set.diff game.unpassableTiles
 
 
-move : Float -> Game -> Vec2 -> Unit -> Delta
-move dt game targetPosition unit =
+deltaMove : Float -> Game -> Vec2 -> Unit -> Delta
+deltaMove dt game targetPosition unit =
     let
-        targetDistance =
-            0
+        setCooldown : Int -> Delta
+        setCooldown counter =
+          DeltaUnit unit.id (\g u -> { u | pathing = PathingCooldown counter })
+
+        moveTo : Vec2 -> List Tile2 -> Delta
+        moveTo target pathTail =
+            updateMove unit.id dt target pathTail |> DeltaGame
     in
-    if vectorDistance unit.position targetPosition <= targetDistance then
+    if vectorDistance unit.position targetPosition < 0.01 then
         DeltaNone
+    else if vec2Tile targetPosition == vec2Tile unit.position then
+        moveTo targetPosition []
     else
-        let
-            unitTile =
-                vec2Tile unit.position
+        case unit.pathing of
+            PathingFollow pathHead pathTail ->
+                moveTo (tile2Vec pathHead) pathTail
 
-            path =
-                []
+            PathingNotNecessary ->
+              setCooldown 1
 
-            --                 AStar.findPath
-            --                     tileDistance
-            --                     (getAvailableMoves game.unpassableTiles)
-            --                     unitTile
-            --                     (vec2Tile targetPosition)
-            --                     targetDistance
-            idealDelta =
-                case path of
+            PathingCooldown counter ->
+              if counter > 1 then
+                setCooldown (counter - 1)
+              else
+                case AStar.findPath tileDistance (getAvailableMoves game) (vec2Tile unit.position) (vec2Tile targetPosition) 0 of
+                    -- no path to target
                     [] ->
-                        Vec2.sub targetPosition unit.position
+                        setCooldown 10
 
-                    head :: tail ->
-                        Vec2.sub (tile2Vec head) (tile2Vec unitTile)
-
-            speed =
-                1
-
-            maxLength =
-                speed * dt
-
-            viableDelta =
-                clampToRadius maxLength idealDelta
-
-            moveAngle =
-                Game.turnTo (2 * pi * dt) (Game.vecToAngle viableDelta) unit.moveAngle
-        in
-        DeltaGame (deltaGameUnitMoves unit.id moveAngle viableDelta)
+                    -- new path
+                    pathHead :: pathTail ->
+                        moveTo (tile2Vec pathHead) pathTail
 
 
-deltaGameUnitMoves : Id -> Float -> Vec2 -> Game -> Game
-deltaGameUnitMoves unitId moveAngle dx game =
+updateMove : Id -> Seconds -> Vec2 -> List Tile2 -> Game -> Game
+updateMove unitId dt nextPosition pathTail game =
     Game.withUnit game unitId <|
         \unit ->
             let
-                newPosition =
-                    Vec2.add unit.position dx
+                speed =
+                    1
 
-                currentTilePosition =
+                idealDeltaPosition =
+                    Vec2.sub nextPosition unit.position
+
+                viableDeltaPosition =
+                    clampToRadius (speed * dt) idealDeltaPosition
+
+                moveAngle =
+                    Game.turnTo (2 * pi * dt) (Game.vecToAngle viableDeltaPosition) unit.moveAngle
+
+                position =
+                    Vec2.add unit.position viableDeltaPosition
+
+                oldTile =
                     vec2Tile unit.position
 
-                newTilePosition =
-                    vec2Tile newPosition
+                newTile =
+                    vec2Tile position
             in
-            if currentTilePosition /= newTilePosition && Set.member newTilePosition game.unpassableTiles then
-                -- destination tile occupied, don't move
-                game
+            if newTile /= oldTile && Set.member newTile game.unpassableTiles then
+                -- destination tile occupied: don't move, reset path
+                Game.updateUnit
+                    { unit
+                        | pathing = PathingCooldown 10
+                        , moveAngle = moveAngle
+                    }
+                    game
             else
-                -- destination tile available, mark it as occupied and move unit
                 let
-                    newUnit =
-                        { unit | position = newPosition, moveAngle = moveAngle }
+                    nextTile =
+                        vec2Tile nextPosition
 
-                    unpassableTiles =
-                        Set.insert newTilePosition game.unpassableTiles
+                    pathing =
+                        if newTile == nextTile then
+                            PathingNotNecessary
+                        else
+                            PathingFollow nextTile pathTail
                 in
-                { game | unpassableTiles = unpassableTiles }
-                    |> Game.updateUnit newUnit
+                -- destination tile available, mark it as occupied and move unit
+                Game.updateUnit
+                    { unit
+                        | position = position
+                        , moveAngle = moveAngle
+                        , pathing = pathing
+                    }
+                    { game | unpassableTiles = Set.insert newTile game.unpassableTiles }
 
 
 
+{-
+         let
+             (pathHead, pathTail) =
+               case unit.path of
+                 [] ->
+                   makeAStarPath
+
+
+
+
+           let
+               targetTile =
+                 vec2Tile targetPosition
+
+               unitTile =
+                   vec2Tile unit.position
+           in
+               if targetTile == unitTile then
+                 ---------------------------------- subtileMovement
+               else
+                 let
+                      =
+                     case unit.path of
+                       [] -> makeAStarPath
+
+                     let
+                       path =
+                     in
+                         [ setAstarPath path
+                         ,  List.head xs |> subTileMovementTowards
+                         ]
+
+               path =
+                   []
+
+               --                 AStar.findPath
+               --                     tileDistance
+               --                     (getAvailableMoves game.unpassableTiles)
+               --                     unitTile
+               --                     (vec2Tile targetPosition)
+               --                     targetDistance
+               idealDelta =
+                   case path of
+                       [] ->
+                           Vec2.sub targetPosition unit.position
+
+                       head :: tail ->
+                           Vec2.sub (tile2Vec head) (tile2Vec unitTile)
+
+               speed =
+                   1
+
+               maxLength =
+                   speed * dt
+
+               viableDelta =
+                   clampToRadius maxLength idealDelta
+
+               moveAngle =
+                   Game.turnTo (2 * pi * dt) (Game.vecToAngle viableDelta) unit.moveAngle
+           in
+           DeltaGame (deltaGameUnitMoves unit.id moveAngle viableDelta)
+
+
+   deltaGameUnitMoves : Id -> Float -> Vec2 -> Game -> Game
+   deltaGameUnitMoves unitId moveAngle dx game =
+       Game.withUnit game unitId <|
+           \unit ->
+               let
+                   newPosition =
+                       Vec2.add unit.position dx
+
+                   currentTilePosition =
+                       vec2Tile unit.position
+
+                   newTilePosition =
+                       vec2Tile newPosition
+               in
+               if currentTilePosition /= newTilePosition && Set.member newTilePosition game.unpassableTiles then
+                   -- destination tile occupied, don't move
+                   game
+               else
+                   -- destination tile available, mark it as occupied and move unit
+                   let
+                       newUnit =
+                           { unit | position = newPosition, moveAngle = moveAngle }
+
+                       unpassableTiles =
+                           Set.insert newTilePosition game.unpassableTiles
+                   in
+                   { game | unpassableTiles = unpassableTiles }
+                       |> Game.updateUnit newUnit
+
+-}
 -- Enter base
 
 
@@ -360,9 +471,9 @@ thinkMovement dt game unit sub =
                     case List.Extra.find baseIsConquerable (Dict.values game.baseById) of
                         Just base ->
                             if baseDistance base > Base.maximumDistanceForUnitToEnterBase then
-                                move dt game base.position unit
+                                deltaMove dt game base.position unit
                             else
                                 DeltaGame (deltaGameUnitEntersBase unit.id base.id)
 
                         Nothing ->
-                            move dt game player.markerPosition unit
+                            deltaMove dt game player.markerPosition unit
