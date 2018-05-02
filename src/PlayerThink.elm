@@ -6,6 +6,7 @@ import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Pathfinding
 import Set exposing (Set)
 import Unit
 import View.Gfx
@@ -143,7 +144,13 @@ mechThink input dt game unit mech =
 
         moveTarget =
             if input.rally then
-                DeltaPlayer unit.ownerId (\g p -> { p | markerPosition = unit.position })
+                DeltaPlayer unit.ownerId
+                    (\g p ->
+                        { p
+                            | markerPosition = unit.position
+                            , pathing = Pathfinding.makePaths g (vec2Tile unit.position)
+                        }
+                    )
             else
                 DeltaNone
 
