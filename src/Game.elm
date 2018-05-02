@@ -189,10 +189,19 @@ type UnitComponent
     | UnitSub SubComponent
 
 
+type Pathing
+    = PathingNotNecessary
+    | PathingFollow Tile2 (List Tile2)
+    | PathingCooldown Int
+
+
+
 type alias Unit =
     { id : Id
     , component : UnitComponent
     , ownerId : Id
+
+    --
     , integrity : Float
     , position : Vec2
     , timeToReload : Seconds
@@ -201,6 +210,9 @@ type alias Unit =
     , fireAngle : Float
     , lookAngle : Float
     , moveAngle : Float
+
+    --
+    , pathing : Pathing
     }
 
 
@@ -215,16 +227,21 @@ addUnit component ownerId position game =
 
         unit =
             { id = id
+            , component = component
             , ownerId = ownerId
+
+            --
             , position = position
             , integrity = 1
             , timeToReload = 0
-            , component = component
 
             --
             , lookAngle = faceCenterOfMap
             , fireAngle = faceCenterOfMap
             , moveAngle = faceCenterOfMap
+
+            --
+            , pathing = PathingCooldown 1
             }
 
         unitById =
