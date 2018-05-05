@@ -181,7 +181,7 @@ type alias MechComponent =
 
 type alias SubComponent =
     { mode : UnitMode
-    , maybeTargetId : Maybe Id
+    , targetId : Id
     }
 
 
@@ -267,7 +267,7 @@ addUnit component ownerId position game =
 addSub : Id -> Vec2 -> Game -> ( Game, Unit )
 addSub =
     { mode = UnitModeFree
-    , maybeTargetId = Nothing
+    , targetId = -1
     }
         |> UnitSub
         |> addUnit

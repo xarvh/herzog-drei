@@ -77,7 +77,7 @@ searchForTargets game unit =
             if distance > Unit.subShootRange then
                 Nothing
             else
-                (\sub -> { sub | maybeTargetId = Just target.id })
+                (\sub -> { sub | targetId = target.id })
                     |> updateSub
                     |> deltaUnit unit.id
                     |> Just
@@ -113,7 +113,7 @@ searchForTargetOrAlignToMovement dt game unit =
 
 thinkTarget : Float -> Game -> Unit -> SubComponent -> Delta
 thinkTarget dt game unit sub =
-    case sub.maybeTargetId |> Maybe.andThen (\id -> Dict.get id game.unitById) of
+    case Dict.get sub.targetId game.unitById of
         Nothing ->
             searchForTargetOrAlignToMovement dt game unit
 
