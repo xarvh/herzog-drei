@@ -7,7 +7,7 @@ import Game exposing (..)
 
 
 subReloadTime =
-    5.0
+    4.0
 
 
 subShootRange =
@@ -15,7 +15,7 @@ subShootRange =
 
 
 subShootDamage =
-    8
+    11
 
 
 

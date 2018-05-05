@@ -140,7 +140,7 @@ updateOccupied update game base =
 
 deltaRepairUnit : Seconds -> Id -> Id -> Delta
 deltaRepairUnit dt baseId unitId =
-    DeltaGame <|
+    deltaGame <|
         \game ->
             Game.withBase game baseId <|
                 \base ->
@@ -155,7 +155,7 @@ deltaRepairUnit dt baseId unitId =
                                         ( repairRate, productionToIntegrityRatio ) =
                                             case unit.component of
                                                 UnitMech _ ->
-                                                    ( 0.3, 1.5 )
+                                                    ( 0.3, 1.0 )
 
                                                 UnitSub _ ->
                                                     ( 0.1, 3.0 )

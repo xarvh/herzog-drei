@@ -79,11 +79,11 @@ think dt game projectile =
         in
         case List.Extra.minimumBy (\u -> Vec2.distanceSquared oldPosition u.position) collidedUnits of
             Just unit ->
-                DeltaList
+                deltaList
                     [ Game.deltaRemoveProjectile projectile.id
                     , View.Gfx.deltaAddExplosion (Vec2.add newPosition oldPosition |> Vec2.scale 0.5) 0.2
-                    , DeltaUnit unit.id (Unit.takeDamage Unit.mechShootDamage)
+                    , deltaUnit unit.id (Unit.takeDamage Unit.mechShootDamage)
                     ]
 
             Nothing ->
-                DeltaProjectile projectile.id (\g p -> { p | position = newPosition })
+                deltaProjectile projectile.id (\g p -> { p | position = newPosition })

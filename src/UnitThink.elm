@@ -13,9 +13,9 @@ import View.Sub
 think : Float -> Game -> Unit -> Delta
 think dt game unit =
     if unit.integrity <= 0 then
-        DeltaList
-            [ DeltaList
-                [ DeltaGame (Game.removeUnit unit.id)
+        deltaList
+            [ deltaList
+                [ deltaGame (Game.removeUnit unit.id)
                 , View.Gfx.deltaAddExplosion unit.position 1.0
                 ]
             , case unit.component of
@@ -26,14 +26,14 @@ think dt game unit =
                     respawnMech game unit.ownerId
             ]
     else
-        DeltaList
+        deltaList
             [ thinkReload dt game unit
             , case unit.component of
                 UnitSub sub ->
                     SubThink.think dt game unit sub
 
                 UnitMech mech ->
-                    DeltaNone
+                    deltaNone
             ]
 
 
@@ -48,9 +48,9 @@ thinkReload dt game unit =
             timeToReload =
                 max 0 (unit.timeToReload - dt)
         in
-        DeltaUnit unit.id (\g u -> { u | timeToReload = timeToReload })
+        deltaUnit unit.id (\g u -> { u | timeToReload = timeToReload })
     else
-        DeltaNone
+        deltaNone
 
 
 
@@ -61,7 +61,7 @@ respawnMech : Game -> Id -> Delta
 respawnMech game playerId =
     case Base.playerMainBase game playerId of
         Nothing ->
-            DeltaNone
+            deltaNone
 
         Just mainBase ->
-            DeltaBase mainBase.id (Base.updateOccupied <| \o -> { o | buildCompletion = 0, buildTarget = BuildMech })
+            deltaBase mainBase.id (Base.updateOccupied <| \o -> { o | buildCompletion = 0, buildTarget = BuildMech })

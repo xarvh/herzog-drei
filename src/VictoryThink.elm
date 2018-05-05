@@ -9,7 +9,7 @@ import List.Extra
 think : Seconds -> Game -> Delta
 think dt game =
     if game.maybeWinnerId /= Nothing then
-        DeltaNone
+        deltaNone
     else
         let
             playersWithoutMainBases =
@@ -19,7 +19,7 @@ think dt game =
         in
         case playersWithoutMainBases of
             [] ->
-                DeltaNone
+                deltaNone
 
             [ oneLoser ] ->
                 let
@@ -30,8 +30,8 @@ think dt game =
                             |> Maybe.map .id
                             |> Maybe.withDefault -1
                 in
-                DeltaGame (\g -> { g | maybeWinnerId = Just winnerId })
+                deltaGame (\g -> { g | maybeWinnerId = Just winnerId })
 
             _ ->
                 -- mutual annhilation?
-                DeltaGame (\g -> { g | maybeWinnerId = Just -1 })
+                deltaGame (\g -> { g | maybeWinnerId = Just -1 })

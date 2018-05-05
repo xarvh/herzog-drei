@@ -151,7 +151,7 @@ addProjectile { ownerId, position, angle } game =
 
 deltaAddProjectile : ProjectileSeed -> Delta
 deltaAddProjectile p =
-    addProjectile p |> DeltaGame
+    addProjectile p |> deltaGame
 
 
 removeProjectile : Id -> Game -> Game
@@ -161,7 +161,7 @@ removeProjectile id game =
 
 deltaRemoveProjectile : Id -> Delta
 deltaRemoveProjectile id =
-    removeProjectile id |> DeltaGame
+    removeProjectile id |> deltaGame
 
 
 
@@ -181,7 +181,7 @@ type alias MechComponent =
 
 type alias SubComponent =
     { mode : UnitMode
-    , maybeTargetId : Maybe Id
+    , targetId : Id
     }
 
 
@@ -202,6 +202,9 @@ type alias Unit =
     , fireAngle : Float
     , lookAngle : Float
     , moveAngle : Float
+
+    --
+    , isLeavingBase : Bool
     }
 
 
@@ -210,6 +213,30 @@ addUnit component ownerId position game =
     let
         id =
             game.lastId + 1
+
+        ( x, y ) =
+            Vec2.toTuple position
+
+        -- When a newly constructed unit leaves the base, it will face the
+        -- orhtogonal direction closest to the center.
+        startAngle =
+          Debug.log "s" <|
+            case ( y > x, y > -x ) of
+                ( True, True ) ->
+                    -- base is above map center, unit exits down
+                    pi
+
+                ( False, True ) ->
+                    -- base is right of map center, unit exits left
+                    -pi / 2
+
+                ( False, False ) ->
+                    -- base is below map center, unit exits up
+                    0
+
+                ( True, False ) ->
+                    -- base left of map center, unit exits right
+                    pi / 2
 
         faceCenterOfMap =
             Vec2.negate position |> vecToAngle
@@ -223,9 +250,12 @@ addUnit component ownerId position game =
             , component = component
 
             --
-            , lookAngle = faceCenterOfMap
-            , fireAngle = faceCenterOfMap
-            , moveAngle = faceCenterOfMap
+            , lookAngle = startAngle
+            , fireAngle = startAngle
+            , moveAngle = startAngle
+
+            --
+            , isLeavingBase = True
             }
 
         unitById =
@@ -237,7 +267,7 @@ addUnit component ownerId position game =
 addSub : Id -> Vec2 -> Game -> ( Game, Unit )
 addSub =
     { mode = UnitModeFree
-    , maybeTargetId = Nothing
+    , targetId = -1
     }
         |> UnitSub
         |> addUnit
@@ -314,9 +344,10 @@ type alias Base =
 
 
 type GfxRender
-    = Beam Vec2 Vec2 ColorPattern
-    | Explosion Vec2 Float
-    | ProjectileCase Vec2 Angle
+    = GfxBeam Vec2 Vec2 ColorPattern
+    | GfxExplosion Vec2 Float
+    | GfxProjectileCase Vec2 Angle
+    | GfxRepairBeam Vec2 Vec2
 
 
 type alias Gfx =
@@ -391,10 +422,55 @@ type Delta
     = DeltaNone
     | DeltaList (List Delta)
     | DeltaGame (Game -> Game)
-    | DeltaPlayer Id (Game -> Player -> Player)
-    | DeltaUnit Id (Game -> Unit -> Unit)
-    | DeltaBase Id (Game -> Base -> Base)
-    | DeltaProjectile Id (Game -> Projectile -> Projectile)
+
+
+deltaNone : Delta
+deltaNone =
+    DeltaNone
+
+
+deltaList : List Delta -> Delta
+deltaList =
+    DeltaList
+
+
+deltaGame : (Game -> Game) -> Delta
+deltaGame =
+    DeltaGame
+
+
+deltaBase : Id -> (Game -> Base -> Base) -> Delta
+deltaBase =
+    deltaEntity .baseById updateBase
+
+
+deltaPlayer : Id -> (Game -> Player -> Player) -> Delta
+deltaPlayer =
+    deltaEntity .playerById updatePlayer
+
+
+deltaUnit : Id -> (Game -> Unit -> Unit) -> Delta
+deltaUnit =
+    deltaEntity .unitById updateUnit
+
+
+deltaProjectile : Id -> (Game -> Projectile -> Projectile) -> Delta
+deltaProjectile =
+    deltaEntity .projectileById updateProjectile
+
+
+deltaEntity : (Game -> Dict Id a) -> (a -> Game -> Game) -> Id -> (Game -> a -> a) -> Delta
+deltaEntity getter setter entityId updateEntity =
+    let
+        updateGame game =
+            case Dict.get entityId (getter game) of
+                Nothing ->
+                    game
+
+                Just entity ->
+                    setter (updateEntity game entity) game
+    in
+    DeltaGame updateGame
 
 
 
@@ -414,6 +490,11 @@ updatePlayer player game =
 updateUnit : Unit -> Game -> Game
 updateUnit unit game =
     { game | unitById = Dict.insert unit.id unit game.unitById }
+
+
+updateProjectile : Projectile -> Game -> Game
+updateProjectile projectile game =
+    { game | projectileById = Dict.insert projectile.id projectile game.projectileById }
 
 
 with : (Game -> Dict Id a) -> Game -> Id -> (a -> Game) -> Game

@@ -40,13 +40,13 @@ think : Float -> Game -> Base -> Delta
 think dt game base =
     case base.maybeOccupied of
         Nothing ->
-            DeltaNone
+            deltaNone
 
         Just occupied ->
             if not occupied.isActive then
-                DeltaNone
+                deltaNone
             else
-                DeltaList
+                deltaList
                     [ deltaBuildProgress dt game base occupied
                     , deltaRepairEmbeddedSubs dt game base occupied
                     ]
@@ -55,14 +55,14 @@ think dt game base =
 deltaRepairEmbeddedSubs : Seconds -> Game -> Base -> BaseOccupied -> Delta
 deltaRepairEmbeddedSubs dt game base occupied =
     if occupied.buildCompletion <= 0 then
-        DeltaNone
+        deltaNone
     else
         occupied.unitIds
             |> Set.toList
             |> List.filterMap (\id -> Dict.get id game.unitById)
             |> List.filter (\u -> u.integrity < 1)
             |> List.map (\u -> Base.deltaRepairUnit dt base.id u.id)
-            |> DeltaList
+            |> deltaList
 
 
 deltaBuildProgress : Seconds -> Game -> Base -> BaseOccupied -> Delta
@@ -72,21 +72,17 @@ deltaBuildProgress dt game base occupied =
             dt * buildSpeed occupied
     in
     if occupied.buildCompletion + completionIncrease < 1 || (occupied.buildTarget == BuildSub && playerHasReachedUnitCap game occupied.playerId) then
-        DeltaBase base.id (Base.updateOccupied (\o -> { o | buildCompletion = o.buildCompletion + completionIncrease |> min 1 }))
+        deltaBase base.id (Base.updateOccupied (\o -> { o | buildCompletion = o.buildCompletion + completionIncrease |> min 1 }))
     else
-        let
-            position =
-                Vec2.add base.position (vec2 3 0)
-        in
-        DeltaList
-            [ DeltaBase base.id (Base.updateOccupied (\o -> { o | buildCompletion = 0 }))
+        deltaList
+            [ deltaBase base.id (Base.updateOccupied (\o -> { o | buildCompletion = 0 }))
             , case occupied.buildTarget of
                 BuildSub ->
-                    DeltaGame (\g -> Game.addSub occupied.playerId position g |> Tuple.first)
+                    deltaGame (\g -> Game.addSub occupied.playerId base.position g |> Tuple.first)
 
                 BuildMech ->
-                    DeltaList
-                        [ DeltaGame (\g -> Game.addMech occupied.playerId base.position g |> Tuple.first)
-                        , DeltaBase base.id (Base.updateOccupied <| \o -> { o | buildTarget = BuildSub })
+                    deltaList
+                        [ deltaGame (\g -> Game.addMech occupied.playerId base.position g |> Tuple.first)
+                        , deltaBase base.id (Base.updateOccupied <| \o -> { o | buildTarget = BuildSub })
                         ]
             ]
