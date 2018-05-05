@@ -111,17 +111,41 @@ kickstartPathing game =
 --
 
 
+rect : Int -> Int -> Int -> Int -> List Tile2
+rect x y w h =
+    List.range x (x + w - 1)
+        |> List.map
+            (\xx ->
+                List.range y (y + h - 1)
+                    |> List.map
+                        (\yy ->
+                            ( xx, yy )
+                        )
+            )
+        |> List.concat
+
+
+mirror : List Tile2 -> List Tile2
+mirror tiles =
+    tiles
+        |> List.map (\( x, y ) -> ( -x - 1, -y - 1))
+        |> (++) tiles
+
+
+
+--
+
+
 basicGame : Game
 basicGame =
     let
         walls =
-            [ ( 0, 0 )
-            , ( 1, 0 )
-            , ( 2, 0 )
-            , ( 3, 0 )
-            , ( 3, 1 )
-            , ( 4, 2 )
+            [ rect -3 -5 1 4
+            , rect -10 -2 3 2
+            , rect -18 7 4 3
             ]
+                |> List.concat
+                |> mirror
 
         game =
             Random.initialSeed 0 |> Game.new
