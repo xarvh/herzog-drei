@@ -16,6 +16,11 @@ import View.Gfx
 import View.Sub
 
 
+subSpeed =
+    1.0
+
+
+
 -- Think
 
 
@@ -183,28 +188,11 @@ move dt game targetPosition unit =
             unitTile =
                 vec2Tile unit.position
 
-            path =
-                []
-
-            --                 AStar.findPath
-            --                     tileDistance
-            --                     (getAvailableMoves game.unpassableTiles)
-            --                     unitTile
-            --                     (vec2Tile targetPosition)
-            --                     targetDistance
             idealDelta =
-                case path of
-                    [] ->
-                        Vec2.sub targetPosition unit.position
-
-                    head :: tail ->
-                        Vec2.sub (tile2Vec head) (tile2Vec unitTile)
-
-            speed =
-                1
+                Vec2.sub targetPosition unit.position
 
             maxLength =
-                speed * dt
+                subSpeed * dt
 
             viableDelta =
                 clampToRadius maxLength idealDelta
@@ -359,32 +347,39 @@ thinkMovement dt game unit sub =
             deltaNone
 
         UnitModeFree ->
-            {-
-               Movement:
-                 if base nearby && can be entered -> move / enter
-                 else -> move to marker
-            -}
-            case Dict.get unit.ownerId game.playerById of
-                Nothing ->
-                    deltaNone
+            if unit.isLeavingBase then
+                deltaUnit unit.id <|
+                    if Set.member (vec2Tile unit.position) game.staticObstacles then
+                        \g u -> { u | position = Vec2.add u.position (Vec2.scale (dt * subSpeed) (angleToVector unit.moveAngle)) }
+                    else
+                        \g u -> { u | isLeavingBase = False }
+            else
+                {-
+                   Movement:
+                     if base nearby && can be entered -> move / enter
+                     else -> move to marker
+                -}
+                case Dict.get unit.ownerId game.playerById of
+                    Nothing ->
+                        deltaNone
 
-                Just player ->
-                    let
-                        conquerBaseDistanceThreshold =
-                            3.0
+                    Just player ->
+                        let
+                            conquerBaseDistanceThreshold =
+                                3.0
 
-                        baseDistance base =
-                            vectorDistance base.position unit.position - toFloat (Base.size base // 2)
+                            baseDistance base =
+                                vectorDistance base.position unit.position - toFloat (Base.size base // 2)
 
-                        baseIsConquerable base =
-                            (baseDistance base < conquerBaseDistanceThreshold) && Base.unitCanEnter unit base
-                    in
-                    case List.Extra.find baseIsConquerable (Dict.values game.baseById) of
-                        Just base ->
-                            if baseDistance base > Base.maximumDistanceForUnitToEnterBase then
-                                move dt game base.position unit
-                            else
-                                deltaGame (deltaGameUnitEntersBase unit.id base.id)
+                            baseIsConquerable base =
+                                (baseDistance base < conquerBaseDistanceThreshold) && Base.unitCanEnter unit base
+                        in
+                        case List.Extra.find baseIsConquerable (Dict.values game.baseById) of
+                            Just base ->
+                                if baseDistance base > Base.maximumDistanceForUnitToEnterBase then
+                                    move dt game base.position unit
+                                else
+                                    deltaGame (deltaGameUnitEntersBase unit.id base.id)
 
-                        Nothing ->
-                            movePath dt game player.pathing unit
+                            Nothing ->
+                                movePath dt game player.pathing unit

@@ -74,15 +74,11 @@ deltaBuildProgress dt game base occupied =
     if occupied.buildCompletion + completionIncrease < 1 || (occupied.buildTarget == BuildSub && playerHasReachedUnitCap game occupied.playerId) then
         deltaBase base.id (Base.updateOccupied (\o -> { o | buildCompletion = o.buildCompletion + completionIncrease |> min 1 }))
     else
-        let
-            position =
-                Vec2.add base.position (vec2 3 0)
-        in
         deltaList
             [ deltaBase base.id (Base.updateOccupied (\o -> { o | buildCompletion = 0 }))
             , case occupied.buildTarget of
                 BuildSub ->
-                    deltaGame (\g -> Game.addSub occupied.playerId position g |> Tuple.first)
+                    deltaGame (\g -> Game.addSub occupied.playerId base.position g |> Tuple.first)
 
                 BuildMech ->
                     deltaList

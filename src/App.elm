@@ -4,21 +4,7 @@ import AnimationFrame
 import Base
 import ColorPattern exposing (neutral)
 import Dict exposing (Dict)
-import Game
-    exposing
-        ( Base
-        , Game
-        , Id
-        , MechComponent
-        , Player
-        , Projectile
-        , SubComponent
-        , Unit
-        , UnitComponent(..)
-        , clampToRadius
-        , tile2Vec
-        , vec2Tile
-        )
+import Game exposing (..)
 import Game.Init
 import Game.Update
 import Html exposing (div)
@@ -45,9 +31,6 @@ import View.Mech
 import View.Projectile
 import View.Sub
 import Window
-
-
---
 
 
 type Msg
@@ -455,6 +438,10 @@ viewPlayer model ( player, viewport ) =
             ]
             --[ View.Background.terrain (model.time / 1000)
             [ checkersBackground model.game
+            , subs
+                |> List.filter (\( u, s ) -> s.mode == UnitModeFree && isWithinViewport u.position 0.7)
+                |> List.map (viewSub game)
+                |> Svg.g []
             , game.wallTiles
                 |> Set.toList
                 |> List.filter (\pos -> isWithinViewport (tile2Vec pos) 1)
@@ -466,7 +453,7 @@ viewPlayer model ( player, viewport ) =
                 |> List.map (viewBase game)
                 |> Svg.g []
             , subs
-                |> List.filter (\( u, s ) -> isWithinViewport u.position 0.7)
+                |> List.filter (\( u, s ) -> s.mode /= UnitModeFree && isWithinViewport u.position 0.7)
                 |> List.map (viewSub game)
                 |> Svg.g []
             , mechs

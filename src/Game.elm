@@ -202,6 +202,9 @@ type alias Unit =
     , fireAngle : Float
     , lookAngle : Float
     , moveAngle : Float
+
+    --
+    , isLeavingBase : Bool
     }
 
 
@@ -210,6 +213,30 @@ addUnit component ownerId position game =
     let
         id =
             game.lastId + 1
+
+        ( x, y ) =
+            Vec2.toTuple position
+
+        -- When a newly constructed unit leaves the base, it will face the
+        -- orhtogonal direction closest to the center.
+        startAngle =
+          Debug.log "s" <|
+            case ( y > x, y > -x ) of
+                ( True, True ) ->
+                    -- base is above map center, unit exits down
+                    pi
+
+                ( False, True ) ->
+                    -- base is right of map center, unit exits left
+                    -pi / 2
+
+                ( False, False ) ->
+                    -- base is below map center, unit exits up
+                    0
+
+                ( True, False ) ->
+                    -- base left of map center, unit exits right
+                    pi / 2
 
         faceCenterOfMap =
             Vec2.negate position |> vecToAngle
@@ -223,9 +250,12 @@ addUnit component ownerId position game =
             , component = component
 
             --
-            , lookAngle = faceCenterOfMap
-            , fireAngle = faceCenterOfMap
-            , moveAngle = faceCenterOfMap
+            , lookAngle = startAngle
+            , fireAngle = startAngle
+            , moveAngle = startAngle
+
+            --
+            , isLeavingBase = True
             }
 
         unitById =
