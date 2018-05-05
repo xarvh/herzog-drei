@@ -215,18 +215,6 @@ circle pos color size =
         []
 
 
-square : Vec2 -> String -> Float -> Svg a
-square pos color size =
-    Svg.rect
-        [ x <| Vec2.getX pos
-        , y <| Vec2.getY pos
-        , width size
-        , height size
-        , fill color
-        ]
-        []
-
-
 viewBase : Game -> Base -> Svg Msg
 viewBase game base =
     let
@@ -332,6 +320,30 @@ viewHealthbar unit =
         Svg.text ""
     else
         View.Hud.healthBar unit.position unit.integrity
+
+
+viewWall : Tile2 -> Svg a
+viewWall ( xi, yi ) =
+    let
+        xf = toFloat xi
+        yf = toFloat yi
+
+        c = sin (xf * 9982399) + sin (yf * 17324650)
+        d = sin (xf * 1372347) + sin (yf * 98325987)
+
+        rot = 5 * c
+
+        color = (1 + d) / 4 * 255 |> floor |> toString
+    in
+    Svg.rect
+        [ transform [translate2 (xf + 0.5) (yf + 0.5), rotateDeg rot ]
+        , x -0.55
+        , y -0.55
+        , width 1.1
+        , height 1.1
+        , fill <| "rgb(" ++ color ++ "," ++ color ++ "," ++ color ++ ")"
+        ]
+        []
 
 
 
@@ -445,7 +457,7 @@ viewPlayer model ( player, viewport ) =
             , game.wallTiles
                 |> Set.toList
                 |> List.filter (\pos -> isWithinViewport (tile2Vec pos) 1)
-                |> List.map (\pos -> square (tile2Vec pos) "gray" 1)
+                |> List.map viewWall
                 |> Svg.g []
             , game.baseById
                 |> Dict.values
