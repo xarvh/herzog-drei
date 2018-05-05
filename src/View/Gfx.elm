@@ -22,7 +22,7 @@ deltaAddProjectileCase origin angle =
     deltaAddGfx
         { age = 0
         , maxAge = 0.2
-        , render = ProjectileCase origin angle
+        , render = GfxProjectileCase origin angle
         }
 
 
@@ -31,7 +31,16 @@ deltaAddBeam start end colorPattern =
     deltaAddGfx
         { age = 0
         , maxAge = 2.0
-        , render = Beam start end colorPattern
+        , render = GfxBeam start end colorPattern
+        }
+
+
+deltaAddRepairBeam : Vec2 -> Vec2 -> Delta
+deltaAddRepairBeam start end =
+    deltaAddGfx
+        { age = 0
+        , maxAge = 0.04
+        , render = GfxRepairBeam start end
         }
 
 
@@ -40,7 +49,7 @@ deltaAddExplosion position size =
     deltaAddGfx
         { age = 0
         , maxAge = 1.0
-        , render = Explosion position size
+        , render = GfxExplosion position size
         }
 
 
@@ -71,7 +80,34 @@ render cosmetic =
             cosmetic.age / cosmetic.maxAge
     in
     case cosmetic.render of
-        ProjectileCase origin angle ->
+        GfxRepairBeam start end ->
+            let
+                dp =
+                    Vec2.sub end start
+
+                a =
+                    vecToAngle dp
+
+                l =
+                    Vec2.length dp
+
+                x1 =
+                    sin (13 * t)
+
+                x2 =
+                    cos (50 * t)
+            in
+            path
+                [ transform [ translate start, rotateRad a, scale2 1 l ]
+                , d <| "M0,0 C" ++ toString x1 ++ ",0.33 " ++ toString x2 ++ ",0.66 0,1"
+                , fill "none"
+                , stroke "#2f0"
+                , strokeWidth 0.06
+                , opacity 0.8
+                ]
+                []
+
+        GfxProjectileCase origin angle ->
             rect
                 [ transform
                     [ translate origin
@@ -86,7 +122,7 @@ render cosmetic =
                 ]
                 []
 
-        Beam start end colorPattern ->
+        GfxBeam start end colorPattern ->
             let
                 ( sx, sy ) =
                     Vec2.toTuple start
@@ -105,7 +141,7 @@ render cosmetic =
                 ]
                 []
 
-        Explosion position size ->
+        GfxExplosion position size ->
             let
                 particleCount =
                     5

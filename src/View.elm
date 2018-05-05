@@ -81,6 +81,11 @@ scale s =
     "scale(" ++ toString s ++ ")"
 
 
+scale2 : Float -> Float -> String
+scale2 x y =
+    "scale(" ++ toString x ++ "," ++ toString y ++ ")"
+
+
 rotateRad : Angle -> String
 rotateRad angle =
     rotateDeg <| angle * (180 / pi)

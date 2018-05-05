@@ -344,9 +344,10 @@ type alias Base =
 
 
 type GfxRender
-    = Beam Vec2 Vec2 ColorPattern
-    | Explosion Vec2 Float
-    | ProjectileCase Vec2 Angle
+    = GfxBeam Vec2 Vec2 ColorPattern
+    | GfxExplosion Vec2 Float
+    | GfxProjectileCase Vec2 Angle
+    | GfxRepairBeam Vec2 Vec2
 
 
 type alias Gfx =
