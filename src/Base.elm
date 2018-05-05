@@ -140,7 +140,7 @@ updateOccupied update game base =
 
 deltaRepairUnit : Seconds -> Id -> Id -> Delta
 deltaRepairUnit dt baseId unitId =
-    DeltaGame <|
+    deltaGame <|
         \game ->
             Game.withBase game baseId <|
                 \base ->

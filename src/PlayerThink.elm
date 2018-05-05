@@ -57,7 +57,7 @@ moveViewportToBase : Seconds -> Game -> Player -> Delta
 moveViewportToBase dt game player =
     case Base.playerMainBase game player.id of
         Nothing ->
-            DeltaNone
+            deltaNone
 
         Just mainBase ->
             let
@@ -83,9 +83,9 @@ moveViewportToBase dt game player =
                     Vec2.add player.viewportPosition maxDp
             in
             if length < 0.01 then
-                DeltaNone
+                deltaNone
             else
-                DeltaPlayer player.id (\g p -> { p | viewportPosition = position })
+                deltaPlayer player.id (\g p -> { p | viewportPosition = position })
 
 
 mechThink : PlayerInput -> Seconds -> Game -> Unit -> MechComponent -> Delta
@@ -140,11 +140,11 @@ mechThink input dt game unit mech =
                 }
             )
                 |> Game.updateMech
-                |> DeltaUnit unit.id
+                |> deltaUnit unit.id
 
         moveTarget =
             if input.rally then
-                DeltaPlayer unit.ownerId
+                deltaPlayer unit.ownerId
                     (\g p ->
                         { p
                             | markerPosition = unit.position
@@ -152,7 +152,7 @@ mechThink input dt game unit mech =
                         }
                     )
             else
-                DeltaNone
+                deltaNone
 
         updatePosition =
             case Unit.transformMode mech of
@@ -166,16 +166,16 @@ mechThink input dt game unit mech =
             updatePosition dx game unit |> Game.clampToGameSize game 1
 
         moveMech =
-            DeltaUnit unit.id (\g u -> { u | position = newPosition })
+            deltaUnit unit.id (\g u -> { u | position = newPosition })
 
         moveViewport =
-            DeltaPlayer unit.ownerId (\g p -> { p | viewportPosition = newPosition })
+            deltaPlayer unit.ownerId (\g p -> { p | viewportPosition = newPosition })
 
         reload =
             if unit.timeToReload > 0 then
-                DeltaUnit unit.id (\g u -> { u | timeToReload = max 0 (u.timeToReload - dt) })
+                deltaUnit unit.id (\g u -> { u | timeToReload = max 0 (u.timeToReload - dt) })
             else
-                DeltaNone
+                deltaNone
 
         aimAngle =
             Game.vecToAngle input.aim
@@ -187,7 +187,7 @@ mechThink input dt game unit mech =
                     , fireAngle = Game.turnTo (2 * pi * dt) aimAngle u.fireAngle
                 }
             )
-                |> DeltaUnit unit.id
+                |> deltaUnit unit.id
 
         leftOrigin =
             View.Mech.leftGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
@@ -200,17 +200,17 @@ mechThink input dt game unit mech =
 
         fire =
             if input.fire && unit.timeToReload == 0 then
-                DeltaList
-                    [ DeltaUnit unit.id (\g u -> { u | timeToReload = Unit.mechReloadTime mech })
+                deltaList
+                    [ deltaUnit unit.id (\g u -> { u | timeToReload = Unit.mechReloadTime mech })
                     , deltaFire leftOrigin
                     , View.Gfx.deltaAddProjectileCase leftOrigin (aimAngle - pi - pi / 12)
                     , deltaFire rightOrigin
                     , View.Gfx.deltaAddProjectileCase rightOrigin (aimAngle + pi / 12)
                     ]
             else
-                DeltaNone
+                deltaNone
     in
-    DeltaList
+    deltaList
         [ moveTarget
         , moveViewport
         , moveMech
@@ -225,7 +225,7 @@ mechThink input dt game unit mech =
 repairDelta : Seconds -> Game -> Unit -> MechComponent -> Delta
 repairDelta dt game unit mech =
     if unit.integrity >= 1 then
-        DeltaNone
+        deltaNone
     else
         let
             canRepair base =
@@ -239,10 +239,10 @@ repairDelta dt game unit mech =
         in
         case List.Extra.find canRepair (Dict.values game.baseById) of
             Nothing ->
-                DeltaNone
+                deltaNone
 
             Just base ->
-                DeltaList
+                deltaList
                     [ Base.deltaRepairUnit dt base.id unit.id
                     , View.Gfx.deltaAddBeam base.position unit.position ColorPattern.neutral
                     ]

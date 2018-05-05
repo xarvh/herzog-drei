@@ -2,14 +2,7 @@ module View.Gfx exposing (..)
 
 import ColorPattern exposing (ColorPattern)
 import Ease
-import Game
-    exposing
-        ( Angle
-        , Delta(DeltaGame)
-        , Gfx
-        , GfxRender(..)
-        , Seconds
-        )
+import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import View exposing (..)
@@ -17,7 +10,7 @@ import View exposing (..)
 
 deltaAddGfx : Gfx -> Delta
 deltaAddGfx c =
-    DeltaGame <| \game -> { game | cosmetics = c :: game.cosmetics }
+    deltaGame <| \game -> { game | cosmetics = c :: game.cosmetics }
 
 
 

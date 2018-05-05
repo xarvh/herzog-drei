@@ -151,7 +151,7 @@ addProjectile { ownerId, position, angle } game =
 
 deltaAddProjectile : ProjectileSeed -> Delta
 deltaAddProjectile p =
-    addProjectile p |> DeltaGame
+    addProjectile p |> deltaGame
 
 
 removeProjectile : Id -> Game -> Game
@@ -161,7 +161,7 @@ removeProjectile id game =
 
 deltaRemoveProjectile : Id -> Delta
 deltaRemoveProjectile id =
-    removeProjectile id |> DeltaGame
+    removeProjectile id |> deltaGame
 
 
 
@@ -391,10 +391,55 @@ type Delta
     = DeltaNone
     | DeltaList (List Delta)
     | DeltaGame (Game -> Game)
-    | DeltaPlayer Id (Game -> Player -> Player)
-    | DeltaUnit Id (Game -> Unit -> Unit)
-    | DeltaBase Id (Game -> Base -> Base)
-    | DeltaProjectile Id (Game -> Projectile -> Projectile)
+
+
+deltaNone : Delta
+deltaNone =
+    DeltaNone
+
+
+deltaList : List Delta -> Delta
+deltaList =
+    DeltaList
+
+
+deltaGame : (Game -> Game) -> Delta
+deltaGame =
+    DeltaGame
+
+
+deltaBase : Id -> (Game -> Base -> Base) -> Delta
+deltaBase =
+    deltaEntity .baseById updateBase
+
+
+deltaPlayer : Id -> (Game -> Player -> Player) -> Delta
+deltaPlayer =
+    deltaEntity .playerById updatePlayer
+
+
+deltaUnit : Id -> (Game -> Unit -> Unit) -> Delta
+deltaUnit =
+    deltaEntity .unitById updateUnit
+
+
+deltaProjectile : Id -> (Game -> Projectile -> Projectile) -> Delta
+deltaProjectile =
+    deltaEntity .projectileById updateProjectile
+
+
+deltaEntity : (Game -> Dict Id a) -> (a -> Game -> Game) -> Id -> (Game -> a -> a) -> Delta
+deltaEntity getter setter entityId updateEntity =
+    let
+        updateGame game =
+            case Dict.get entityId (getter game) of
+                Nothing ->
+                    game
+
+                Just entity ->
+                    setter (updateEntity game entity) game
+    in
+    DeltaGame updateGame
 
 
 
@@ -414,6 +459,11 @@ updatePlayer player game =
 updateUnit : Unit -> Game -> Game
 updateUnit unit game =
     { game | unitById = Dict.insert unit.id unit game.unitById }
+
+
+updateProjectile : Projectile -> Game -> Game
+updateProjectile projectile game =
+    { game | projectileById = Dict.insert projectile.id projectile game.projectileById }
 
 
 with : (Game -> Dict Id a) -> Game -> Id -> (a -> Game) -> Game
