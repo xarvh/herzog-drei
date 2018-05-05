@@ -180,7 +180,7 @@ main_ completion bright dark =
         -- animated completion
         , circle
             [ fill dark
-            , r (1.1 * (completion - 0.3))
+            , r (0.5 * max 0 (completion - 0.3))
             , opacity 0.7
             ]
             []

@@ -220,7 +220,6 @@ addUnit component ownerId position game =
         -- When a newly constructed unit leaves the base, it will face the
         -- orhtogonal direction closest to the center.
         startAngle =
-          Debug.log "s" <|
             case ( y > x, y > -x ) of
                 ( True, True ) ->
                     -- base is above map center, unit exits down
