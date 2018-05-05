@@ -5,6 +5,7 @@ import ColorPattern
 import Dict exposing (Dict)
 import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Pathfinding
 import Random
 import Random.List
 import Set
@@ -94,6 +95,18 @@ addMainBase ownerId tile game =
         |> addEmbeddedSub ownerId base
 
 
+{-| Pathing cannot be initialised until all static obstacles are in place
+-}
+kickstartPathing : Game -> Game
+kickstartPathing game =
+    let
+        addPathing : Id -> Player -> Player
+        addPathing id player =
+            { player | pathing = Pathfinding.makePaths game (vec2Tile player.markerPosition) }
+    in
+    { game | playerById = Dict.map addPathing game.playerById }
+
+
 
 --
 
@@ -114,10 +127,10 @@ basicGame =
             Random.initialSeed 0 |> Game.new
 
         ( game_, player1 ) =
-            game |> addPlayerAndMech (vec2 -12 -4)
+            game |> addPlayerAndMech (vec2 -12 -3)
 
         ( game__, player2 ) =
-            game_ |> addPlayerAndMech (vec2 12 4)
+            game_ |> addPlayerAndMech (vec2 12 3)
     in
     { game__ | wallTiles = Set.fromList walls }
         |> Game.addStaticObstacles walls
@@ -125,3 +138,4 @@ basicGame =
         |> addSmallBase ( 5, -2 )
         |> addMainBase player1.id ( -16, -6 )
         |> addMainBase player2.id ( 16, 6 )
+        |> kickstartPathing
