@@ -159,11 +159,35 @@ main_ completion bright dark =
         , re 0.7 1.4 0.2 0.5
         , re 1.0 (1.4 + 0.1 * fastSin) 0.2 0.5
 
+        -- central static circle
+        , cir 0 0 0.5
+
+        -- orthogonal central circles
+        , g
+            [ transform [ rotateRad (pi * (slowSin - fastSin)) ] ]
+            [ re -0.5 0 0.3 0.3
+            , re 0 -0.5 0.3 0.3
+            , re 0.5 0 0.3 0.3
+            , re 0 0.5 0.3 0.3
+            ]
+
         --
-        , cir 0 0 1.1
+        , cir (0.5 * fastSin) (0.5 * slowSin) 0.1
+        , cir (0.5 * slowSin) (0.5 * -fastSin) 0.1
+        , cir (0.5 * -slowSin) (0.5 * -slowSin) 0.1
+        , cir (0.5 * -slowSin) (0.5 * fastSin) 0.1
+
+        -- animated completion
+        , circle
+            [ fill dark
+            , r (1.1 * (completion - 0.3))
+            , opacity 0.7
+            ]
+            []
         , circle
             [ fill dark
             , r (1.1 * completion)
+            , opacity (0.4 + completion / 2)
             ]
             []
         , teeth completion 1.1 dark bright
