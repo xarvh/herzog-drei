@@ -325,18 +325,26 @@ viewHealthbar unit =
 viewWall : Tile2 -> Svg a
 viewWall ( xi, yi ) =
     let
-        xf = toFloat xi
-        yf = toFloat yi
+        xf =
+            toFloat xi
 
-        c = sin (xf * 9982399) + sin (yf * 17324650)
-        d = sin (xf * 1372347) + sin (yf * 98325987)
+        yf =
+            toFloat yi
 
-        rot = 5 * c
+        c =
+            sin (xf * 9982399) + sin (yf * 17324650)
 
-        color = (1 + d) / 4 * 255 |> floor |> toString
+        d =
+            sin (xf * 1372347) + sin (yf * 98325987)
+
+        rot =
+            5 * c
+
+        color =
+            (1 + d) / 4 * 255 |> floor |> toString
     in
     Svg.rect
-        [ transform [translate2 (xf + 0.5) (yf + 0.5), rotateDeg rot ]
+        [ transform [ translate2 (xf + 0.5) (yf + 0.5), rotateDeg rot ]
         , x -0.55
         , y -0.55
         , width 1.1
@@ -510,9 +518,14 @@ splitView model =
         [ viewportsAndPlayers
             |> List.map (viewPlayer model)
             |> SplitScreen.viewportsWrapper
-        , div
-            [ style [ ( "position", "absolute" ), ( "top", "0" ) ] ]
-            [ Html.text <| "FPS " ++ toString fps ]
+        , [ "FPS " ++ toString fps
+          , "ASDW: Move"
+          , "Q: Move units"
+          , "E: Transform"
+          , "Click: Fire"
+          ]
+            |> List.map (\t -> div [] [ Html.text t ])
+            |> div [ style [ ( "position", "absolute" ), ( "top", "0" ) ] ]
         ]
 
 
