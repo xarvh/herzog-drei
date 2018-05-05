@@ -73,21 +73,51 @@ destroy game unit sub =
 searchForTargets : Game -> Unit -> Maybe Delta
 searchForTargets game unit =
     let
-        ifCloseEnough ( target, distance ) =
-            if distance > Unit.subShootRange then
+        ifCloseEnough ( target, priority ) =
+            if vectorDistance unit.position target.position > Unit.subShootRange then
                 Nothing
             else
                 (\sub -> { sub | targetId = target.id })
                     |> updateSub
                     |> deltaUnit unit.id
                     |> Just
+
+        targetPriority distance target =
+            case target.component of
+                UnitMech mech ->
+                    1
+
+                UnitSub sub ->
+                    case sub.mode of
+                        UnitModeBase baseId ->
+                            2
+
+                        UnitModeFree ->
+                            -distance
+
+        validTargetPriority target =
+            if target.ownerId == unit.ownerId then
+                Nothing
+            else
+                let
+                    distance =
+                        vectorDistance unit.position target.position
+                in
+                if distance > Unit.subShootRange then
+                    Nothing
+                else
+                    Just ( target, targetPriority distance target )
+
+        setTarget (target, priority) =
+            (\sub -> { sub | targetId = target.id })
+                |> updateSub
+                |> deltaUnit unit.id
     in
     game.unitById
         |> Dict.values
-        |> List.filter (\u -> u.ownerId /= unit.ownerId)
-        |> List.map (\u -> ( u, Game.vectorDistance unit.position u.position ))
-        |> List.Extra.minimumBy Tuple.second
-        |> Maybe.andThen ifCloseEnough
+        |> List.filterMap validTargetPriority
+        |> List.Extra.maximumBy Tuple.second
+        |> Maybe.map setTarget
 
 
 unitAlignsAimToMovement : Float -> Unit -> Delta
