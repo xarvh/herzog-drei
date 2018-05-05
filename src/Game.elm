@@ -1,6 +1,5 @@
 module Game exposing (..)
 
-import AStar
 import ColorPattern exposing (ColorPattern)
 import Dict exposing (Dict)
 import List.Extra
@@ -43,6 +42,7 @@ type alias Player =
     { id : Id
     , colorPattern : ColorPattern
     , markerPosition : Vec2
+    , pathing : Dict Tile2 Float
     , viewportPosition : Vec2
     }
 
@@ -69,6 +69,7 @@ addPlayer position game =
             { id = id
             , colorPattern = colorPattern
             , markerPosition = position
+            , pathing = Dict.empty
             , viewportPosition = position
             }
 
@@ -482,9 +483,8 @@ squarePerimeter sideLength center =
 
 
 tileDistance : Tile2 -> Tile2 -> Float
-tileDistance =
-    -- Manhattan distance
-    AStar.straightLineCost
+tileDistance ( ax, ay ) ( bx, by ) =
+    abs (ax - bx) + abs (ay - by) |> toFloat
 
 
 vectorDistance : Vec2 -> Vec2 -> Float

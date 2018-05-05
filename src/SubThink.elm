@@ -4,12 +4,12 @@ module SubThink exposing (..)
 and the Unit.think that decudes which deltas to output.
 -}
 
-import AStar
 import Base
 import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Pathfinding
 import Set exposing (Set)
 import Unit
 import View.Gfx
@@ -215,6 +215,24 @@ move dt game targetPosition unit =
         DeltaGame (deltaGameUnitMoves unit.id moveAngle viableDelta)
 
 
+movePath : Float -> Game -> Dict Tile2 Float -> Unit -> Delta
+movePath dt game paths unit =
+    let
+        unitTile =
+            vec2Tile unit.position
+
+        maybeTile =
+            Pathfinding.moves game unitTile paths
+                |> List.Extra.find (\t -> not <| Set.member t game.unpassableTiles)
+    in
+    case maybeTile of
+        Nothing ->
+            DeltaNone
+
+        Just targetTile ->
+            move dt game (tile2Vec targetTile) unit
+
+
 deltaGameUnitMoves : Id -> Float -> Vec2 -> Game -> Game
 deltaGameUnitMoves unitId moveAngle dx game =
     Game.withUnit game unitId <|
@@ -236,7 +254,10 @@ deltaGameUnitMoves unitId moveAngle dx game =
                 -- destination tile available, mark it as occupied and move unit
                 let
                     newUnit =
-                        { unit | position = newPosition, moveAngle = moveAngle }
+                        { unit
+                            | position = newPosition
+                            , moveAngle = moveAngle
+                        }
 
                     unpassableTiles =
                         Set.insert newTilePosition game.unpassableTiles
@@ -366,4 +387,4 @@ thinkMovement dt game unit sub =
                                 DeltaGame (deltaGameUnitEntersBase unit.id base.id)
 
                         Nothing ->
-                            move dt game player.markerPosition unit
+                            movePath dt game player.pathing unit
