@@ -33,14 +33,10 @@ type alias Tile2 =
 -- Players
 
 
-type Controller
-    = ControllerPlayer
-    | ControllerBot
-
 
 type alias Player =
     { id : Id
-    , controller : Controller
+    , inputSourceKey : String
     , colorPattern : ColorPattern
     , markerPosition : Vec2
     , pathing : Dict Tile2 Float
@@ -48,8 +44,8 @@ type alias Player =
     }
 
 
-addPlayer : Controller -> Vec2 -> Game -> ( Game, Player )
-addPlayer controller position game =
+addPlayer : String -> Vec2 -> Game -> ( Game, Player )
+addPlayer inputSourceKey position game =
     let
         id =
             game.lastId + 1
@@ -68,7 +64,7 @@ addPlayer controller position game =
 
         player =
             { id = id
-            , controller = controller
+            , inputSourceKey = inputSourceKey
             , colorPattern = colorPattern
             , markerPosition = position
             , pathing = Dict.empty

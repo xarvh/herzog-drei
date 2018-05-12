@@ -15,8 +15,8 @@ import View.Gfx
 -- Main update function
 
 
-update : Seconds -> List ( Controller, PlayerInput ) -> Game -> Game
-update dt controllersAndInputs game =
+update : Seconds -> Dict String PlayerInput -> Game -> Game
+update dt playerInputBySourceId game =
     let
         units =
             Dict.values game.unitById
@@ -30,12 +30,7 @@ update dt controllersAndInputs game =
             { game | dynamicObstacles = updatedDynamicObstacles }
 
         getInputForPlayer player =
-            case List.Extra.find (\( controller, input ) -> controller == player.controller) controllersAndInputs of
-                Nothing ->
-                    Game.neutralPlayerInput
-
-                Just ( controller, input ) ->
-                    input
+            Dict.get player.inputSourceKey playerInputBySourceId |> Maybe.withDefault Game.neutralPlayerInput
 
         playerThink player =
             PlayerThink.think (getInputForPlayer player) dt oldGameWithUpdatedDynamicObstacles player

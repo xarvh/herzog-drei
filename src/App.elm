@@ -43,7 +43,7 @@ type Msg
 
 type alias Model =
     { game : Game
-    , botState : Bot.Dummy.State
+    , botStatesByKey : Dict String Bot.Dummy.State
     , mousePosition : Mouse.Position
     , mouseIsPressed : Bool
     , viewports : List Viewport
@@ -53,23 +53,51 @@ type alias Model =
     }
 
 
+
+-- input stuff
+
+
+inputKeyboardAndMouseKey : String
+inputKeyboardAndMouseKey =
+    "keyboard+mouse"
+
+
+inputBotKey : Int -> String
+inputBotKey n =
+    "bot " ++ toString n
+
+
+inputGamepadKey : Int -> String
+inputGamepadKey index =
+    "gamepad " ++ toString index
+
+
+
+-- init
+
+
 init : ( Model, Cmd Msg )
 init =
     let
+        -- bot input sources
+        bot1 =
+            inputBotKey 1
+
+        bot2 =
+            inputBotKey 2
+
         game =
-            Game.Init.basicGame
+            Game.Init.basicGame inputKeyboardAndMouseKey bot1
 
-        botPlayerId =
-            game.playerById
-                |> Dict.values
-                |> List.Extra.find (\p -> p.controller == ControllerBot)
-                |> Maybe.map .id
-                |> Maybe.withDefault 0
+        botStatesByKey =
+            Dict.fromList
+                [ ( bot1, Bot.Dummy.init bot1 game )
 
-
+                --, ( bot2, Bot.Dummy.init bot2 game )
+                ]
     in
     ( { game = game
-      , botState = Bot.Dummy.init botPlayerId game
+      , botStatesByKey = botStatesByKey
       , mousePosition = { x = 0, y = 0 }
       , mouseIsPressed = False
       , viewports = []
@@ -140,21 +168,28 @@ update pressedKeys msg model =
                     , move = vec2 (toFloat x) (toFloat y)
                     }
 
-                ( botState, botInput ) =
-                    Bot.Dummy.update model.game model.botState
+                foldBot : String -> Bot.Dummy.State -> ( Dict String Bot.Dummy.State, Dict String PlayerInput ) -> ( Dict String Bot.Dummy.State, Dict String PlayerInput )
+                foldBot inputSourceKey oldState ( statesByKey, inputsByKey ) =
+                    let
+                        ( newState, input ) =
+                            Bot.Dummy.update model.game oldState
+                    in
+                    ( Dict.insert inputSourceKey newState statesByKey, Dict.insert inputSourceKey input inputsByKey )
 
-                controllersAndInputs =
-                    [ ( ControllerPlayer, keyboardAndMouseInput )
-                    , ( ControllerBot, botInput )
-                    ]
+                ( botStatesByKey, botInputsByKey ) =
+                    Dict.foldl foldBot ( Dict.empty, Dict.empty ) model.botStatesByKey
+
+                playerInputsByInputSourceId =
+                    botInputsByKey
+                        |> Dict.insert inputKeyboardAndMouseKey keyboardAndMouseInput
 
                 game =
-                    Game.Update.update dt controllersAndInputs model.game
+                    Game.Update.update dt playerInputsByInputSourceId model.game
             in
             noCmd
                 { model
                     | game = game
-                    , botState = botState
+                    , botStatesByKey = botStatesByKey
                     , time = model.time + dt
                     , fps = (1 / dt) :: List.take 20 model.fps
                 }

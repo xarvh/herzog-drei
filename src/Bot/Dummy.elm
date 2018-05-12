@@ -14,9 +14,16 @@ type alias State =
     }
 
 
-init : Id -> Game -> State
-init playerId game =
+init : String -> Game -> State
+init inputSourceKey game =
     let
+        playerId =
+            game.playerById
+                |> Dict.values
+                |> List.Extra.find (\p -> p.inputSourceKey == inputSourceKey)
+                |> Maybe.map .id
+                |> Maybe.withDefault -1
+
         mainBasePosition =
             game.baseById
                 |> Dict.values
