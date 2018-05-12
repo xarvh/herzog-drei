@@ -25,27 +25,9 @@ transformTime =
 --
 
 
-findMech : Id -> List Unit -> Maybe ( Unit, MechComponent )
-findMech playerId units =
-    case units of
-        [] ->
-            Nothing
-
-        u :: us ->
-            if u.ownerId /= playerId then
-                findMech playerId us
-            else
-                case u.component of
-                    UnitMech mech ->
-                        Just ( u, mech )
-
-                    _ ->
-                        findMech playerId us
-
-
 think : PlayerInput -> Seconds -> Game -> Player -> Delta
 think input dt game player =
-    case game.unitById |> Dict.values |> findMech player.id of
+    case game.unitById |> Dict.values |> Unit.findMech player.id of
         Nothing ->
             moveViewportToBase dt game player
 

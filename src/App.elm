@@ -58,9 +58,18 @@ init =
     let
         game =
             Game.Init.basicGame
+
+        botPlayerId =
+            game.playerById
+                |> Dict.values
+                |> List.Extra.find (\p -> p.controller == ControllerBot)
+                |> Maybe.map .id
+                |> Maybe.withDefault 0
+
+
     in
     ( { game = game
-      , botState = Bot.Dummy.init
+      , botState = Bot.Dummy.init botPlayerId game
       , mousePosition = { x = 0, y = 0 }
       , mouseIsPressed = False
       , viewports = []

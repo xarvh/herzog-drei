@@ -388,8 +388,8 @@ type alias Game =
     -- includes walls and bases
     , staticObstacles : Set Tile2
 
-    -- this is the union between static obstacles and unit positions
-    , unpassableTiles : Set Tile2
+    -- land units
+    , dynamicObstacles : Set Tile2
 
     -- random
     , seed : Random.Seed
@@ -412,7 +412,7 @@ new seed =
     , halfHeight = 10
     , wallTiles = Set.empty
     , staticObstacles = Set.empty
-    , unpassableTiles = Set.empty
+    , dynamicObstacles = Set.empty
 
     --
     , seed = seed

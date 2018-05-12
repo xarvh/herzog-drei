@@ -21,14 +21,13 @@ update dt controllersAndInputs game =
         units =
             Dict.values game.unitById
 
-        updatedUnpassableTiles =
+        updatedDynamicObstacles =
             units
                 |> List.map (.position >> vec2Tile)
                 |> Set.fromList
-                |> Set.union game.staticObstacles
 
-        oldGameWithUpdatedUnpassableTiles =
-            { game | unpassableTiles = updatedUnpassableTiles }
+        oldGameWithUpdatedDynamicObstacles =
+            { game | dynamicObstacles = updatedDynamicObstacles }
 
         getInputForPlayer player =
             case List.Extra.find (\( controller, input ) -> controller == player.controller) controllersAndInputs of
@@ -39,25 +38,25 @@ update dt controllersAndInputs game =
                     input
 
         playerThink player =
-            PlayerThink.think (getInputForPlayer player) dt oldGameWithUpdatedUnpassableTiles player
+            PlayerThink.think (getInputForPlayer player) dt oldGameWithUpdatedDynamicObstacles player
     in
     [ units
-        |> List.map (UnitThink.think dt oldGameWithUpdatedUnpassableTiles)
+        |> List.map (UnitThink.think dt oldGameWithUpdatedDynamicObstacles)
     , game.playerById
         |> Dict.values
         |> List.map playerThink
     , game.baseById
         |> Dict.values
-        |> List.map (BaseThink.think dt oldGameWithUpdatedUnpassableTiles)
+        |> List.map (BaseThink.think dt oldGameWithUpdatedDynamicObstacles)
     , game.projectileById
         |> Dict.values
-        |> List.map (ProjectileThink.think dt oldGameWithUpdatedUnpassableTiles)
+        |> List.map (ProjectileThink.think dt oldGameWithUpdatedDynamicObstacles)
     , game
         |> VictoryThink.think dt
         |> List.singleton
     ]
         |> List.map deltaList
-        |> applyGameDeltas oldGameWithUpdatedUnpassableTiles
+        |> applyGameDeltas oldGameWithUpdatedDynamicObstacles
         |> updateGfxs dt
 
 

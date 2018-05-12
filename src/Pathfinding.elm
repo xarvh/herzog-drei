@@ -181,7 +181,7 @@ moves : Game -> Tile2 -> Dict Tile2 Distance -> List Tile2
 moves game startTile paths =
     let
         currentDistance =
-            Dict.get startTile paths |> Maybe.withDefault 0
+            Dict.get startTile paths |> Maybe.withDefault 999
 
         mapTile : Tile2 -> Maybe ( Tile2, Distance )
         mapTile tile =
