@@ -33,13 +33,14 @@ type alias Tile2 =
 -- Players
 
 
-type TransformMode
-    = ToMech
-    | ToPlane
+type Controller
+    = ControllerPlayer
+    | ControllerBot
 
 
 type alias Player =
     { id : Id
+    , controller : Controller
     , colorPattern : ColorPattern
     , markerPosition : Vec2
     , pathing : Dict Tile2 Float
@@ -47,8 +48,8 @@ type alias Player =
     }
 
 
-addPlayer : Vec2 -> Game -> ( Game, Player )
-addPlayer position game =
+addPlayer : Controller -> Vec2 -> Game -> ( Game, Player )
+addPlayer controller position game =
     let
         id =
             game.lastId + 1
@@ -67,6 +68,7 @@ addPlayer position game =
 
         player =
             { id = id
+            , controller = controller
             , colorPattern = colorPattern
             , markerPosition = position
             , pathing = Dict.empty
@@ -171,6 +173,11 @@ deltaRemoveProjectile id =
 type UnitMode
     = UnitModeFree
     | UnitModeBase Id
+
+
+type TransformMode
+    = ToMech
+    | ToPlane
 
 
 type alias MechComponent =

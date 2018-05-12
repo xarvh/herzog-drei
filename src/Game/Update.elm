@@ -3,6 +3,7 @@ module Game.Update exposing (..)
 import BaseThink
 import Dict exposing (Dict)
 import Game exposing (..)
+import List.Extra
 import PlayerThink
 import ProjectileThink
 import Set exposing (Set)
@@ -14,8 +15,8 @@ import View.Gfx
 -- Main update function
 
 
-update : Seconds -> Dict Id Game.PlayerInput -> Game -> Game
-update dt playerInputById game =
+update : Seconds -> List ( Controller, PlayerInput ) -> Game -> Game
+update dt controllersAndInputs game =
     let
         units =
             Dict.values game.unitById
@@ -30,9 +31,12 @@ update dt playerInputById game =
             { game | unpassableTiles = updatedUnpassableTiles }
 
         getInputForPlayer player =
-            playerInputById
-                |> Dict.get player.id
-                |> Maybe.withDefault Game.neutralPlayerInput
+            case List.Extra.find (\( controller, input ) -> controller == player.controller) controllersAndInputs of
+                Nothing ->
+                    Game.neutralPlayerInput
+
+                Just ( controller, input ) ->
+                    input
 
         playerThink player =
             PlayerThink.think (getInputForPlayer player) dt oldGameWithUpdatedUnpassableTiles player

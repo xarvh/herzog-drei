@@ -42,11 +42,11 @@ import SubThink
 --
 
 
-addPlayerAndMech : Vec2 -> Game -> ( Game, Player )
-addPlayerAndMech position game =
+addPlayerAndMech : Controller -> Vec2 -> Game -> ( Game, Player )
+addPlayerAndMech controller position game =
     let
         ( game_, player ) =
-            Game.addPlayer position game
+            Game.addPlayer controller position game
     in
     ( game_
         |> Game.addMech player.id position
@@ -128,7 +128,7 @@ rect x y w h =
 mirror : List Tile2 -> List Tile2
 mirror tiles =
     tiles
-        |> List.map (\( x, y ) -> ( -x - 1, -y - 1))
+        |> List.map (\( x, y ) -> ( -x - 1, -y - 1 ))
         |> (++) tiles
 
 
@@ -151,10 +151,10 @@ basicGame =
             Random.initialSeed 0 |> Game.new
 
         ( game_, player1 ) =
-            game |> addPlayerAndMech (vec2 -12 -3)
+            game |> addPlayerAndMech ControllerPlayer (vec2 -12 -3)
 
         ( game__, player2 ) =
-            game_ |> addPlayerAndMech (vec2 12 3)
+            game_ |> addPlayerAndMech ControllerBot (vec2 12 3)
     in
     { game__ | wallTiles = Set.fromList walls }
         |> Game.addStaticObstacles walls

@@ -2,6 +2,7 @@ module App exposing (..)
 
 import AnimationFrame
 import Base
+import Bot.Dummy
 import ColorPattern exposing (neutral)
 import Dict exposing (Dict)
 import Game exposing (..)
@@ -42,7 +43,7 @@ type Msg
 
 type alias Model =
     { game : Game
-    , inputPlayerId : Id
+    , botState : Bot.Dummy.State
     , mousePosition : Mouse.Position
     , mouseIsPressed : Bool
     , viewports : List Viewport
@@ -57,17 +58,9 @@ init =
     let
         game =
             Game.Init.basicGame
-
-        inputPlayerId =
-            game.playerById
-                |> Dict.values
-                |> List.map .id
-                |> List.sort
-                |> List.head
-                |> Maybe.withDefault 0
     in
     ( { game = game
-      , inputPlayerId = inputPlayerId
+      , botState = Bot.Dummy.init
       , mousePosition = { x = 0, y = 0 }
       , mouseIsPressed = False
       , viewports = []
@@ -127,7 +120,7 @@ update pressedKeys msg model =
                         |> Maybe.map (SplitScreen.mouseScreenToViewport model.mousePosition)
                         |> Maybe.withDefault ( 0, 0 )
 
-                input =
+                keyboardAndMouseInput =
                     { aim = vec2 mouseX mouseY
                     , fire = model.mouseIsPressed
                     , transform = isPressed Keyboard.Extra.CharE
@@ -138,12 +131,21 @@ update pressedKeys msg model =
                     , move = vec2 (toFloat x) (toFloat y)
                     }
 
+                ( botState, botInput ) =
+                    Bot.Dummy.update model.game model.botState
+
+                controllersAndInputs =
+                    [ ( ControllerPlayer, keyboardAndMouseInput )
+                    , ( ControllerBot, botInput )
+                    ]
+
                 game =
-                    Game.Update.update dt (Dict.singleton model.inputPlayerId input) model.game
+                    Game.Update.update dt controllersAndInputs model.game
             in
             noCmd
                 { model
                     | game = game
+                    , botState = botState
                     , time = model.time + dt
                     , fps = (1 / dt) :: List.take 20 model.fps
                 }
