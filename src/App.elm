@@ -2,6 +2,7 @@ module App exposing (..)
 
 import AnimationFrame
 import Base
+import Bot.Dummy
 import ColorPattern exposing (neutral)
 import Dict exposing (Dict)
 import Game exposing (..)
@@ -42,7 +43,7 @@ type Msg
 
 type alias Model =
     { game : Game
-    , inputPlayerId : Id
+    , botStatesByKey : Dict String Bot.Dummy.State
     , mousePosition : Mouse.Position
     , mouseIsPressed : Bool
     , viewports : List Viewport
@@ -52,22 +53,51 @@ type alias Model =
     }
 
 
+
+-- input stuff
+
+
+inputKeyboardAndMouseKey : String
+inputKeyboardAndMouseKey =
+    "keyboard+mouse"
+
+
+inputBotKey : Int -> String
+inputBotKey n =
+    "bot " ++ toString n
+
+
+inputGamepadKey : Int -> String
+inputGamepadKey index =
+    "gamepad " ++ toString index
+
+
+
+-- init
+
+
 init : ( Model, Cmd Msg )
 init =
     let
-        game =
-            Game.Init.basicGame
+        -- bot input sources
+        bot1 =
+            inputBotKey 1
 
-        inputPlayerId =
-            game.playerById
-                |> Dict.values
-                |> List.map .id
-                |> List.sort
-                |> List.head
-                |> Maybe.withDefault 0
+        bot2 =
+            inputBotKey 2
+
+        game =
+            Game.Init.basicGame inputKeyboardAndMouseKey bot1
+
+        botStatesByKey =
+            Dict.fromList
+                [ ( bot1, Bot.Dummy.init bot1 game )
+
+                --, ( bot2, Bot.Dummy.init bot2 game )
+                ]
     in
     ( { game = game
-      , inputPlayerId = inputPlayerId
+      , botStatesByKey = botStatesByKey
       , mousePosition = { x = 0, y = 0 }
       , mouseIsPressed = False
       , viewports = []
@@ -127,7 +157,7 @@ update pressedKeys msg model =
                         |> Maybe.map (SplitScreen.mouseScreenToViewport model.mousePosition)
                         |> Maybe.withDefault ( 0, 0 )
 
-                input =
+                keyboardAndMouseInput =
                     { aim = vec2 mouseX mouseY
                     , fire = model.mouseIsPressed
                     , transform = isPressed Keyboard.Extra.CharE
@@ -138,12 +168,28 @@ update pressedKeys msg model =
                     , move = vec2 (toFloat x) (toFloat y)
                     }
 
+                foldBot : String -> Bot.Dummy.State -> ( Dict String Bot.Dummy.State, Dict String PlayerInput ) -> ( Dict String Bot.Dummy.State, Dict String PlayerInput )
+                foldBot inputSourceKey oldState ( statesByKey, inputsByKey ) =
+                    let
+                        ( newState, input ) =
+                            Bot.Dummy.update model.game oldState
+                    in
+                    ( Dict.insert inputSourceKey newState statesByKey, Dict.insert inputSourceKey input inputsByKey )
+
+                ( botStatesByKey, botInputsByKey ) =
+                    Dict.foldl foldBot ( Dict.empty, Dict.empty ) model.botStatesByKey
+
+                playerInputsByInputSourceId =
+                    botInputsByKey
+                        |> Dict.insert inputKeyboardAndMouseKey keyboardAndMouseInput
+
                 game =
-                    Game.Update.update dt (Dict.singleton model.inputPlayerId input) model.game
+                    Game.Update.update dt playerInputsByInputSourceId model.game
             in
             noCmd
                 { model
                     | game = game
+                    , botStatesByKey = botStatesByKey
                     , time = model.time + dt
                     , fps = (1 / dt) :: List.take 20 model.fps
                 }

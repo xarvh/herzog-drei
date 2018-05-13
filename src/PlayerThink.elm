@@ -25,27 +25,9 @@ transformTime =
 --
 
 
-findMech : Id -> List Unit -> Maybe ( Unit, MechComponent )
-findMech playerId units =
-    case units of
-        [] ->
-            Nothing
-
-        u :: us ->
-            if u.ownerId /= playerId then
-                findMech playerId us
-            else
-                case u.component of
-                    UnitMech mech ->
-                        Just ( u, mech )
-
-                    _ ->
-                        findMech playerId us
-
-
 think : PlayerInput -> Seconds -> Game -> Player -> Delta
 think input dt game player =
-    case game.unitById |> Dict.values |> findMech player.id of
+    case game.unitById |> Dict.values |> Unit.findMech player.id of
         Nothing ->
             moveViewportToBase dt game player
 
@@ -146,10 +128,14 @@ mechThink input dt game unit mech =
             if input.rally then
                 deltaPlayer unit.ownerId
                     (\g p ->
-                        { p
-                            | markerPosition = unit.position
-                            , pathing = Pathfinding.makePaths g (vec2Tile unit.position)
-                        }
+                        if g.time - p.markerTime < 1 then
+                            p
+                        else
+                            { p
+                                | markerPosition = unit.position
+                                , markerTime = g.time
+                                , pathing = Pathfinding.makePaths g (vec2Tile unit.position)
+                            }
                     )
             else
                 deltaNone

@@ -33,22 +33,20 @@ type alias Tile2 =
 -- Players
 
 
-type TransformMode
-    = ToMech
-    | ToPlane
-
 
 type alias Player =
     { id : Id
+    , inputSourceKey : String
     , colorPattern : ColorPattern
     , markerPosition : Vec2
+    , markerTime : Seconds
     , pathing : Dict Tile2 Float
     , viewportPosition : Vec2
     }
 
 
-addPlayer : Vec2 -> Game -> ( Game, Player )
-addPlayer position game =
+addPlayer : String -> Vec2 -> Game -> ( Game, Player )
+addPlayer inputSourceKey position game =
     let
         id =
             game.lastId + 1
@@ -67,8 +65,10 @@ addPlayer position game =
 
         player =
             { id = id
+            , inputSourceKey = inputSourceKey
             , colorPattern = colorPattern
             , markerPosition = position
+            , markerTime = 0
             , pathing = Dict.empty
             , viewportPosition = position
             }
@@ -171,6 +171,11 @@ deltaRemoveProjectile id =
 type UnitMode
     = UnitModeFree
     | UnitModeBase Id
+
+
+type TransformMode
+    = ToMech
+    | ToPlane
 
 
 type alias MechComponent =
@@ -367,6 +372,7 @@ type alias Game =
     , unitById : Dict Id Unit
     , lastId : Id
     , maybeWinnerId : Maybe Id
+    , time : Seconds
 
     --
     , cosmetics : List Gfx
@@ -381,8 +387,8 @@ type alias Game =
     -- includes walls and bases
     , staticObstacles : Set Tile2
 
-    -- this is the union between static obstacles and unit positions
-    , unpassableTiles : Set Tile2
+    -- land units
+    , dynamicObstacles : Set Tile2
 
     -- random
     , seed : Random.Seed
@@ -398,6 +404,7 @@ new seed =
     , unitById = Dict.empty
     , lastId = 0
     , maybeWinnerId = Nothing
+    , time = 0
 
     --
     , cosmetics = []
@@ -405,7 +412,7 @@ new seed =
     , halfHeight = 10
     , wallTiles = Set.empty
     , staticObstacles = Set.empty
-    , unpassableTiles = Set.empty
+    , dynamicObstacles = Set.empty
 
     --
     , seed = seed

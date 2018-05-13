@@ -241,7 +241,7 @@ movePath dt game paths unit =
 
         maybeTile =
             Pathfinding.moves game unitTile paths
-                |> List.Extra.find (\t -> not <| Set.member t game.unpassableTiles)
+                |> List.Extra.find (\t -> not <| Set.member t game.dynamicObstacles)
     in
     case maybeTile of
         Nothing ->
@@ -265,7 +265,7 @@ deltaGameUnitMoves unitId moveAngle dx game =
                 newTilePosition =
                     vec2Tile newPosition
             in
-            if currentTilePosition /= newTilePosition && Set.member newTilePosition game.unpassableTiles then
+            if currentTilePosition /= newTilePosition && Set.member newTilePosition game.dynamicObstacles then
                 -- destination tile occupied, don't move
                 game
             else
@@ -277,10 +277,10 @@ deltaGameUnitMoves unitId moveAngle dx game =
                             , moveAngle = moveAngle
                         }
 
-                    unpassableTiles =
-                        Set.insert newTilePosition game.unpassableTiles
+                    dynamicObstacles =
+                        Set.insert newTilePosition game.dynamicObstacles
                 in
-                { game | unpassableTiles = unpassableTiles }
+                { game | dynamicObstacles = dynamicObstacles }
                     |> Game.updateUnit newUnit
 
 
