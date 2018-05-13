@@ -53,6 +53,7 @@ update dt playerInputBySourceId game =
         |> List.map deltaList
         |> applyGameDeltas oldGameWithUpdatedDynamicObstacles
         |> updateGfxs dt
+        |> (\game -> { game | time = game.time + dt })
 
 
 

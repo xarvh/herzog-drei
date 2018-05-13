@@ -128,10 +128,14 @@ mechThink input dt game unit mech =
             if input.rally then
                 deltaPlayer unit.ownerId
                     (\g p ->
-                        { p
-                            | markerPosition = unit.position
-                            , pathing = Pathfinding.makePaths g (vec2Tile unit.position)
-                        }
+                        if g.time - p.markerTime < 1 then
+                            p
+                        else
+                            { p
+                                | markerPosition = unit.position
+                                , markerTime = g.time
+                                , pathing = Pathfinding.makePaths g (vec2Tile unit.position)
+                            }
                     )
             else
                 deltaNone

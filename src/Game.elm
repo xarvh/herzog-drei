@@ -39,6 +39,7 @@ type alias Player =
     , inputSourceKey : String
     , colorPattern : ColorPattern
     , markerPosition : Vec2
+    , markerTime : Seconds
     , pathing : Dict Tile2 Float
     , viewportPosition : Vec2
     }
@@ -67,6 +68,7 @@ addPlayer inputSourceKey position game =
             , inputSourceKey = inputSourceKey
             , colorPattern = colorPattern
             , markerPosition = position
+            , markerTime = 0
             , pathing = Dict.empty
             , viewportPosition = position
             }
@@ -370,6 +372,7 @@ type alias Game =
     , unitById : Dict Id Unit
     , lastId : Id
     , maybeWinnerId : Maybe Id
+    , time : Seconds
 
     --
     , cosmetics : List Gfx
@@ -401,6 +404,7 @@ new seed =
     , unitById = Dict.empty
     , lastId = 0
     , maybeWinnerId = Nothing
+    , time = 0
 
     --
     , cosmetics = []
