@@ -9,25 +9,27 @@ import Unit
 
 
 type alias State =
-    { playerId : Id
+    { playerKey : String
+    , teamId : Id
     , basesSortedByPriority : List Id
     }
 
 
 init : String -> Game -> State
-init inputSourceKey game =
+init playerKey game =
     let
-        playerId =
-            game.playerById
-                |> Dict.values
-                |> List.Extra.find (\p -> p.inputSourceKey == inputSourceKey)
-                |> Maybe.map .id
-                |> Maybe.withDefault -1
+        teamId =
+            case Dict.get playerKey game.playerByKey of
+                Nothing ->
+                    -1
+
+                Just player ->
+                    player.teamId
 
         mainBasePosition =
             game.baseById
                 |> Dict.values
-                |> List.Extra.find (\base -> base.type_ == BaseMain && Base.isOccupiedBy playerId base)
+                |> List.Extra.find (\base -> base.type_ == BaseMain && Base.isOccupiedBy teamId base)
                 |> Maybe.map .position
                 |> Maybe.withDefault (vec2 0 0)
 
@@ -37,7 +39,8 @@ init inputSourceKey game =
                 |> List.sortBy (\base -> vectorDistance base.position mainBasePosition)
                 |> List.map .id
     in
-    { playerId = playerId
+    { playerKey = playerKey
+    , teamId = teamId
     , basesSortedByPriority = basesSortedByPriority
     }
 
@@ -57,7 +60,7 @@ update game state =
                             Nothing
 
                         Just base ->
-                            if Base.isOccupiedBy state.playerId base then
+                            if Base.isOccupiedBy state.teamId base then
                                 pickTargetBase bs
                             else
                                 Just base
@@ -68,7 +71,7 @@ update game state =
             gloat game state
 
         Just targetBase ->
-            ( state, attackBase state.playerId game targetBase )
+            ( state, attackBase state.playerKey game targetBase )
 
 
 gloat : Game -> State -> ( State, PlayerInput )
@@ -77,9 +80,9 @@ gloat game state =
     ( state, { neutralPlayerInput | fire = True } )
 
 
-attackBase : Id -> Game -> Base -> PlayerInput
-attackBase playerId game targetBase =
-    case Unit.findMech playerId (Dict.values game.unitById) of
+attackBase : String -> Game -> Base -> PlayerInput
+attackBase playerKey game targetBase =
+    case Unit.findMech playerKey (Dict.values game.unitById) of
         Nothing ->
             -- You're dead, you can't do anything
             neutralPlayerInput
@@ -118,7 +121,7 @@ shootEnemies playerUnit game =
         maybeUnitAndDistance =
             game.unitById
                 |> Dict.values
-                |> List.filter (\u -> u.ownerId /= playerUnit.ownerId)
+                |> List.filter (\u -> u.teamId /= playerUnit.teamId)
                 |> List.filterMap closeEnough
                 |> List.Extra.minimumBy Tuple.second
     in
@@ -136,7 +139,7 @@ moveToTargetBase playerUnit playerMech game base =
         safeDistance =
             game.unitById
                 |> Dict.values
-                |> List.filter (\u -> u.ownerId /= playerUnit.ownerId && vectorDistance u.position base.position < 6)
+                |> List.filter (\u -> u.teamId /= playerUnit.teamId && vectorDistance u.position base.position < 6)
                 |> List.length
                 |> toFloat
                 |> sqrt

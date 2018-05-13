@@ -23,7 +23,7 @@ think dt game unit =
                     SubThink.destroy game unit sub
 
                 UnitMech mech ->
-                    respawnMech game unit.ownerId
+                    respawnMech game mech.playerKey unit.teamId
             ]
     else
         deltaList
@@ -57,11 +57,11 @@ thinkReload dt game unit =
 -- Respawn
 
 
-respawnMech : Game -> Id -> Delta
-respawnMech game playerId =
-    case Base.playerMainBase game playerId of
+respawnMech : Game -> String -> Id -> Delta
+respawnMech game playerKey teamId =
+    case Base.teamMainBase game teamId of
         Nothing ->
             deltaNone
 
         Just mainBase ->
-            deltaBase mainBase.id (Base.updateOccupied <| \o -> { o | buildCompletion = 0, buildTarget = BuildMech })
+            deltaBase mainBase.id (Base.updateOccupied <| \o -> { o | mechBuildCompletions = ( playerKey, 0 ) :: o.mechBuildCompletions })

@@ -89,22 +89,22 @@ takeDamage rawDamage game unit =
 -- Utilities
 
 
-findMech : Id -> List Unit -> Maybe ( Unit, MechComponent )
-findMech playerId units =
+findMech : String -> List Unit -> Maybe ( Unit, MechComponent )
+findMech playerKey units =
     case units of
         [] ->
             Nothing
 
         u :: us ->
-            if u.ownerId /= playerId then
-                findMech playerId us
-            else
-                case u.component of
-                    UnitMech mech ->
+            case u.component of
+                UnitMech mech ->
+                    if mech.playerKey == playerKey then
                         Just ( u, mech )
+                    else
+                        findMech playerKey us
 
-                    _ ->
-                        findMech playerId us
+                _ ->
+                    findMech playerKey us
 
 
 isMech : Unit -> Bool

@@ -42,29 +42,16 @@ import SubThink
 --
 
 
-addPlayerAndMech : String -> Vec2 -> Game -> ( Game, Player )
-addPlayerAndMech inputSourceKey position game =
-    let
-        ( game_, player ) =
-            Game.addPlayer inputSourceKey position game
-    in
-    ( game_
-        |> Game.addMech player.id position
-        |> Tuple.first
-    , player
-    )
-
-
 addSub : Id -> Vec2 -> Game -> Game
-addSub ownerId position game =
-    Game.addSub ownerId position game |> Tuple.first
+addSub teamId position game =
+    Game.addSub teamId position game |> Tuple.first
 
 
 addEmbeddedSub : Id -> Base -> Game -> Game
-addEmbeddedSub playerId base game =
+addEmbeddedSub teamId base game =
     let
         ( game_, unit ) =
-            Game.addSub playerId (vec2 0 0) game
+            Game.addSub teamId (vec2 0 0) game
     in
     SubThink.deltaGameUnitEntersBase unit.id base.id game_
 
@@ -83,16 +70,41 @@ addSmallBase tile game =
 
 
 addMainBase : Id -> Tile2 -> Game -> Game
-addMainBase ownerId tile game =
+addMainBase teamId tile game =
     let
         ( game_, base ) =
             Base.add BaseMain tile game
     in
     game_
-        |> addEmbeddedSub ownerId base
-        |> addEmbeddedSub ownerId base
-        |> addEmbeddedSub ownerId base
-        |> addEmbeddedSub ownerId base
+        |> addEmbeddedSub teamId base
+        |> addEmbeddedSub teamId base
+        |> addEmbeddedSub teamId base
+        |> addEmbeddedSub teamId base
+
+
+addTeamAndPlayers : List String -> Vec2 -> Game -> ( Game, Team )
+addTeamAndPlayers inputSourceKeys startingPosition originalGame =
+    let
+        ( game, team ) =
+            addTeam startingPosition originalGame
+
+        addPlayer : String -> Dict String Player -> Dict String Player
+        addPlayer inputSourceKey playerByKey =
+            Dict.insert inputSourceKey
+                { inputSourceKey = inputSourceKey
+                , teamId = team.id
+                , viewportPosition = startingPosition
+                }
+                playerByKey
+
+        playerByKey =
+            List.foldl addPlayer game.playerByKey inputSourceKeys
+
+        addUnit : String -> Game -> Game
+        addUnit inputSourceKey g =
+            addMech inputSourceKey team.id startingPosition g |> Tuple.first
+    in
+    ( List.foldl addUnit { game | playerByKey = playerByKey } inputSourceKeys, team )
 
 
 {-| Pathing cannot be initialised until all static obstacles are in place
@@ -100,11 +112,11 @@ addMainBase ownerId tile game =
 kickstartPathing : Game -> Game
 kickstartPathing game =
     let
-        addPathing : Id -> Player -> Player
-        addPathing id player =
-            { player | pathing = Pathfinding.makePaths game (vec2Tile player.markerPosition) }
+        addPathing : Id -> Team -> Team
+        addPathing id team =
+            { team | pathing = Pathfinding.makePaths game (vec2Tile team.markerPosition) }
     in
-    { game | playerById = Dict.map addPathing game.playerById }
+    { game | teamById = Dict.map addPathing game.teamById }
 
 
 
@@ -136,8 +148,8 @@ mirror tiles =
 --
 
 
-basicGame : String -> String -> Game
-basicGame inputSourceId1 inputSourceId2 =
+basicGame : List String -> List String -> Game
+basicGame inputSourcesTeam1 inputSourcesTeam2 =
     let
         walls =
             [ rect -3 -5 1 4
@@ -150,16 +162,16 @@ basicGame inputSourceId1 inputSourceId2 =
         game =
             Random.initialSeed 0 |> Game.new
 
-        ( game_, player1 ) =
-            game |> addPlayerAndMech inputSourceId1 (vec2 -12 -3)
+        ( game_, team1 ) =
+            game |> addTeamAndPlayers inputSourcesTeam1 (vec2 -12 -3)
 
-        ( game__, player2 ) =
-            game_ |> addPlayerAndMech inputSourceId2 (vec2 12 3)
+        ( game__, team2 ) =
+            game_ |> addTeamAndPlayers inputSourcesTeam2 (vec2 12 3)
     in
     { game__ | wallTiles = Set.fromList walls }
         |> Game.addStaticObstacles walls
         |> addSmallBase ( -5, 2 )
         |> addSmallBase ( 5, -2 )
-        |> addMainBase player1.id ( -16, -6 )
-        |> addMainBase player2.id ( 16, 6 )
+        |> addMainBase team1.id ( -16, -6 )
+        |> addMainBase team2.id ( 16, 6 )
         |> kickstartPathing

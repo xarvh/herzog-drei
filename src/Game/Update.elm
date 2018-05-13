@@ -37,7 +37,7 @@ update dt playerInputBySourceId game =
     in
     [ units
         |> List.map (UnitThink.think dt oldGameWithUpdatedDynamicObstacles)
-    , game.playerById
+    , game.playerByKey
         |> Dict.values
         |> List.map playerThink
     , game.baseById

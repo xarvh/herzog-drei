@@ -12,19 +12,19 @@ think dt game =
         deltaNone
     else
         let
-            playersWithoutMainBases =
-                game.playerById
+            teamsWithoutMainBases =
+                game.teamById
                     |> Dict.values
-                    |> List.filter (\player -> Base.playerMainBase game player.id == Nothing)
+                    |> List.filter (\team -> Base.teamMainBase game team.id == Nothing)
         in
-        case playersWithoutMainBases of
+        case teamsWithoutMainBases of
             [] ->
                 deltaNone
 
             [ oneLoser ] ->
                 let
                     winnerId =
-                        Dict.remove oneLoser.id game.playerById
+                        Dict.remove oneLoser.id game.teamById
                             |> Dict.values
                             |> List.head
                             |> Maybe.map .id

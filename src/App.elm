@@ -14,7 +14,6 @@ import Keyboard.Extra
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mouse
-import PlayerThink
 import Random
 import Set exposing (Set)
 import SplitScreen exposing (Viewport)
@@ -87,7 +86,7 @@ init =
             inputBotKey 2
 
         game =
-            Game.Init.basicGame inputKeyboardAndMouseKey bot1
+            Game.Init.basicGame [ inputKeyboardAndMouseKey ] [ bot1 ]
 
         botStatesByKey =
             Dict.fromList
@@ -122,7 +121,7 @@ setViewports : Window.Size -> Model -> Model
 setViewports windowSize model =
     { model
         | windowSize = windowSize
-        , viewports = SplitScreen.makeViewports windowSize (Dict.size model.game.playerById)
+        , viewports = SplitScreen.makeViewports windowSize (Dict.size model.game.teamById)
     }
 
 
@@ -267,13 +266,15 @@ viewBase game base =
         colorPattern =
             Base.colorPattern game base
 
-        ( completion, target ) =
+        ( buildTarget, completion ) =
             case base.maybeOccupied of
                 Nothing ->
-                    ( 0, Game.BuildSub )
+                    ( "sub", 0 )
 
                 Just occupied ->
-                    ( occupied.buildCompletion, occupied.buildTarget )
+                    occupied.mechBuildCompletions
+                        |> List.Extra.maximumBy Tuple.second
+                        |> Maybe.withDefault ( "sub", occupied.subBuildCompletion )
     in
     Svg.g
         [ transform [ translate base.position ] ]
@@ -283,7 +284,7 @@ viewBase game base =
 
             Game.BaseMain ->
                 View.Base.main_ completion colorPattern.bright colorPattern.dark
-        , if target /= Game.BuildMech then
+        , if buildTarget == "sub" then
             Svg.text ""
           else
             Svg.g
@@ -302,7 +303,7 @@ viewMech : Game -> ( Unit, MechComponent ) -> Svg a
 viewMech game ( unit, mechRecord ) =
     let
         colorPattern =
-            Game.playerColorPattern game unit.ownerId
+            Game.teamColorPattern game unit.teamId
     in
     Svg.g
         [ transform [ translate unit.position ] ]
@@ -321,7 +322,7 @@ viewSub : Game -> ( Unit, SubComponent ) -> Svg a
 viewSub game ( unit, subRecord ) =
     let
         colorPattern =
-            Game.playerColorPattern game unit.ownerId
+            Game.teamColorPattern game unit.teamId
     in
     Svg.g
         [ transform [ translate unit.position ] ]
@@ -350,9 +351,9 @@ mechVsUnit units =
     List.foldl folder ( [], [] ) units
 
 
-viewMarker : Game -> Player -> Svg a
-viewMarker game player =
-    circle player.markerPosition player.colorPattern.dark 0.2
+viewMarker : Game -> Team -> Svg a
+viewMarker game team =
+    circle team.markerPosition team.colorPattern.dark 0.2
 
 
 viewProjectile : Projectile -> Svg a
@@ -443,17 +444,17 @@ testView model =
 --
 
 
-viewVictory : Game -> Player -> Svg a
-viewVictory game player =
+viewVictory : Game -> Team -> Svg a
+viewVictory game team =
     case game.maybeWinnerId of
         Nothing ->
-            Svg.g [] []
+            Html.text ""
 
         Just winnerId ->
             let
                 ( text, pattern ) =
-                    if player.id == winnerId then
-                        ( "Victory!", player.colorPattern )
+                    if team.id == winnerId then
+                        ( "Victory!", team.colorPattern )
                     else
                         ( "Defeat!", neutral )
             in
@@ -497,61 +498,66 @@ viewPlayer model ( player, viewport ) =
         isWithinViewport =
             SplitScreen.isWithinViewport viewport player.viewportPosition viewportMinSizeInTiles
     in
-    Svg.svg
-        (SplitScreen.viewportToSvgAttributes viewport)
-        [ Svg.g
-            [ transform [ "scale(1 -1)", scale (1 / viewportMinSizeInTiles), translate offset ]
-            ]
-            --[ View.Background.terrain (model.time / 1000)
-            [ checkersBackground model.game
-            , subs
-                |> List.filter (\( u, s ) -> s.mode == UnitModeFree && isWithinViewport u.position 0.7)
-                |> List.map (viewSub game)
-                |> Svg.g []
-            , game.wallTiles
-                |> Set.toList
-                |> List.filter (\pos -> isWithinViewport (tile2Vec pos) 1)
-                |> List.map viewWall
-                |> Svg.g []
-            , game.baseById
-                |> Dict.values
-                |> List.filter (\b -> isWithinViewport b.position 3)
-                |> List.map (viewBase game)
-                |> Svg.g []
-            , subs
-                |> List.filter (\( u, s ) -> s.mode /= UnitModeFree && isWithinViewport u.position 0.7)
-                |> List.map (viewSub game)
-                |> Svg.g []
-            , mechs
-                |> List.filter (\( u, m ) -> isWithinViewport u.position 1.5)
-                |> List.map (viewMech game)
-                |> Svg.g []
-            , viewMarker game player
-            , game.projectileById
-                |> Dict.values
-                |> List.filter (\p -> isWithinViewport p.position 0.5)
-                |> List.map viewProjectile
-                |> Svg.g []
-            , game.cosmetics
-                -- TODO viewport cull
-                |> List.map View.Gfx.render
-                |> Svg.g []
-            , units
-                |> List.filter (\u -> u.ownerId == player.id)
-                |> List.map viewHealthbar
-                |> Svg.g []
-            ]
-        , viewVictory game player
-        ]
+    case Dict.get player.teamId game.teamById of
+        Nothing ->
+            Html.text ""
+
+        Just team ->
+            Svg.svg
+                (SplitScreen.viewportToSvgAttributes viewport)
+                [ Svg.g
+                    [ transform [ "scale(1 -1)", scale (1 / viewportMinSizeInTiles), translate offset ]
+                    ]
+                    --[ View.Background.terrain (model.time / 1000)
+                    [ checkersBackground model.game
+                    , subs
+                        |> List.filter (\( u, s ) -> s.mode == UnitModeFree && isWithinViewport u.position 0.7)
+                        |> List.map (viewSub game)
+                        |> Svg.g []
+                    , game.wallTiles
+                        |> Set.toList
+                        |> List.filter (\pos -> isWithinViewport (tile2Vec pos) 1)
+                        |> List.map viewWall
+                        |> Svg.g []
+                    , game.baseById
+                        |> Dict.values
+                        |> List.filter (\b -> isWithinViewport b.position 3)
+                        |> List.map (viewBase game)
+                        |> Svg.g []
+                    , subs
+                        |> List.filter (\( u, s ) -> s.mode /= UnitModeFree && isWithinViewport u.position 0.7)
+                        |> List.map (viewSub game)
+                        |> Svg.g []
+                    , mechs
+                        |> List.filter (\( u, m ) -> isWithinViewport u.position 1.5)
+                        |> List.map (viewMech game)
+                        |> Svg.g []
+                    , viewMarker game team
+                    , game.projectileById
+                        |> Dict.values
+                        |> List.filter (\p -> isWithinViewport p.position 0.5)
+                        |> List.map viewProjectile
+                        |> Svg.g []
+                    , game.cosmetics
+                        -- TODO viewport cull
+                        |> List.map View.Gfx.render
+                        |> Svg.g []
+                    , units
+                        |> List.filter (\u -> u.teamId == player.teamId)
+                        |> List.map viewHealthbar
+                        |> Svg.g []
+                    ]
+                , viewVictory game team
+                ]
 
 
 splitView : Model -> Svg Msg
 splitView model =
     let
         sortedPlayers =
-            model.game.playerById
+            model.game.playerByKey
                 |> Dict.values
-                |> List.sortBy .id
+                |> List.sortBy (\player -> toString player.teamId ++ player.inputSourceKey)
 
         viewportsAndPlayers =
             List.map2 (,) sortedPlayers model.viewports
