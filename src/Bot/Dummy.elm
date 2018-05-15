@@ -5,6 +5,7 @@ import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Random
 import Unit
 
 
@@ -13,11 +14,14 @@ type alias State =
     , teamId : Id
     , basesSortedByPriority : List Id
     , hasHumanAlly : Bool
+    , randomSeed : Random.Seed
+    , speedAroundBase : Float
+    , lastChange : Seconds
     }
 
 
-init : String -> Bool -> Game -> State
-init playerKey hasHumanAlly game =
+init : String -> Bool -> Int -> Game -> State
+init playerKey hasHumanAlly randomInteger game =
     let
         teamId =
             case Dict.get playerKey game.playerByKey of
@@ -44,6 +48,11 @@ init playerKey hasHumanAlly game =
     , teamId = teamId
     , basesSortedByPriority = basesSortedByPriority
     , hasHumanAlly = hasHumanAlly
+    , randomSeed = Random.initialSeed randomInteger
+
+    -- 1 means anti-clockwise
+    , speedAroundBase = 1
+    , lastChange = game.time
     }
 
 
@@ -73,7 +82,7 @@ update game state =
             gloat game state
 
         Just targetBase ->
-            ( state, attackBase state game targetBase )
+            attackBase state game targetBase
 
 
 gloat : Game -> State -> ( State, PlayerInput )
@@ -82,28 +91,30 @@ gloat game state =
     ( state, { neutralPlayerInput | fire = True } )
 
 
-attackBase : State -> Game -> Base -> PlayerInput
+attackBase : State -> Game -> Base -> ( State, PlayerInput )
 attackBase state game targetBase =
     case Unit.findMech state.playerKey (Dict.values game.unitById) of
         Nothing ->
             -- You're dead, you can't do anything
-            neutralPlayerInput
+            ( state, neutralPlayerInput )
 
         Just ( playerUnit, playerMech ) ->
             let
                 ( aim, fire ) =
                     shootEnemies playerUnit game
 
-                { transform, rally, move } =
-                    moveToTargetBase playerUnit playerMech game targetBase
+                ( newState, { transform, rally, move } ) =
+                    moveToTargetBase playerUnit playerMech state game targetBase
             in
-            { aim = aim
-            , fire = fire
-            , transform = transform
-            , rally = rally && not state.hasHumanAlly
-            , switchUnit = False
-            , move = move
-            }
+            ( newState
+            , { aim = aim
+              , fire = fire
+              , transform = transform
+              , rally = rally && not state.hasHumanAlly
+              , switchUnit = False
+              , move = move
+              }
+            )
 
 
 shootEnemies : Unit -> Game -> ( Vec2, Bool )
@@ -135,8 +146,8 @@ shootEnemies playerUnit game =
             ( Vec2.sub targetUnit.position playerUnit.position |> Vec2.normalize, True )
 
 
-moveToTargetBase : Unit -> MechComponent -> Game -> Base -> { transform : Bool, rally : Bool, move : Vec2 }
-moveToTargetBase playerUnit playerMech game base =
+moveToTargetBase : Unit -> MechComponent -> State -> Game -> Base -> ( State, { transform : Bool, rally : Bool, move : Vec2 } )
+moveToTargetBase playerUnit playerMech state game base =
     let
         safeDistance =
             game.unitById
@@ -148,12 +159,33 @@ moveToTargetBase playerUnit playerMech game base =
                 |> (+) 4
     in
     if vectorDistance playerUnit.position base.position > safeDistance then
-        { transform = playerMech.transformingTo /= ToPlane
-        , rally = False
-        , move = Vec2.sub base.position playerUnit.position |> Vec2.normalize
-        }
+        ( state
+        , { transform = playerMech.transformingTo /= ToPlane
+          , rally = False
+          , move = Vec2.sub base.position playerUnit.position |> Vec2.normalize
+          }
+        )
     else
-        { transform = playerMech.transformingTo /= ToMech
-        , rally = True
-        , move = Vec2.sub base.position playerUnit.position |> rotateVector (pi / 2) |> Vec2.normalize
-        }
+        let
+            ( doChangeDirection, seed ) =
+                if game.time - state.lastChange < 0.2 then
+                    ( False, state.randomSeed )
+                else
+                    Random.step (Random.float 0 1 |> Random.map (\n -> n < 0.03)) state.randomSeed
+
+            ( speedAroundBase, lastChange ) =
+                if doChangeDirection then
+                    ( -state.speedAroundBase, game.time )
+                else
+                    ( state.speedAroundBase, state.lastChange )
+        in
+        ( { state
+            | randomSeed = seed
+            , lastChange = lastChange
+            , speedAroundBase = speedAroundBase
+          }
+        , { transform = playerMech.transformingTo /= ToMech
+          , rally = True
+          , move = Vec2.sub base.position playerUnit.position |> rotateVector (state.speedAroundBase * pi / 2) |> Vec2.normalize
+          }
+        )
