@@ -84,33 +84,31 @@ init : ( Model, Cmd Msg )
 init =
     let
         -- bot input sources
-        bot1 =
-            inputBotKey 1
+        team1 =
+            [ inputKeyboardAndMouseKey
+            , inputBotKey 1
+            , inputBotKey 4
+            , inputBotKey 7
+            ]
 
-        bot2 =
-            inputBotKey 2
-
-        bot3 =
-            inputBotKey 3
-
-        playerKeysTeam1 =
-            [ inputKeyboardAndMouseKey, bot2 ]
-
-        playerKeysTeam2 =
-            [ bot1, bot3 ]
+        team2 =
+            [ inputBotKey 2
+            , inputBotKey 3
+            , inputBotKey 5
+            , inputBotKey 6
+            ]
 
         game =
-            Game.Init.basicGame playerKeysTeam1 playerKeysTeam2
+            Game.Init.basicGame team1 team2
 
-        botStatesByKey =
-            Dict.fromList
-                [ ( bot1, Bot.Dummy.init bot1 False 1 game )
-                , ( bot2, Bot.Dummy.init bot2 True 2 game )
-                , ( bot3, Bot.Dummy.init bot3 False 3 game )
-                ]
+        makeStates playerKeys =
+            playerKeys
+                |> List.filter (inputKeyIsHuman >> not)
+                |> List.indexedMap (\index bot -> ( bot, Bot.Dummy.init bot (List.any inputKeyIsHuman playerKeys) index game ))
+                |> Dict.fromList
     in
     ( { game = game
-      , botStatesByKey = botStatesByKey
+      , botStatesByKey = Dict.union (makeStates team1) (makeStates team2)
       , mousePosition = { x = 0, y = 0 }
       , mouseIsPressed = False
       , viewports = []
