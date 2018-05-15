@@ -93,9 +93,9 @@ init =
 
         botStatesByKey =
             Dict.fromList
-                [ ( bot1, Bot.Dummy.init bot1 game )
-                , ( bot2, Bot.Dummy.init bot2 game )
-                , ( bot3, Bot.Dummy.init bot3 game )
+                [ ( bot1, Bot.Dummy.init bot1 False game )
+                , ( bot2, Bot.Dummy.init bot2 True game )
+                , ( bot3, Bot.Dummy.init bot3 False game )
                 ]
     in
     ( { game = game

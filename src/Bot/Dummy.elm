@@ -12,11 +12,12 @@ type alias State =
     { playerKey : String
     , teamId : Id
     , basesSortedByPriority : List Id
+    , hasHumanAlly : Bool
     }
 
 
-init : String -> Game -> State
-init playerKey game =
+init : String -> Bool -> Game -> State
+init playerKey hasHumanAlly game =
     let
         teamId =
             case Dict.get playerKey game.playerByKey of
@@ -42,6 +43,7 @@ init playerKey game =
     { playerKey = playerKey
     , teamId = teamId
     , basesSortedByPriority = basesSortedByPriority
+    , hasHumanAlly = hasHumanAlly
     }
 
 
@@ -71,7 +73,7 @@ update game state =
             gloat game state
 
         Just targetBase ->
-            ( state, attackBase state.playerKey game targetBase )
+            ( state, attackBase state game targetBase )
 
 
 gloat : Game -> State -> ( State, PlayerInput )
@@ -80,9 +82,9 @@ gloat game state =
     ( state, { neutralPlayerInput | fire = True } )
 
 
-attackBase : String -> Game -> Base -> PlayerInput
-attackBase playerKey game targetBase =
-    case Unit.findMech playerKey (Dict.values game.unitById) of
+attackBase : State -> Game -> Base -> PlayerInput
+attackBase state game targetBase =
+    case Unit.findMech state.playerKey (Dict.values game.unitById) of
         Nothing ->
             -- You're dead, you can't do anything
             neutralPlayerInput
@@ -98,7 +100,7 @@ attackBase playerKey game targetBase =
             { aim = aim
             , fire = fire
             , transform = transform
-            , rally = rally
+            , rally = rally && not state.hasHumanAlly
             , switchUnit = False
             , move = move
             }
