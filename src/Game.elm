@@ -30,31 +30,28 @@ type alias Tile2 =
 
 
 
--- Players
+-- Team
 
 
-
-type alias Player =
+type alias Team =
     { id : Id
-    , inputSourceKey : String
     , colorPattern : ColorPattern
     , markerPosition : Vec2
     , markerTime : Seconds
     , pathing : Dict Tile2 Float
-    , viewportPosition : Vec2
     }
 
 
-addPlayer : String -> Vec2 -> Game -> ( Game, Player )
-addPlayer inputSourceKey position game =
+addTeam : Vec2 -> Game -> ( Game, Team )
+addTeam startingPosition game =
     let
         id =
             game.lastId + 1
 
         colorPatternCount colorPattern =
-            game.playerById
+            game.teamById
                 |> Dict.values
-                |> List.filter (\player -> player.colorPattern == colorPattern)
+                |> List.filter (\team -> team.colorPattern == colorPattern)
                 |> List.length
 
         colorPattern =
@@ -63,20 +60,29 @@ addPlayer inputSourceKey position game =
                 |> List.head
                 |> Maybe.withDefault ColorPattern.neutral
 
-        player =
+        team =
             { id = id
-            , inputSourceKey = inputSourceKey
             , colorPattern = colorPattern
-            , markerPosition = position
+            , markerPosition = startingPosition
             , markerTime = 0
             , pathing = Dict.empty
-            , viewportPosition = position
             }
 
-        playerById =
-            Dict.insert id player game.playerById
+        teamById =
+            Dict.insert id team game.teamById
     in
-    ( { game | playerById = playerById, lastId = id }, player )
+    ( { game | teamById = teamById, lastId = id }, team )
+
+
+
+-- Players
+
+
+type alias Player =
+    { teamId : Id
+    , inputSourceKey : String
+    , viewportPosition : Vec2
+    }
 
 
 type alias PlayerInput =
@@ -117,7 +123,7 @@ neutralPlayerInput =
 
 
 type alias ProjectileSeed =
-    { ownerId : Id
+    { teamId : Id
     , position : Vec2
     , angle : Angle
     }
@@ -125,7 +131,7 @@ type alias ProjectileSeed =
 
 type alias Projectile =
     { id : Id
-    , ownerId : Id
+    , teamId : Id
     , position : Vec2
     , spawnPosition : Vec2
     , angle : Angle
@@ -133,11 +139,11 @@ type alias Projectile =
 
 
 addProjectile : ProjectileSeed -> Game -> Game
-addProjectile { ownerId, position, angle } game =
+addProjectile { teamId, position, angle } game =
     let
         projectile =
             { id = game.lastId + 1
-            , ownerId = ownerId
+            , teamId = teamId
             , position = position
             , spawnPosition = position
             , angle = angle
@@ -181,6 +187,7 @@ type TransformMode
 type alias MechComponent =
     { transformState : Float
     , transformingTo : TransformMode
+    , playerKey : String
     }
 
 
@@ -198,7 +205,7 @@ type UnitComponent
 type alias Unit =
     { id : Id
     , component : UnitComponent
-    , ownerId : Id
+    , teamId : Id
     , integrity : Float
     , position : Vec2
     , timeToReload : Seconds
@@ -214,7 +221,7 @@ type alias Unit =
 
 
 addUnit : UnitComponent -> Id -> Vec2 -> Game -> ( Game, Unit )
-addUnit component ownerId position game =
+addUnit component teamId position game =
     let
         id =
             game.lastId + 1
@@ -247,7 +254,7 @@ addUnit component ownerId position game =
 
         unit =
             { id = id
-            , ownerId = ownerId
+            , teamId = teamId
             , position = position
             , integrity = 1
             , timeToReload = 0
@@ -277,10 +284,11 @@ addSub =
         |> addUnit
 
 
-addMech : Id -> Vec2 -> Game -> ( Game, Unit )
-addMech =
+addMech : String -> Id -> Vec2 -> Game -> ( Game, Unit )
+addMech playerKey =
     { transformState = 1
     , transformingTo = ToPlane
+    , playerKey = playerKey
     }
         |> UnitMech
         |> addUnit
@@ -320,17 +328,12 @@ type BaseType
     | BaseSmall
 
 
-type BuildTarget
-    = BuildMech
-    | BuildSub
-
-
 type alias BaseOccupied =
-    { playerId : Id
+    { teamId : Id
     , unitIds : Set Id
     , isActive : Bool
-    , buildCompletion : Float
-    , buildTarget : BuildTarget
+    , subBuildCompletion : Float
+    , mechBuildCompletions : List ( String, Float )
     }
 
 
@@ -367,7 +370,8 @@ type alias Gfx =
 
 type alias Game =
     { baseById : Dict Id Base
-    , playerById : Dict Id Player
+    , teamById : Dict Id Team
+    , playerByKey : Dict String Player
     , projectileById : Dict Id Projectile
     , unitById : Dict Id Unit
     , lastId : Id
@@ -399,7 +403,8 @@ type alias Game =
 new : Random.Seed -> Game
 new seed =
     { baseById = Dict.empty
-    , playerById = Dict.empty
+    , teamById = Dict.empty
+    , playerByKey = Dict.empty
     , projectileById = Dict.empty
     , unitById = Dict.empty
     , lastId = 0
@@ -450,9 +455,14 @@ deltaBase =
     deltaEntity .baseById updateBase
 
 
-deltaPlayer : Id -> (Game -> Player -> Player) -> Delta
+deltaTeam : Id -> (Game -> Team -> Team) -> Delta
+deltaTeam =
+    deltaEntity .teamById updateTeam
+
+
+deltaPlayer : String -> (Game -> Player -> Player) -> Delta
 deltaPlayer =
-    deltaEntity .playerById updatePlayer
+    deltaEntity .playerByKey updatePlayer
 
 
 deltaUnit : Id -> (Game -> Unit -> Unit) -> Delta
@@ -465,7 +475,7 @@ deltaProjectile =
     deltaEntity .projectileById updateProjectile
 
 
-deltaEntity : (Game -> Dict Id a) -> (a -> Game -> Game) -> Id -> (Game -> a -> a) -> Delta
+deltaEntity : (Game -> Dict comparable a) -> (a -> Game -> Game) -> comparable -> (Game -> a -> a) -> Delta
 deltaEntity getter setter entityId updateEntity =
     let
         updateGame game =
@@ -488,9 +498,14 @@ updateBase base game =
     { game | baseById = Dict.insert base.id base game.baseById }
 
 
+updateTeam : Team -> Game -> Game
+updateTeam team game =
+    { game | teamById = Dict.insert team.id team game.teamById }
+
+
 updatePlayer : Player -> Game -> Game
 updatePlayer player game =
-    { game | playerById = Dict.insert player.id player game.playerById }
+    { game | playerByKey = Dict.insert player.inputSourceKey player game.playerByKey }
 
 
 updateUnit : Unit -> Game -> Game
@@ -518,9 +533,9 @@ withBase =
     with .baseById
 
 
-withPlayer : Game -> Id -> (Player -> Game) -> Game
-withPlayer =
-    with .playerById
+withTeam : Game -> Id -> (Team -> Game) -> Game
+withTeam =
+    with .teamById
 
 
 withUnit : Game -> Id -> (Unit -> Game) -> Game
@@ -684,11 +699,11 @@ rotateVector angle v =
 -- Color Patterns
 
 
-playerColorPattern : Game -> Id -> ColorPattern
-playerColorPattern game playerId =
-    case Dict.get playerId game.playerById of
+teamColorPattern : Game -> Id -> ColorPattern
+teamColorPattern game teamId =
+    case Dict.get teamId game.teamById of
         Nothing ->
             ColorPattern.neutral
 
-        Just player ->
-            player.colorPattern
+        Just team ->
+            team.colorPattern

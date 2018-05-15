@@ -96,7 +96,7 @@ searchForTargets game unit =
                             -distance
 
         validTargetPriority target =
-            if target.ownerId == unit.ownerId then
+            if target.teamId == unit.teamId then
                 Nothing
             else
                 let
@@ -172,7 +172,7 @@ thinkTarget dt game unit sub =
                             , View.Gfx.deltaAddBeam
                                 (Vec2.add unit.position (View.Sub.gunOffset unit.moveAngle))
                                 target.position
-                                (Game.playerColorPattern game unit.ownerId)
+                                (Game.teamColorPattern game unit.teamId)
                             ]
                     ]
 
@@ -319,9 +319,9 @@ updateUnitEntersBase unit base game =
                 Nothing ->
                     { unitIds = Set.empty
                     , isActive = False
-                    , playerId = unit.ownerId
-                    , buildCompletion = 0
-                    , buildTarget = BuildSub
+                    , teamId = unit.teamId
+                    , subBuildCompletion = 0
+                    , mechBuildCompletions = []
                     }
 
                 Just occupied ->
@@ -389,11 +389,11 @@ thinkMovement dt game unit sub =
                      if base nearby && can be entered -> move / enter
                      else -> move to marker
                 -}
-                case Dict.get unit.ownerId game.playerById of
+                case Dict.get unit.teamId game.teamById of
                     Nothing ->
                         deltaNone
 
-                    Just player ->
+                    Just team ->
                         let
                             conquerBaseDistanceThreshold =
                                 3.0
@@ -412,4 +412,4 @@ thinkMovement dt game unit sub =
                                     deltaGame (deltaGameUnitEntersBase unit.id base.id)
 
                             Nothing ->
-                                movePath dt game player.pathing unit
+                                movePath dt game team.pathing unit

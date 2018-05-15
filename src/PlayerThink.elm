@@ -27,7 +27,7 @@ transformTime =
 
 think : PlayerInput -> Seconds -> Game -> Player -> Delta
 think input dt game player =
-    case game.unitById |> Dict.values |> Unit.findMech player.id of
+    case game.unitById |> Dict.values |> Unit.findMech player.inputSourceKey of
         Nothing ->
             moveViewportToBase dt game player
 
@@ -37,7 +37,7 @@ think input dt game player =
 
 moveViewportToBase : Seconds -> Game -> Player -> Delta
 moveViewportToBase dt game player =
-    case Base.playerMainBase game player.id of
+    case Base.teamMainBase game player.teamId of
         Nothing ->
             deltaNone
 
@@ -67,7 +67,7 @@ moveViewportToBase dt game player =
             if length < 0.01 then
                 deltaNone
             else
-                deltaPlayer player.id (\g p -> { p | viewportPosition = position })
+                deltaPlayer player.inputSourceKey (\g p -> { p | viewportPosition = position })
 
 
 mechThink : PlayerInput -> Seconds -> Game -> Unit -> MechComponent -> Delta
@@ -126,12 +126,12 @@ mechThink input dt game unit mech =
 
         moveTarget =
             if input.rally then
-                deltaPlayer unit.ownerId
-                    (\g p ->
-                        if g.time - p.markerTime < 1 then
-                            p
+                deltaTeam unit.teamId
+                    (\g t ->
+                        if g.time - t.markerTime < 1 then
+                            t
                         else
-                            { p
+                            { t
                                 | markerPosition = unit.position
                                 , markerTime = g.time
                                 , pathing = Pathfinding.makePaths g (vec2Tile unit.position)
@@ -155,7 +155,7 @@ mechThink input dt game unit mech =
             deltaUnit unit.id (\g u -> { u | position = newPosition })
 
         moveViewport =
-            deltaPlayer unit.ownerId (\g p -> { p | viewportPosition = newPosition })
+            deltaPlayer mech.playerKey (\g p -> { p | viewportPosition = newPosition })
 
         reload =
             if unit.timeToReload > 0 then
@@ -182,7 +182,7 @@ mechThink input dt game unit mech =
             View.Mech.rightGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
 
         deltaFire origin =
-            Game.deltaAddProjectile { ownerId = unit.ownerId, position = origin, angle = aimAngle }
+            Game.deltaAddProjectile { teamId = unit.teamId, position = origin, angle = aimAngle }
 
         fire =
             if input.fire && unit.timeToReload == 0 then
@@ -220,7 +220,7 @@ repairDelta dt game unit mech =
                         False
 
                     Just occupied ->
-                        (occupied.isActive && occupied.playerId == unit.ownerId && occupied.buildCompletion > 0)
+                        (occupied.isActive && occupied.teamId == unit.teamId && occupied.subBuildCompletion > 0)
                             && (Vec2.distanceSquared base.position unit.position < 3 * 3)
         in
         case List.Extra.find canRepair (Dict.values game.baseById) of

@@ -67,7 +67,7 @@ unitCanEnter unit base =
             True
 
         Just occupied ->
-            occupied.playerId == unit.ownerId && Set.size occupied.unitIds < maxContainedUnits
+            occupied.teamId == unit.teamId && Set.size occupied.unitIds < maxContainedUnits
 
 
 
@@ -99,11 +99,11 @@ add type_ tile game =
 
 colorPattern : Game -> Base -> ColorPattern
 colorPattern game base =
-    playerColorPattern game <|
+    teamColorPattern game <|
         case base.maybeOccupied of
             Just occupied ->
                 if occupied.isActive then
-                    occupied.playerId
+                    occupied.teamId
                 else
                     -1
 
@@ -117,20 +117,20 @@ isOccupied base =
 
 
 isOccupiedBy : Id -> Base -> Bool
-isOccupiedBy playerId base =
+isOccupiedBy teamId base =
     case base.maybeOccupied of
         Nothing ->
             False
 
         Just occupied ->
-            occupied.playerId == playerId
+            occupied.teamId == teamId
 
 
-playerMainBase : Game -> Id -> Maybe Base
-playerMainBase game playerId =
+teamMainBase : Game -> Id -> Maybe Base
+teamMainBase game teamId =
     game.baseById
         |> Dict.values
-        |> List.Extra.find (\b -> b.type_ == BaseMain && isOccupiedBy playerId b)
+        |> List.Extra.find (\b -> b.type_ == BaseMain && isOccupiedBy teamId b)
 
 
 updateOccupied : (BaseOccupied -> BaseOccupied) -> Game -> Base -> Base
@@ -170,7 +170,7 @@ deltaRepairUnit dt baseId unitId =
 
                                         -- Can't use more than the base has
                                         baseLimit =
-                                            occupied.buildCompletion * productionToIntegrityRatio
+                                            occupied.subBuildCompletion * productionToIntegrityRatio
 
                                         --
                                         actualRepair =
@@ -183,7 +183,7 @@ deltaRepairUnit dt baseId unitId =
                                             { unit | integrity = unit.integrity + actualRepair }
 
                                         updatedBase =
-                                            { base | maybeOccupied = Just { occupied | buildCompletion = occupied.buildCompletion - actualRepair / productionToIntegrityRatio } }
+                                            { base | maybeOccupied = Just { occupied | subBuildCompletion = occupied.subBuildCompletion - actualRepair / productionToIntegrityRatio } }
                                     in
                                     game
                                         |> Game.updateBase updatedBase
