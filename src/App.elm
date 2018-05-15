@@ -66,6 +66,11 @@ inputBotKey n =
     "bot " ++ toString n
 
 
+inputKeyIsHuman : String -> Bool
+inputKeyIsHuman key =
+    String.startsWith "bot " key |> not
+
+
 inputGamepadKey : Int -> String
 inputGamepadKey index =
     "gamepad " ++ toString index
@@ -88,14 +93,20 @@ init =
         bot3 =
             inputBotKey 3
 
+        playerKeysTeam1 =
+            [ inputKeyboardAndMouseKey, bot2 ]
+
+        playerKeysTeam2 =
+            [ bot1, bot3 ]
+
         game =
-            Game.Init.basicGame [ inputKeyboardAndMouseKey, bot2 ] [ bot1, bot3 ]
+            Game.Init.basicGame playerKeysTeam1 playerKeysTeam2
 
         botStatesByKey =
             Dict.fromList
-                [ ( bot1, Bot.Dummy.init bot1 False game )
-                , ( bot2, Bot.Dummy.init bot2 True game )
-                , ( bot3, Bot.Dummy.init bot3 False game )
+                [ ( bot1, Bot.Dummy.init bot1 False 1 game )
+                , ( bot2, Bot.Dummy.init bot2 True 2 game )
+                , ( bot3, Bot.Dummy.init bot3 False 3 game )
                 ]
     in
     ( { game = game
@@ -124,7 +135,12 @@ setViewports : Window.Size -> Model -> Model
 setViewports windowSize model =
     { model
         | windowSize = windowSize
-        , viewports = SplitScreen.makeViewports windowSize (Dict.size model.game.playerByKey)
+        , viewports =
+            model.game.playerByKey
+                |> Dict.keys
+                |> List.filter inputKeyIsHuman
+                |> List.length
+                |> SplitScreen.makeViewports windowSize
     }
 
 
@@ -156,7 +172,7 @@ update pressedKeys msg model =
                 ( mouseX, mouseY ) =
                     model
                         |> playersAndViewports
-                        |> List.Extra.find (\(p, v) -> p.inputSourceKey == inputKeyboardAndMouseKey)
+                        |> List.Extra.find (\( p, v ) -> p.inputSourceKey == inputKeyboardAndMouseKey)
                         |> Maybe.map (Tuple.second >> SplitScreen.mouseScreenToViewport model.mousePosition)
                         |> Maybe.withDefault ( 0, 0 )
 
@@ -555,25 +571,21 @@ viewPlayer model ( player, viewport ) =
                 ]
 
 
-
-playersAndViewports : Model -> List (Player, Viewport)
+playersAndViewports : Model -> List ( Player, Viewport )
 playersAndViewports model =
-  let
+    let
         sortedPlayers =
             model.game.playerByKey
                 |> Dict.values
+                |> List.filter (.inputSourceKey >> inputKeyIsHuman)
                 |> List.sortBy (\player -> toString player.teamId ++ player.inputSourceKey)
-
-
-
-  in
-            List.map2 (,) sortedPlayers model.viewports
+    in
+    List.map2 (,) sortedPlayers model.viewports
 
 
 splitView : Model -> Svg Msg
 splitView model =
     let
-
         fps =
             List.sum model.fps / toFloat (List.length model.fps) |> round
     in
