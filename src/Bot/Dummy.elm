@@ -87,8 +87,19 @@ update game state =
 
 gloat : Game -> State -> ( State, PlayerInput )
 gloat game state =
-    -- TODO: do something more gloaty
-    ( state, { neutralPlayerInput | fire = True } )
+    ( if game.time - state.lastChange < 0.01 then
+        state
+      else
+        { state
+            | lastChange = game.time
+            , speedAroundBase = state.speedAroundBase + 0.1
+        }
+    , { neutralPlayerInput
+        | fire = True
+        , transform = True
+        , aim = angleToVector state.speedAroundBase
+      }
+    )
 
 
 attackBase : State -> Game -> Base -> ( State, PlayerInput )
