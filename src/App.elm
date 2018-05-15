@@ -85,14 +85,17 @@ init =
         bot2 =
             inputBotKey 2
 
+        bot3 =
+            inputBotKey 3
+
         game =
-            Game.Init.basicGame [ inputKeyboardAndMouseKey ] [ bot1 ]
+            Game.Init.basicGame [ inputKeyboardAndMouseKey, bot2 ] [ bot1, bot3 ]
 
         botStatesByKey =
             Dict.fromList
                 [ ( bot1, Bot.Dummy.init bot1 game )
-
-                --, ( bot2, Bot.Dummy.init bot2 game )
+                , ( bot2, Bot.Dummy.init bot2 game )
+                , ( bot3, Bot.Dummy.init bot3 game )
                 ]
     in
     ( { game = game
@@ -121,7 +124,7 @@ setViewports : Window.Size -> Model -> Model
 setViewports windowSize model =
     { model
         | windowSize = windowSize
-        , viewports = SplitScreen.makeViewports windowSize (Dict.size model.game.teamById)
+        , viewports = SplitScreen.makeViewports windowSize (Dict.size model.game.playerByKey)
     }
 
 
@@ -151,9 +154,10 @@ update pressedKeys msg model =
                     List.member key pressedKeys
 
                 ( mouseX, mouseY ) =
-                    model.viewports
-                        |> List.head
-                        |> Maybe.map (SplitScreen.mouseScreenToViewport model.mousePosition)
+                    model
+                        |> playersAndViewports
+                        |> List.Extra.find (\(p, v) -> p.inputSourceKey == inputKeyboardAndMouseKey)
+                        |> Maybe.map (Tuple.second >> SplitScreen.mouseScreenToViewport model.mousePosition)
                         |> Maybe.withDefault ( 0, 0 )
 
                 keyboardAndMouseInput =
@@ -551,23 +555,32 @@ viewPlayer model ( player, viewport ) =
                 ]
 
 
-splitView : Model -> Svg Msg
-splitView model =
-    let
+
+playersAndViewports : Model -> List (Player, Viewport)
+playersAndViewports model =
+  let
         sortedPlayers =
             model.game.playerByKey
                 |> Dict.values
                 |> List.sortBy (\player -> toString player.teamId ++ player.inputSourceKey)
 
-        viewportsAndPlayers =
+
+
+  in
             List.map2 (,) sortedPlayers model.viewports
+
+
+splitView : Model -> Svg Msg
+splitView model =
+    let
 
         fps =
             List.sum model.fps / toFloat (List.length model.fps) |> round
     in
     div
         []
-        [ viewportsAndPlayers
+        [ model
+            |> playersAndViewports
             |> List.map (viewPlayer model)
             |> SplitScreen.viewportsWrapper
         , [ "FPS " ++ toString fps
