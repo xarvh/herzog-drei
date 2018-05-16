@@ -21,6 +21,11 @@ transformTime =
     0.2
 
 
+aimControlThreshold : Float
+aimControlThreshold =
+    0.1
+
+
 
 --
 
@@ -164,7 +169,13 @@ mechThink input dt game unit mech =
                 deltaNone
 
         aimAngle =
-            Game.vecToAngle input.aim
+            if Vec2.length input.aim > aimControlThreshold then
+                vecToAngle input.aim
+            else if Vec2.length input.move > aimControlThreshold then
+                vecToAngle input.move
+            else
+                -- Keep old value
+                unit.fireAngle
 
         aim =
             (\g u ->
