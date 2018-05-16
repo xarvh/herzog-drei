@@ -14,7 +14,6 @@ import Keyboard.Extra
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mouse
-import Random
 import Set exposing (Set)
 import SplitScreen exposing (Viewport)
 import Svg exposing (Svg)
@@ -48,6 +47,7 @@ type alias Model =
     , viewports : List Viewport
     , windowSize : Window.Size
     , fps : List Float
+    , terrain : List View.Background.Rect
     }
 
 
@@ -113,6 +113,7 @@ init =
       , viewports = []
       , windowSize = { width = 1, height = 1 }
       , fps = []
+      , terrain = View.Background.initRects game
       }
     , Window.size |> Task.perform OnWindowResizes
     )
@@ -525,8 +526,7 @@ viewPlayer model ( player, viewport ) =
                 [ Svg.g
                     [ transform [ "scale(1 -1)", scale (1 / viewportMinSizeInTiles), translate offset ]
                     ]
-                    --[ View.Background.terrain (model.time / 1000)
-                    [ checkersBackground model.game
+                    [ View.Background.terrain isWithinViewport model.terrain
                     , subs
                         |> List.filter (\( u, s ) -> s.mode == UnitModeFree && isWithinViewport u.position 0.7)
                         |> List.map (viewSub game)

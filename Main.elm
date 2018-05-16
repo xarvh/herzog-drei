@@ -8,6 +8,7 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (g, svg)
 import Svg.Attributes exposing (transform)
 import Task
+import View.Background
 
 
 type alias Flags =
@@ -57,7 +58,15 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    App.view model.app |> Svg.map OnAppMsg
+    div
+        []
+        [ Html.node "style"
+            []
+            [ Html.text View.Background.classAndAnimation
+            ]
+        , App.view model.app
+            |> Svg.map OnAppMsg
+        ]
 
 
 subscriptions : Model -> Sub Msg
