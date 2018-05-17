@@ -16,8 +16,12 @@ import View.Gfx
 
 
 update : Seconds -> Dict String PlayerInput -> Game -> Game
-update dt playerInputBySourceId game =
+update time playerInputBySourceId game =
     let
+        -- Cap dt to 0.1 secs to avoid time integration problems
+        dt =
+            time - game.time |> min 0.1
+
         units =
             Dict.values game.unitById
 
@@ -53,7 +57,7 @@ update dt playerInputBySourceId game =
         |> List.map deltaList
         |> applyGameDeltas oldGameWithUpdatedDynamicObstacles
         |> updateGfxs dt
-        |> (\game -> { game | time = game.time + dt })
+        |> (\game -> { game | time = time })
 
 
 
