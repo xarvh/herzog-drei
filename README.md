@@ -1,5 +1,7 @@
 # Herzog Drei
 
+You can play it [here](https://xarvh.github.io/herzog-drei/).
+
 [Herzog Zwei](https://en.wikipedia.org/wiki/Herzog_Zwei) was probably the very
 first [RTS](https://en.wikipedia.org/wiki/Real-time_strategy).
 
