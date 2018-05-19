@@ -130,8 +130,19 @@ drawRect rect =
         []
 
 
-terrain : (Vec2 -> Float -> Bool) -> List Rect -> Svg a
-terrain isWithinViewport rects =
+
+--
+
+
+terrain : List Rect -> Svg a
+terrain rects =
+    rects
+        |> List.map drawRect
+        |> Svg.g []
+
+
+xterrain : (Vec2 -> Float -> Bool) -> List Rect -> Svg a
+xterrain isWithinViewport rects =
     let
         shouldRender : Rect -> Bool
         shouldRender { x, y, w, h } =

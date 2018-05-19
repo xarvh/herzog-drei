@@ -19,6 +19,7 @@ import SplitScreen exposing (Viewport)
 import Svg exposing (Svg)
 import Svg.Attributes
 import Svg.Events
+import Svg.Lazy
 import Task
 import Time exposing (Time)
 import View exposing (..)
@@ -199,7 +200,7 @@ update pressedKeys msg model =
                     timeInMilliseconds / 1000
 
                 dt =
-                  time - model.game.time
+                    time - model.game.time
 
                 game =
                     Game.Update.update time playerInputsByInputSourceId model.game
@@ -526,7 +527,7 @@ viewPlayer model ( player, viewport ) =
                 [ Svg.g
                     [ transform [ "scale(1 -1)", scale (1 / viewportMinSizeInTiles), translate offset ]
                     ]
-                    [ View.Background.terrain isWithinViewport model.terrain
+                    [ Svg.Lazy.lazy View.Background.terrain model.terrain
                     , subs
                         |> List.filter (\( u, s ) -> s.mode == UnitModeFree && isWithinViewport u.position 0.7)
                         |> List.map (viewSub game)
