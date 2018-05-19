@@ -14,12 +14,12 @@ import Keyboard.Extra
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mouse
-import Random
 import Set exposing (Set)
 import SplitScreen exposing (Viewport)
 import Svg exposing (Svg)
 import Svg.Attributes
 import Svg.Events
+import Svg.Lazy
 import Task
 import Time exposing (Time)
 import View exposing (..)
@@ -47,8 +47,8 @@ type alias Model =
     , mouseIsPressed : Bool
     , viewports : List Viewport
     , windowSize : Window.Size
-    , time : Time
     , fps : List Float
+    , terrain : List View.Background.Rect
     }
 
 
@@ -113,8 +113,8 @@ init =
       , mouseIsPressed = False
       , viewports = []
       , windowSize = { width = 1, height = 1 }
-      , time = 0
       , fps = []
+      , terrain = View.Background.initRects game
       }
     , Window.size |> Task.perform OnWindowResizes
     )
@@ -154,13 +154,8 @@ update pressedKeys msg model =
         OnWindowResizes windowSize ->
             setViewports windowSize model |> noCmd
 
-        OnAnimationFrame dtInMilliseconds ->
+        OnAnimationFrame timeInMilliseconds ->
             let
-                -- All times in the game are in seconds
-                -- Also, cap dt to 0.1 secs, in case the app goes in background
-                dt =
-                    dtInMilliseconds / 1000 |> min 0.1
-
                 { x, y } =
                     Keyboard.Extra.wasd pressedKeys
 
@@ -200,14 +195,20 @@ update pressedKeys msg model =
                     botInputsByKey
                         |> Dict.insert inputKeyboardAndMouseKey keyboardAndMouseInput
 
+                -- All times in the game are in seconds
+                time =
+                    timeInMilliseconds / 1000
+
+                dt =
+                    time - model.game.time
+
                 game =
-                    Game.Update.update dt playerInputsByInputSourceId model.game
+                    Game.Update.update time playerInputsByInputSourceId model.game
             in
             noCmd
                 { model
                     | game = game
                     , botStatesByKey = botStatesByKey
-                    , time = model.time + dt
                     , fps = (1 / dt) :: List.take 20 model.fps
                 }
 
@@ -440,7 +441,7 @@ testView model =
             n - (toFloat (floor (n / p)) * p)
 
         age =
-            wrap model.time period / 5
+            wrap model.game.time period / 5
     in
     Svg.svg
         [ Svg.Attributes.viewBox "-1 -1 2 2"
@@ -526,8 +527,7 @@ viewPlayer model ( player, viewport ) =
                 [ Svg.g
                     [ transform [ "scale(1 -1)", scale (1 / viewportMinSizeInTiles), translate offset ]
                     ]
-                    --[ View.Background.terrain (model.time / 1000)
-                    [ checkersBackground model.game
+                    [ Svg.Lazy.lazy View.Background.terrain model.terrain
                     , subs
                         |> List.filter (\( u, s ) -> s.mode == UnitModeFree && isWithinViewport u.position 0.7)
                         |> List.map (viewSub game)
@@ -611,7 +611,7 @@ splitView model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ AnimationFrame.diffs OnAnimationFrame
+        [ AnimationFrame.times OnAnimationFrame
         , Mouse.downs (\_ -> OnMouseButton True)
         , Mouse.ups (\_ -> OnMouseButton False)
         , Mouse.moves OnMouseMoves
