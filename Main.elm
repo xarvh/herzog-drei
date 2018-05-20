@@ -1,10 +1,12 @@
 module Main exposing (..)
 
 import App
+import Dict exposing (Dict)
 import Html exposing (Html, div)
 import Html.Attributes exposing (style)
 import Keyboard.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Navigation
 import Svg exposing (g, svg)
 import Svg.Attributes exposing (transform)
 import Task
@@ -27,13 +29,31 @@ type alias Model =
 type Msg
     = OnAppMsg App.Msg
     | OnKeyboardMsg Keyboard.Extra.Msg
+    | Noop
 
 
-init : Flags -> ( Model, Cmd Msg )
-init flags =
+stringToTuple : String -> Maybe ( String, String )
+stringToTuple str =
+    case String.split "=" str of
+        key :: values ->
+            Just ( key, String.join "=" values )
+
+        _ ->
+            Nothing
+
+
+init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
+init flags location =
     let
+        params =
+            location.hash
+                |> String.dropLeft 1
+                |> String.split "&"
+                |> List.filterMap stringToTuple
+                |> Dict.fromList
+
         ( appModel, appCmd ) =
-            App.init
+            App.init params
     in
     ( { pressedKeys = []
       , app = appModel
@@ -45,6 +65,9 @@ init flags =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        Noop ->
+            ( model, Cmd.none )
+
         OnAppMsg nestedMsg ->
             let
                 ( appModel, appCmd ) =
@@ -78,7 +101,8 @@ subscriptions model =
 
 
 main =
-    Html.programWithFlags
+    Navigation.programWithFlags
+        (always Noop)
         { view = view
         , subscriptions = subscriptions
         , update = update

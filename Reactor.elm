@@ -1,7 +1,7 @@
 module Reactor exposing (..)
 
-import Html
 import Main
+import Navigation
 
 
 defaultFlags : Main.Flags
@@ -13,7 +13,8 @@ defaultFlags =
 
 
 main =
-    Html.program
+    Navigation.program
+        (always Main.Noop)
         { init = Main.init defaultFlags
         , update = Main.update
         , view = Main.view

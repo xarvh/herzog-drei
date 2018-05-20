@@ -49,6 +49,7 @@ type alias Model =
     , windowSize : Window.Size
     , fps : List Float
     , terrain : List View.Background.Rect
+    , params : Dict String String
     }
 
 
@@ -80,8 +81,8 @@ inputGamepadKey index =
 -- init
 
 
-init : ( Model, Cmd Msg )
-init =
+init : Dict String String -> ( Model, Cmd Msg )
+init params =
     let
         -- bot input sources
         team1 =
@@ -115,6 +116,7 @@ init =
       , windowSize = { width = 1, height = 1 }
       , fps = []
       , terrain = View.Background.initRects game
+      , params = params
       }
     , Window.size |> Task.perform OnWindowResizes
     )
