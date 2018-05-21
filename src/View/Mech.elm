@@ -132,3 +132,93 @@ mech t headAngle topAngle darkColor brightColor =
             , eye -0.05 (smooth 0.03 0.15) -6
             ]
         ]
+
+
+
+-- Mantis
+
+
+mantis : Float -> Angle -> Angle -> String -> String -> Svg a
+mantis t headAngle topAngle darkColor brightColor =
+    let
+        smooth =
+            View.smooth t
+
+        step =
+            View.step t
+
+        --
+        torsoA =
+            -45
+
+        leftShoulderA =
+            60
+
+        leftElbowA =
+            -10
+
+        leftWristA =
+            -20
+
+        --
+        rectPlate ( xx, yy ) ( ww, hh ) =
+            rect
+                [ transform [ translate2 xx yy ]
+                , fill darkColor
+                , stroke brightColor
+                , strokeWidth 0.06
+                , width ww
+                , height hh
+                , x (-ww / 2)
+                , y (-hh / 2)
+                ]
+                []
+
+        eye xx yy aa =
+            ellipse
+                [ transform [ translate2 xx yy, rotateDeg aa ]
+                , fill "#f80000"
+                , stroke "#990000"
+                , strokeWidth 0.03
+                , ry 0.081
+                , rx 0.06
+                ]
+                []
+    in
+    g []
+        -- torso + arms
+        [ g
+            [ transform
+                [ rotateDeg torsoA ]
+            ]
+            [ rectPlate ( 0, 0 ) ( 1.35, 0.51 )
+            , g
+                [ transform
+                    [ translate2 -0.7 0
+                    , rotateDeg leftShoulderA
+                    ]
+                ]
+                [ rectPlate ( -0.5, 0 ) ( 1, 0.4 )
+                , g
+                ]
+            ]
+
+        -- head
+        , g
+            [ transform [ rotateRad (step headAngle topAngle) ] ]
+            [ ellipse
+                [ cx 0
+                , cy -0.03
+                , rx 0.24
+                , ry 0.51
+                , fill darkColor
+                , stroke brightColor
+                , strokeWidth 0.06
+                ]
+                []
+            , eye 0.09 0.3 14
+            , eye -0.09 0.3 -14
+            , eye 0.15 0.09 6
+            , eye -0.15 0.09 -6
+            ]
+        ]

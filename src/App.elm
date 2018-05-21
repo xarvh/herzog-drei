@@ -426,10 +426,6 @@ viewWall ( xi, yi ) =
 -- Test View
 
 
-view =
-    splitView
-
-
 testView : Model -> Svg a
 testView model =
     let
@@ -442,6 +438,9 @@ testView model =
         wrap n p =
             n - (toFloat (floor (n / p)) * p)
 
+        mouseVec =
+          vec2 (toFloat model.mousePosition.x) (toFloat model.mousePosition.y)
+
         age =
             wrap model.game.time period / 5
     in
@@ -453,10 +452,7 @@ testView model =
         [ Svg.g
             [ transform [ "scale(0.1, -0.1)" ]
             ]
-            [ View.Base.main_ age neutral.bright neutral.dark
-
-            --[ View.Mech.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
-            --[ View.Sub.sub (pi / 4) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
+            [ View.Mech.mantis age (Game.vecToAngle mouseVec) 0 neutral.bright neutral.dark
             ]
         ]
 
@@ -604,6 +600,18 @@ splitView model =
             |> List.map (\t -> div [] [ Html.text t ])
             |> div [ style [ ( "position", "absolute" ), ( "top", "0" ) ] ]
         ]
+
+
+
+-- View
+
+
+view : Model -> Svg Msg
+view model =
+    if Dict.member "test" model.params then
+        testView model
+    else
+        splitView model
 
 
 
