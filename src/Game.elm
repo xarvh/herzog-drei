@@ -84,9 +84,10 @@ type alias Player =
     , viewportPosition : Vec2
     }
 
+type Aim = AimRelative Vec2 | AimAbsolute Vec2
 
 type alias PlayerInput =
-    { aim : Vec2
+    { aim : Aim
 
     -- Mech attacks
     , fire : Bool
@@ -109,7 +110,7 @@ type alias PlayerInput =
 
 neutralPlayerInput : PlayerInput
 neutralPlayerInput =
-    { aim = vec2 0 1
+    { aim = AimAbsolute (vec2 0 0)
     , fire = False
     , transform = False
     , switchUnit = False

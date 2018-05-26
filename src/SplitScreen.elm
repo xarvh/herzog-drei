@@ -27,6 +27,14 @@ type alias Viewport =
     Rect Int
 
 
+defaultViewport =
+    { x = 0
+    , y = 0
+    , w = 640
+    , h = 480
+    }
+
+
 
 -- Size
 
@@ -44,7 +52,6 @@ viewportSizeInGameUnits viewport minSizeInGameUnits =
             minSizeInGameUnits * toFloat viewport.h / minSize
     in
     ( w, h )
-
 
 
 isWithinViewport : Viewport -> Vec2 -> Float -> (Vec2 -> Float -> Bool)
@@ -97,6 +104,27 @@ mouseScreenToViewport mouse viewport =
             1 - mouse.y + viewport.y + viewport.h // 2
     in
     ( toFloat pixelX / toFloat minSize, toFloat pixelY / toFloat minSize )
+
+
+
+-- Fit
+
+
+fitWidthAndHeight : Float -> Float -> Viewport -> Float
+fitWidthAndHeight width height viewport =
+    let
+        minSize =
+            min viewport.w viewport.h
+
+        -- fit width
+        xScale =
+            width / (toFloat viewport.w / toFloat minSize)
+
+        -- fit height
+        yScale =
+            height / (toFloat viewport.h / toFloat minSize)
+    in
+    max xScale yScale
 
 
 
