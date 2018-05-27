@@ -16,6 +16,7 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mouse
 import Set exposing (Set)
 import SplitScreen exposing (Viewport)
+import String.Extra
 import Svg exposing (Svg)
 import Svg.Attributes
 import Svg.Events
@@ -45,8 +46,8 @@ type alias Model =
     , botStatesByKey : Dict String Bot.Dummy.State
     , mousePosition : Mouse.Position
     , mouseIsPressed : Bool
-    , viewports : List Viewport
     , windowSize : Window.Size
+    , viewport : Viewport
     , fps : List Float
     , terrain : List View.Background.Rect
     , params : Dict String String
@@ -112,8 +113,8 @@ init params =
       , botStatesByKey = Dict.union (makeStates team1) (makeStates team2)
       , mousePosition = { x = 0, y = 0 }
       , mouseIsPressed = False
-      , viewports = []
       , windowSize = { width = 1, height = 1 }
+      , viewport = SplitScreen.defaultViewport
       , fps = []
       , terrain = View.Background.initRects game
       , params = params
@@ -131,17 +132,20 @@ noCmd model =
     ( model, Cmd.none )
 
 
-setViewports : Window.Size -> Model -> Model
-setViewports windowSize model =
-    { model
-        | windowSize = windowSize
-        , viewports =
-            model.game.playerByKey
-                |> Dict.keys
-                |> List.filter inputKeyIsHuman
-                |> List.length
-                |> SplitScreen.makeViewports windowSize
-    }
+
+{-
+   setViewports : Window.Size -> Model -> Model
+   setViewports windowSize model =
+       { model
+           | windowSize = windowSize
+           , viewports =
+               model.game.playerByKey
+                   |> Dict.keys
+                   |> List.filter inputKeyIsHuman
+                   |> List.length
+                   |> SplitScreen.makeViewports windowSize
+       }
+-}
 
 
 update : List Keyboard.Extra.Key -> Msg -> Model -> ( Model, Cmd Msg )
@@ -154,7 +158,14 @@ update pressedKeys msg model =
             noCmd { model | mousePosition = mousePosition }
 
         OnWindowResizes windowSize ->
-            setViewports windowSize model |> noCmd
+            { model
+                | windowSize = windowSize
+                , viewport =
+                    SplitScreen.makeViewports windowSize 1
+                        |> List.head
+                        |> Maybe.withDefault SplitScreen.defaultViewport
+            }
+                |> noCmd
 
         OnAnimationFrame timeInMilliseconds ->
             let
@@ -164,15 +175,14 @@ update pressedKeys msg model =
                 isPressed key =
                     List.member key pressedKeys
 
-                ( mouseX, mouseY ) =
-                    model
-                        |> playersAndViewports
-                        |> List.Extra.find (\( p, v ) -> p.inputSourceKey == inputKeyboardAndMouseKey)
-                        |> Maybe.map (Tuple.second >> SplitScreen.mouseScreenToViewport model.mousePosition)
-                        |> Maybe.withDefault ( 0, 0 )
+                mouseAim =
+                    SplitScreen.mouseScreenToViewport model.mousePosition model.viewport
+                        |> Vec2.fromTuple
+                        |> Vec2.scale (tilesToViewport model)
+                        |> AimRelative
 
                 keyboardAndMouseInput =
-                    { aim = vec2 mouseX mouseY
+                    { aim = mouseAim
                     , fire = model.mouseIsPressed
                     , transform = isPressed Keyboard.Extra.CharE
                     , switchUnit = isPressed Keyboard.Extra.Space
@@ -426,10 +436,6 @@ viewWall ( xi, yi ) =
 -- Test View
 
 
-view =
-    splitView
-
-
 testView : Model -> Svg a
 testView model =
     let
@@ -465,19 +471,19 @@ testView model =
 --
 
 
-viewVictory : Game -> Team -> Svg a
-viewVictory game team =
-    case game.maybeWinnerId of
+viewVictory : Game -> Svg a
+viewVictory game =
+    case game.maybeWinnerId |> Maybe.andThen (\id -> Dict.get id game.teamById) of
         Nothing ->
             Html.text ""
 
-        Just winnerId ->
+        Just team ->
             let
-                ( text, pattern ) =
-                    if team.id == winnerId then
-                        ( "Victory!", team.colorPattern )
-                    else
-                        ( "Defeat!", neutral )
+                pattern =
+                    team.colorPattern
+
+                text =
+                    String.Extra.toTitleCase pattern.key ++ " wins!"
             in
             Svg.text_
                 [ Svg.Attributes.textAnchor "middle"
@@ -497,8 +503,13 @@ viewVictory game team =
 -- Game view
 
 
-viewPlayer : Model -> ( Player, Viewport ) -> Svg Msg
-viewPlayer model ( player, viewport ) =
+tilesToViewport : Model -> Float
+tilesToViewport model =
+    SplitScreen.fitWidthAndHeight (toFloat model.game.halfWidth * 2) (toFloat model.game.halfHeight * 2) model.viewport
+
+
+gameView : Model -> Viewport -> Svg Msg
+gameView model viewport =
     let
         game =
             model.game
@@ -508,92 +519,80 @@ viewPlayer model ( player, viewport ) =
 
         ( mechs, subs ) =
             mechVsUnit units
-
-        offset =
-            Vec2.negate player.viewportPosition
-
-        -- The scale should be enough to fit the mech's shooting range and then some
-        viewportMinSizeInTiles =
-            20
-
-        isWithinViewport =
-            SplitScreen.isWithinViewport viewport player.viewportPosition viewportMinSizeInTiles
     in
-    case Dict.get player.teamId game.teamById of
-        Nothing ->
-            Html.text ""
-
-        Just team ->
-            Svg.svg
-                (SplitScreen.viewportToSvgAttributes viewport)
-                [ Svg.g
-                    [ transform [ "scale(1 -1)", scale (1 / viewportMinSizeInTiles), translate offset ]
-                    ]
-                    [ Svg.Lazy.lazy View.Background.terrain model.terrain
-                    , subs
-                        |> List.filter (\( u, s ) -> s.mode == UnitModeFree && isWithinViewport u.position 0.7)
-                        |> List.map (viewSub game)
-                        |> Svg.g []
-                    , game.wallTiles
-                        |> Set.toList
-                        |> List.filter (\pos -> isWithinViewport (tile2Vec pos) 1)
-                        |> List.map viewWall
-                        |> Svg.g []
-                    , game.baseById
-                        |> Dict.values
-                        |> List.filter (\b -> isWithinViewport b.position 3)
-                        |> List.map (viewBase game)
-                        |> Svg.g []
-                    , subs
-                        |> List.filter (\( u, s ) -> s.mode /= UnitModeFree && isWithinViewport u.position 0.7)
-                        |> List.map (viewSub game)
-                        |> Svg.g []
-                    , mechs
-                        |> List.filter (\( u, m ) -> isWithinViewport u.position 1.5)
-                        |> List.map (viewMech game)
-                        |> Svg.g []
-                    , viewMarker game team
-                    , game.projectileById
-                        |> Dict.values
-                        |> List.filter (\p -> isWithinViewport p.position 0.5)
-                        |> List.map viewProjectile
-                        |> Svg.g []
-                    , game.cosmetics
-                        -- TODO viewport cull
-                        |> List.map View.Gfx.render
-                        |> Svg.g []
-                    , units
-                        |> List.filter (\u -> u.teamId == player.teamId)
-                        |> List.map viewHealthbar
-                        |> Svg.g []
-                    ]
-                , viewVictory game team
-                ]
-
-
-playersAndViewports : Model -> List ( Player, Viewport )
-playersAndViewports model =
-    let
-        sortedPlayers =
-            model.game.playerByKey
+    Svg.svg
+        (SplitScreen.viewportToSvgAttributes viewport)
+        [ Svg.g
+            [ transform [ "scale(1 -1)", scale (1 / tilesToViewport model) ]
+            ]
+            [ Svg.Lazy.lazy View.Background.terrain model.terrain
+            , subs
+                |> List.filter (\( u, s ) -> s.mode == UnitModeFree)
+                |> List.map (viewSub game)
+                |> Svg.g []
+            , game.wallTiles
+                |> Set.toList
+                |> List.map viewWall
+                |> Svg.g []
+            , game.baseById
                 |> Dict.values
-                |> List.filter (.inputSourceKey >> inputKeyIsHuman)
-                |> List.sortBy (\player -> toString player.teamId ++ player.inputSourceKey)
-    in
-    List.map2 (,) sortedPlayers model.viewports
+                |> List.map (viewBase game)
+                |> Svg.g []
+            , subs
+                |> List.filter (\( u, s ) -> s.mode /= UnitModeFree)
+                |> List.map (viewSub game)
+                |> Svg.g []
+            , mechs
+                |> List.map (viewMech game)
+                |> Svg.g []
+            , game.teamById
+                |> Dict.values
+                |> List.map (viewMarker game)
+                |> Svg.g []
+            , game.projectileById
+                |> Dict.values
+                |> List.map viewProjectile
+                |> Svg.g []
+            , game.cosmetics
+                -- TODO viewport cull
+                |> List.map View.Gfx.render
+                |> Svg.g []
+            , units
+                --|> List.filter (\u -> u.teamId == player.teamId)
+                |> List.map viewHealthbar
+                |> Svg.g []
+            ]
+        , viewVictory game
+        ]
 
 
-splitView : Model -> Svg Msg
-splitView model =
+
+{-
+   playersAndViewports : Model -> List ( Player, Viewport )
+   playersAndViewports model =
+       let
+           sortedPlayers =
+               model.game.playerByKey
+                   |> Dict.values
+                   |> List.filter (.inputSourceKey >> inputKeyIsHuman)
+                   |> List.sortBy (\player -> toString player.teamId ++ player.inputSourceKey)
+       in
+       List.map2 (,) sortedPlayers model.viewports
+-}
+
+
+view : Model -> Svg Msg
+view model =
     let
         fps =
             List.sum model.fps / toFloat (List.length model.fps) |> round
+
+        viewport =
+            SplitScreen.makeViewports model.windowSize 1
     in
     div
         []
-        [ model
-            |> playersAndViewports
-            |> List.map (viewPlayer model)
+        [ [ gameView model model.viewport ]
             |> SplitScreen.viewportsWrapper
         , [ "FPS " ++ toString fps
           , "ASDW: Move"

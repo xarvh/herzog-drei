@@ -97,7 +97,7 @@ gloat game state =
     , { neutralPlayerInput
         | fire = True
         , transform = True
-        , aim = angleToVector state.speedAroundBase
+        , aim = angleToVector state.speedAroundBase |> AimAbsolute
       }
     )
 
@@ -128,7 +128,7 @@ attackBase state game targetBase =
             )
 
 
-shootEnemies : Unit -> Game -> ( Vec2, Bool )
+shootEnemies : Unit -> Game -> ( Aim, Bool )
 shootEnemies playerUnit game =
     let
         closeEnough : Unit -> Maybe ( Unit, Float )
@@ -151,10 +151,10 @@ shootEnemies playerUnit game =
     in
     case maybeUnitAndDistance of
         Nothing ->
-            ( vec2 0 0, False )
+            ( AimAbsolute (vec2 0 0), False )
 
         Just ( targetUnit, distance ) ->
-            ( Vec2.sub targetUnit.position playerUnit.position |> Vec2.normalize, True )
+            ( Vec2.sub targetUnit.position playerUnit.position |> Vec2.normalize |> AimAbsolute, True )
 
 
 moveToTargetBase : Unit -> MechComponent -> State -> Game -> Base -> ( State, { transform : Bool, rally : Bool, move : Vec2 } )

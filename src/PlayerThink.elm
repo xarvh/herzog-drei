@@ -168,16 +168,24 @@ mechThink input dt game unit mech =
             else
                 deltaNone
 
+        aimDirection =
+            case input.aim of
+                AimAbsolute direction ->
+                    direction
+
+                AimRelative mousePosition ->
+                    Vec2.sub mousePosition unit.position
+
         aimAngle =
-            if Vec2.length input.aim > aimControlThreshold then
-                vecToAngle input.aim
+            if Vec2.length aimDirection > aimControlThreshold then
+                vecToAngle aimDirection
             else if Vec2.length input.move > aimControlThreshold then
                 vecToAngle input.move
             else
                 -- Keep old value
                 unit.fireAngle
 
-        aim =
+        aimDelta =
             (\g u ->
                 { u
                     | lookAngle = Game.turnTo (5 * pi * dt) aimAngle u.lookAngle
@@ -212,7 +220,7 @@ mechThink input dt game unit mech =
         , moveViewport
         , moveMech
         , reload
-        , aim
+        , aimDelta
         , fire
         , transform
         , repairDelta dt game unit mech
