@@ -82,9 +82,14 @@ inputGamepadKey index =
 -- init
 
 
-init : Dict String String -> ( Model, Cmd Msg )
-init params =
+initGameWithBots : Model -> Model
+initGameWithBots model =
     let
+        gameSize =
+            { halfWidth = model.game.halfWidth
+            , halfHeight = model.game.halfHeight
+            }
+
         -- bot input sources
         team1 =
             [ inputKeyboardAndMouseKey
@@ -101,7 +106,7 @@ init params =
             ]
 
         game =
-            Game.Init.basicGame team1 team2
+            Game.Init.basicGame gameSize team1 team2
 
         makeStates playerKeys =
             playerKeys
@@ -109,15 +114,27 @@ init params =
                 |> List.indexedMap (\index bot -> ( bot, Bot.Dummy.init bot (List.any inputKeyIsHuman playerKeys) index game ))
                 |> Dict.fromList
     in
+    { model
+        | game = game
+        , botStatesByKey = Dict.union (makeStates team1) (makeStates team2)
+    }
+
+
+init : Dict String String -> ( Model, Cmd Msg )
+init params =
+    let
+        game =
+            Game.Init.setupPhase { halfWidth = 20, halfHeight = 10 }
+    in
     ( { game = game
-      , botStatesByKey = Dict.union (makeStates team1) (makeStates team2)
+      , botStatesByKey = Dict.empty
       , mousePosition = { x = 0, y = 0 }
       , mouseIsPressed = False
       , windowSize = { width = 1, height = 1 }
       , viewport = SplitScreen.defaultViewport
       , fps = []
-      , terrain = View.Background.initRects game
       , params = params
+      , terrain = View.Background.initRects game
       }
     , Window.size |> Task.perform OnWindowResizes
     )
@@ -554,7 +571,6 @@ gameView model viewport =
                 |> List.map viewProjectile
                 |> Svg.g []
             , game.cosmetics
-                -- TODO viewport cull
                 |> List.map View.Gfx.render
                 |> Svg.g []
             , units

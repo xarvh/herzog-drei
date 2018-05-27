@@ -84,7 +84,11 @@ type alias Player =
     , viewportPosition : Vec2
     }
 
-type Aim = AimRelative Vec2 | AimAbsolute Vec2
+
+type Aim
+    = AimRelative Vec2
+    | AimAbsolute Vec2
+
 
 type alias PlayerInput =
     { aim : Aim
@@ -369,6 +373,12 @@ type alias Gfx =
 -- Game
 
 
+type alias GameSize =
+    { halfWidth : Int
+    , halfHeight : Int
+    }
+
+
 type alias Game =
     { baseById : Dict Id Base
     , teamById : Dict Id Team
@@ -401,8 +411,8 @@ type alias Game =
     }
 
 
-new : Random.Seed -> Game
-new seed =
+new : GameSize -> Random.Seed -> Game
+new { halfWidth, halfHeight } seed =
     { baseById = Dict.empty
     , teamById = Dict.empty
     , playerByKey = Dict.empty
@@ -414,8 +424,8 @@ new seed =
 
     --
     , cosmetics = []
-    , halfWidth = 20
-    , halfHeight = 10
+    , halfWidth = halfWidth
+    , halfHeight = halfHeight
     , wallTiles = Set.empty
     , staticObstacles = Set.empty
     , dynamicObstacles = Set.empty
@@ -424,6 +434,11 @@ new seed =
     , seed = seed
     , shuffledColorPatterns = Random.step (Random.List.shuffle ColorPattern.patterns) seed |> Tuple.first
     }
+
+
+isSetupPhase : Game -> Bool
+isSetupPhase game =
+    Dict.size game.teamById == 0
 
 
 

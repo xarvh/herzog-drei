@@ -148,8 +148,8 @@ mirror tiles =
 --
 
 
-basicGame : List String -> List String -> Game
-basicGame inputSourcesTeam1 inputSourcesTeam2 =
+basicGame : GameSize -> List String -> List String -> Game
+basicGame gameSize inputSourcesTeam1 inputSourcesTeam2 =
     let
         walls =
             [ rect -3 -5 1 4
@@ -160,7 +160,7 @@ basicGame inputSourcesTeam1 inputSourcesTeam2 =
                 |> mirror
 
         game =
-            Random.initialSeed 0 |> Game.new
+            Game.new gameSize (Random.initialSeed 0)
 
         ( game_, team1 ) =
             game |> addTeamAndPlayers inputSourcesTeam1 (vec2 -12 -3)
@@ -175,3 +175,12 @@ basicGame inputSourcesTeam1 inputSourcesTeam2 =
         |> addMainBase team1.id ( -16, -6 )
         |> addMainBase team2.id ( 16, 6 )
         |> kickstartPathing
+
+
+
+--
+
+
+setupPhase : GameSize -> Game
+setupPhase gameSize =
+    Game.new gameSize (Random.initialSeed 0)
