@@ -85,7 +85,8 @@ view model =
         []
         [ Html.node "style"
             []
-            [ Html.text View.Background.classAndAnimation
+            [ Html.text "body { margin: 0; }"
+            , Html.text View.Background.classAndAnimation
             ]
         , App.view model.app
             |> Svg.map OnAppMsg
