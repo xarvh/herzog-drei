@@ -16,6 +16,7 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mouse
 import Set exposing (Set)
 import SplitScreen exposing (Viewport)
+import String.Extra
 import Svg exposing (Svg)
 import Svg.Attributes
 import Svg.Events
@@ -470,19 +471,19 @@ testView model =
 --
 
 
-viewVictory : Game -> Team -> Svg a
-viewVictory game team =
-    case game.maybeWinnerId of
+viewVictory : Game -> Svg a
+viewVictory game =
+    case game.maybeWinnerId |> Maybe.andThen (\id -> Dict.get id game.teamById) of
         Nothing ->
             Html.text ""
 
-        Just winnerId ->
+        Just team ->
             let
-                ( text, pattern ) =
-                    if team.id == winnerId then
-                        ( "Victory!", team.colorPattern )
-                    else
-                        ( "Defeat!", neutral )
+                pattern =
+                    team.colorPattern
+
+                text =
+                    String.Extra.toTitleCase pattern.key ++ " wins!"
             in
             Svg.text_
                 [ Svg.Attributes.textAnchor "middle"
@@ -504,9 +505,7 @@ viewVictory game team =
 
 tilesToViewport : Model -> Float
 tilesToViewport model =
-  SplitScreen.fitWidthAndHeight (toFloat model.game.halfWidth * 2) (toFloat model.game.halfHeight * 2) model.viewport
-
-
+    SplitScreen.fitWidthAndHeight (toFloat model.game.halfWidth * 2) (toFloat model.game.halfHeight * 2) model.viewport
 
 
 gameView : Model -> Viewport -> Svg Msg
@@ -520,7 +519,6 @@ gameView model viewport =
 
         ( mechs, subs ) =
             mechVsUnit units
-
     in
     Svg.svg
         (SplitScreen.viewportToSvgAttributes viewport)
@@ -564,8 +562,7 @@ gameView model viewport =
                 |> List.map viewHealthbar
                 |> Svg.g []
             ]
-
-        -- TODO, viewVictory game team
+        , viewVictory game
         ]
 
 
