@@ -41,8 +41,13 @@ type Msg
     | OnWindowResizes Window.Size
 
 
+type Scene
+    = SceneInit
+    | SceneGame Game
+
+
 type alias Model =
-    { game : Game
+    { scene : Scene
     , botStatesByKey : Dict String Bot.Dummy.State
     , mousePosition : Mouse.Position
     , mouseIsPressed : Bool
@@ -84,33 +89,35 @@ inputGamepadKey index =
 
 init : Dict String String -> ( Model, Cmd Msg )
 init params =
-    let
-        -- bot input sources
-        team1 =
-            [ inputKeyboardAndMouseKey
-            , inputBotKey 1
-            , inputBotKey 4
-            , inputBotKey 7
-            ]
+    {-
+         -- bot input sources
+         team1 =
+             [ inputKeyboardAndMouseKey
+             , inputBotKey 1
+             , inputBotKey 4
+             , inputBotKey 7
+             ]
 
-        team2 =
-            [ inputBotKey 2
-            , inputBotKey 3
-            , inputBotKey 5
-            , inputBotKey 6
-            ]
+         team2 =
+             [ inputBotKey 2
+             , inputBotKey 3
+             , inputBotKey 5
+             , inputBotKey 6
+             ]
 
-        game =
-            Game.Init.basicGame team1 team2
+         game =
+             Game.Init.basicGame team1 team2
 
-        makeStates playerKeys =
-            playerKeys
-                |> List.filter (inputKeyIsHuman >> not)
-                |> List.indexedMap (\index bot -> ( bot, Bot.Dummy.init bot (List.any inputKeyIsHuman playerKeys) index game ))
-                |> Dict.fromList
-    in
-    ( { game = game
-      , botStatesByKey = Dict.union (makeStates team1) (makeStates team2)
+         makeStates playerKeys =
+             playerKeys
+                 |> List.filter (inputKeyIsHuman >> not)
+                 |> List.indexedMap (\index bot -> ( bot, Bot.Dummy.init bot (List.any inputKeyIsHuman playerKeys) index game ))
+                 |> Dict.fromList
+
+       , botStatesByKey = Dict.union (makeStates team1) (makeStates team2)
+    -}
+    ( { scene = SceneInit
+      , botStatesByKey = Dict.empty
       , mousePosition = { x = 0, y = 0 }
       , mouseIsPressed = False
       , windowSize = { width = 1, height = 1 }
@@ -148,50 +155,38 @@ noCmd model =
 -}
 
 
-update : List Keyboard.Extra.Key -> Msg -> Model -> ( Model, Cmd Msg )
-update pressedKeys msg model =
-    case msg of
-        OnMouseButton state ->
-            noCmd { model | mouseIsPressed = state }
+onAnimationFrame : List Keyboard.Extra.Key -> Float -> Model -> ( Model, Cmd Msg )
+onAnimationFrame pressedKeys timeInMilliseconds model =
+    let
+        { x, y } =
+            Keyboard.Extra.wasd pressedKeys
 
-        OnMouseMoves mousePosition ->
-            noCmd { model | mousePosition = mousePosition }
+        isPressed key =
+            List.member key pressedKeys
 
-        OnWindowResizes windowSize ->
-            { model
-                | windowSize = windowSize
-                , viewport =
-                    SplitScreen.makeViewports windowSize 1
-                        |> List.head
-                        |> Maybe.withDefault SplitScreen.defaultViewport
+        mouseAim =
+            SplitScreen.mouseScreenToViewport model.mousePosition model.viewport
+                |> Vec2.fromTuple
+                |> Vec2.scale (tilesToViewport model)
+                |> AimRelative
+
+        keyboardAndMouseInput =
+            { aim = mouseAim
+            , fire = model.mouseIsPressed
+            , transform = isPressed Keyboard.Extra.CharE
+            , switchUnit = isPressed Keyboard.Extra.Space
+
+            -- TODO this should be right mouse button
+            , rally = isPressed Keyboard.Extra.CharQ
+            , move = vec2 (toFloat x) (toFloat y)
             }
-                |> noCmd
+    in
+    case model.scene of
+        SceneInit ->
+            noCmd model
 
-        OnAnimationFrame timeInMilliseconds ->
+        SceneGame game ->
             let
-                { x, y } =
-                    Keyboard.Extra.wasd pressedKeys
-
-                isPressed key =
-                    List.member key pressedKeys
-
-                mouseAim =
-                    SplitScreen.mouseScreenToViewport model.mousePosition model.viewport
-                        |> Vec2.fromTuple
-                        |> Vec2.scale (tilesToViewport model)
-                        |> AimRelative
-
-                keyboardAndMouseInput =
-                    { aim = mouseAim
-                    , fire = model.mouseIsPressed
-                    , transform = isPressed Keyboard.Extra.CharE
-                    , switchUnit = isPressed Keyboard.Extra.Space
-
-                    -- TODO this should be right mouse button
-                    , rally = isPressed Keyboard.Extra.CharQ
-                    , move = vec2 (toFloat x) (toFloat y)
-                    }
-
                 foldBot : String -> Bot.Dummy.State -> ( Dict String Bot.Dummy.State, Dict String PlayerInput ) -> ( Dict String Bot.Dummy.State, Dict String PlayerInput )
                 foldBot inputSourceKey oldState ( statesByKey, inputsByKey ) =
                     let
@@ -219,10 +214,33 @@ update pressedKeys msg model =
             in
             noCmd
                 { model
-                    | game = game
+                    | scene = SceneGame game
                     , botStatesByKey = botStatesByKey
                     , fps = (1 / dt) :: List.take 20 model.fps
                 }
+
+
+update : List Keyboard.Extra.Key -> Msg -> Model -> ( Model, Cmd Msg )
+update pressedKeys msg model =
+    case msg of
+        OnMouseButton state ->
+            noCmd { model | mouseIsPressed = state }
+
+        OnMouseMoves mousePosition ->
+            noCmd { model | mousePosition = mousePosition }
+
+        OnWindowResizes windowSize ->
+            { model
+                | windowSize = windowSize
+                , viewport =
+                    SplitScreen.makeViewports windowSize 1
+                        |> List.head
+                        |> Maybe.withDefault SplitScreen.defaultViewport
+            }
+                |> noCmd
+
+        OnAnimationFrame timeInMilliseconds ->
+            onAnimationFrame pressedKeys timeInMilliseconds model
 
 
 
