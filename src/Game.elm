@@ -34,8 +34,7 @@ type alias Tile2 =
 
 
 type alias Team =
-    { id : Id
-    , colorPattern : ColorPattern
+    { colorPattern : ColorPattern
     , markerPosition : Vec2
     , markerTime : Seconds
     , pathing : Dict Tile2 Float
@@ -131,8 +130,7 @@ type alias ProjectileSeed =
 
 
 type alias Projectile =
-    { id : Id
-    , teamId : Id
+    { teamId : Id
     , position : Vec2
     , spawnPosition : Vec2
     , angle : Angle
@@ -204,9 +202,7 @@ type UnitComponent
 
 
 type alias Unit =
-    { id : Id
-    , component : UnitComponent
-    , teamId : Id
+    { teamId : Id
     , integrity : Float
     , position : Vec2
     , timeToReload : Seconds
@@ -339,9 +335,7 @@ type alias BaseOccupied =
 
 
 type alias Base =
-    { id : Id
-    , type_ : BaseType
-    , maybeOccupied : Maybe BaseOccupied
+    { type_ : BaseType
     , tile : Tile2
     , position : Vec2
     }
@@ -367,6 +361,36 @@ type alias Gfx =
 
 
 -- Game
+
+
+type MainComponent
+  = NoComponent
+  | TeamComponent Team
+  | PlayerComponent Player
+  | ProjectileComponent Projectile
+  | UnitComponent Unit
+
+
+
+
+
+
+type alias Entity =
+  { id : Id
+  , maybeTeamId : Maybe Id
+  , mainComponent : MainComponent
+
+
+
+  , maybeTeam : Maybe Team
+  , maybePlayer : Maybe Player
+  , maybeProjectile : Maybe Projectile
+  
+
+
+
+
+
 
 
 type alias Game =
