@@ -5,6 +5,7 @@ import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 import Svg exposing (..)
+import Unit
 import View exposing (..)
 
 
@@ -13,6 +14,16 @@ import View exposing (..)
 
 neutralTilesHalfWidth =
     5
+
+
+getTeams : Game -> ( Team, Team )
+getTeams game =
+    case game.teamById |> Dict.values |> List.sortBy .id of
+        leftTeam :: rightTeam :: _ ->
+            ( leftTeam, rightTeam )
+
+        _ ->
+            Debug.crash "WTF"
 
 
 
@@ -73,47 +84,81 @@ addAndRemovePlayers playerInputBySourceId game =
         |> deltaList
 
 
+updatePlayerTeam : Game -> Player -> Delta
+updatePlayerTeam game player =
+    case Unit.findMech player.inputSourceKey (Dict.values game.unitById) of
+        Nothing ->
+            deltaNone
+
+        Just ( unit, mech ) ->
+            let
+                ( leftTeam, rightTeam ) =
+                    getTeams game
+
+                setTeam teamId =
+                    if player.teamId == teamId then
+                        deltaNone
+                    else
+                        deltaList
+                            [ deltaPlayer player.inputSourceKey (\g p -> { p | teamId = teamId })
+                            , deltaUnit unit.id (\g u -> { u | teamId = teamId })
+                            ]
+            in
+            if Vec2.getX unit.position < -neutralTilesHalfWidth then
+                setTeam leftTeam.id
+            else if Vec2.getX unit.position > neutralTilesHalfWidth then
+                setTeam rightTeam.id
+            else
+                setTeam -1
+
+
+updatePlayersTeam : Game -> Delta
+updatePlayersTeam game =
+    game.playerByKey
+        |> Dict.values
+        |> List.map (updatePlayerTeam game)
+        |> deltaList
+
+
 
 -- View
 
 
 viewBands : Game -> Svg a
 viewBands game =
-    case game.teamById |> Dict.values |> List.sortBy .id of
-        leftTeam :: rightTeam :: _ ->
-            let
-                w =
-                    3
+    let
+        ( leftTeam, rightTeam ) =
+            getTeams game
 
-                h =
-                    2 + 2 * game.halfHeight |> toFloat
-            in
-            g
-                []
-                [ rect
-                    [ x (-neutralTilesHalfWidth - w)
-                    , y (-h / 2)
-                    , width w
-                    , height h
-                    , fill leftTeam.colorPattern.bright
-                    , stroke leftTeam.colorPattern.dark
-                    , strokeWidth 0.1
-                    ]
-                    []
-                , rect
-                    [ x neutralTilesHalfWidth
-                    , y (-h / 2)
-                    , width w
-                    , height h
-                    , fill rightTeam.colorPattern.bright
-                    , stroke rightTeam.colorPattern.dark
-                    , strokeWidth 0.1
-                    ]
-                    []
-                ]
+        w =
+            3
 
-        _ ->
-            Debug.crash "WTF"
+        h =
+            2 + 2 * game.halfHeight |> toFloat
+    in
+    g
+        []
+        [ rect
+            [ x (-neutralTilesHalfWidth - w)
+            , y (-h / 2)
+            , width w
+            , height h
+            , fill leftTeam.colorPattern.bright
+            , stroke leftTeam.colorPattern.dark
+            , strokeWidth 0.1
+            ]
+            []
+        , rect
+            [ x neutralTilesHalfWidth
+            , y (-h / 2)
+            , width w
+            , height h
+            , fill rightTeam.colorPattern.bright
+            , stroke rightTeam.colorPattern.dark
+            , strokeWidth 0.1
+            ]
+            []
+        ]
 
 
 view : Game -> Svg a

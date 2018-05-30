@@ -46,16 +46,17 @@ update time playerInputBySourceId game =
     , game.playerByKey
         |> Dict.values
         |> List.map playerThink
-    , [ case game.phase of
-            PhaseSetup ->
-                SetupPhase.addAndRemovePlayers playerInputBySourceId game
+    , case game.phase of
+        PhaseSetup ->
+            [ SetupPhase.addAndRemovePlayers playerInputBySourceId game
+            , SetupPhase.updatePlayersTeam game
+            ]
 
-            PhaseTransition ->
-                deltaNone
+        PhaseTransition ->
+            [ deltaNone ]
 
-            PhasePlay ->
-                VictoryThink.think dt game
-      ]
+        PhasePlay ->
+            [ VictoryThink.think dt game ]
     , game.baseById
         |> Dict.values
         |> List.map (BaseThink.think dt oldGameWithUpdatedDynamicObstacles)
