@@ -15,6 +15,7 @@ import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mouse
 import Set exposing (Set)
+import SetupPhase
 import SplitScreen exposing (Viewport)
 import String.Extra
 import Svg exposing (Svg)
@@ -543,6 +544,12 @@ gameView model viewport =
             [ transform [ "scale(1 -1)", scale (1 / tilesToViewport model) ]
             ]
             [ Svg.Lazy.lazy View.Background.terrain model.terrain
+            , case model.game.phase of
+                PhaseSetup ->
+                    SetupPhase.view model.game
+
+                _ ->
+                    Svg.text ""
             , subs
                 |> List.filter (\( u, s ) -> s.mode == UnitModeFree)
                 |> List.map (viewSub game)
@@ -574,7 +581,6 @@ gameView model viewport =
                 |> List.map View.Gfx.render
                 |> Svg.g []
             , units
-                --|> List.filter (\u -> u.teamId == player.teamId)
                 |> List.map viewHealthbar
                 |> Svg.g []
             ]

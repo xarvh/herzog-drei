@@ -85,8 +85,11 @@ addMainBase teamId tile game =
 addTeamAndPlayers : List String -> Vec2 -> Game -> ( Game, Team )
 addTeamAndPlayers inputSourceKeys startingPosition originalGame =
     let
+        q =
+            Debug.crash "TODO do not create teams"
+
         ( game, team ) =
-            addTeam startingPosition originalGame
+            addTeam originalGame
 
         addPlayer : String -> Dict String Player -> Dict String Player
         addPlayer inputSourceKey playerByKey =

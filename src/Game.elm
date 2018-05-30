@@ -42,8 +42,8 @@ type alias Team =
     }
 
 
-addTeam : Vec2 -> Game -> ( Game, Team )
-addTeam startingPosition game =
+addTeam : Game -> ( Game, Team )
+addTeam game =
     let
         id =
             game.lastId + 1
@@ -63,7 +63,7 @@ addTeam startingPosition game =
         team =
             { id = id
             , colorPattern = colorPattern
-            , markerPosition = startingPosition
+            , markerPosition = vec2 0 0
             , markerTime = 0
             , pathing = Dict.empty
             }
@@ -373,6 +373,12 @@ type alias Gfx =
 -- Game
 
 
+type GamePhase
+    = PhaseSetup
+    | PhaseTransition
+    | PhasePlay
+
+
 type alias GameSize =
     { halfWidth : Int
     , halfHeight : Int
@@ -380,14 +386,17 @@ type alias GameSize =
 
 
 type alias Game =
-    { baseById : Dict Id Base
+    { phase : GamePhase
+    , maybeWinnerId : Maybe Id
+    , time : Seconds
+
+    -- entities
+    , baseById : Dict Id Base
     , teamById : Dict Id Team
     , playerByKey : Dict String Player
     , projectileById : Dict Id Projectile
     , unitById : Dict Id Unit
     , lastId : Id
-    , maybeWinnerId : Maybe Id
-    , time : Seconds
 
     --
     , cosmetics : List Gfx
@@ -413,14 +422,17 @@ type alias Game =
 
 new : GameSize -> Random.Seed -> Game
 new { halfWidth, halfHeight } seed =
-    { baseById = Dict.empty
+    { phase = PhaseSetup
+    , maybeWinnerId = Nothing
+    , time = 0
+
+    --
+    , baseById = Dict.empty
     , teamById = Dict.empty
     , playerByKey = Dict.empty
     , projectileById = Dict.empty
     , unitById = Dict.empty
     , lastId = 0
-    , maybeWinnerId = Nothing
-    , time = 0
 
     --
     , cosmetics = []
@@ -434,11 +446,10 @@ new { halfWidth, halfHeight } seed =
     , seed = seed
     , shuffledColorPatterns = Random.step (Random.List.shuffle ColorPattern.patterns) seed |> Tuple.first
     }
-
-
-isSetupPhase : Game -> Bool
-isSetupPhase game =
-    Dict.size game.teamById == 0
+      |> addTeam
+      |> Tuple.first
+      |> addTeam
+      |> Tuple.first
 
 
 
