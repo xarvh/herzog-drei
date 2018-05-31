@@ -30,49 +30,6 @@ aimControlThreshold =
 --
 
 
-think : PlayerInput -> Seconds -> Game -> Player -> Delta
-think input dt game player =
-    case game.unitById |> Dict.values |> Unit.findMech player.inputSourceKey of
-        Nothing ->
-            moveViewportToBase dt game player
-
-        Just ( unit, mech ) ->
-            mechThink input dt game unit mech
-
-
-moveViewportToBase : Seconds -> Game -> Player -> Delta
-moveViewportToBase dt game player =
-    case Base.teamMainBase game player.teamId of
-        Nothing ->
-            deltaNone
-
-        Just mainBase ->
-            let
-                dp =
-                    Vec2.sub mainBase.position player.viewportPosition
-
-                length =
-                    Vec2.length dp
-
-                direction =
-                    Vec2.normalize dp
-
-                speed =
-                    30
-
-                maxLength =
-                    min (speed * dt) length
-
-                maxDp =
-                    Vec2.scale maxLength direction
-
-                position =
-                    Vec2.add player.viewportPosition maxDp
-            in
-            if length < 0.01 then
-                deltaNone
-            else
-                deltaPlayer player.inputSourceKey (\g p -> { p | viewportPosition = position })
 
 
 mechThink : PlayerInput -> Seconds -> Game -> Unit -> MechComponent -> Delta
@@ -160,7 +117,7 @@ mechThink input dt game unit mech =
             deltaUnit unit.id (\g u -> { u | position = newPosition })
 
         moveViewport =
-            deltaPlayer mech.playerKey (\g p -> { p | viewportPosition = newPosition })
+            deltaPlayer mech.inputKey (\g p -> { p | viewportPosition = newPosition })
 
         reload =
             if unit.timeToReload > 0 then

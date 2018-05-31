@@ -1,7 +1,9 @@
 module UnitThink exposing (..)
 
 import Base
+import Dict exposing (Dict)
 import Game exposing (..)
+import PlayerThink
 import SubThink
 import View.Gfx
 import View.Sub
@@ -10,20 +12,18 @@ import View.Sub
 -- Think
 
 
-think : Float -> Game -> Unit -> Delta
-think dt game unit =
+think : Float -> Dict String PlayerInput -> Game -> Unit -> Delta
+think dt playerInputBySourceId game unit =
     if unit.integrity <= 0 then
         deltaList
-            [ deltaList
-                [ deltaGame (Game.removeUnit unit.id)
-                , View.Gfx.deltaAddExplosion unit.position 1.0
-                ]
+            [ deltaGame (Game.removeUnit unit.id)
+            , View.Gfx.deltaAddExplosion unit.position 1.0
             , case unit.component of
                 UnitSub sub ->
                     SubThink.destroy game unit sub
 
                 UnitMech mech ->
-                    respawnMech game mech.playerKey unit.teamId
+                    respawnMech game mech.inputKey unit.teamId
             ]
     else
         deltaList
@@ -33,7 +33,12 @@ think dt game unit =
                     SubThink.think dt game unit sub
 
                 UnitMech mech ->
-                    deltaNone
+                    let
+                        input =
+                            Dict.get mech.inputKey playerInputBySourceId
+                                |> Maybe.withDefault neutralPlayerInput
+                    in
+                    PlayerThink.mechThink input dt game unit mech
             ]
 
 
@@ -58,10 +63,10 @@ thinkReload dt game unit =
 
 
 respawnMech : Game -> String -> Id -> Delta
-respawnMech game playerKey teamId =
+respawnMech game inputKey teamId =
     case Base.teamMainBase game teamId of
         Nothing ->
             deltaNone
 
         Just mainBase ->
-            deltaBase mainBase.id (Base.updateOccupied <| \o -> { o | mechBuildCompletions = ( playerKey, 0 ) :: o.mechBuildCompletions })
+            deltaBase mainBase.id (Base.updateOccupied <| \o -> { o | mechBuildCompletions = ( inputKey, 0 ) :: o.mechBuildCompletions })

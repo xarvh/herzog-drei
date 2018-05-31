@@ -100,7 +100,7 @@ toMech unit =
 
 
 findMech : String -> List Unit -> Maybe ( Unit, MechComponent )
-findMech playerKey units =
+findMech inputKey units =
     case units of
         [] ->
             Nothing
@@ -108,13 +108,13 @@ findMech playerKey units =
         u :: us ->
             case u.component of
                 UnitMech mech ->
-                    if mech.playerKey == playerKey then
+                    if mech.inputKey == inputKey then
                         Just ( u, mech )
                     else
-                        findMech playerKey us
+                        findMech inputKey us
 
                 _ ->
-                    findMech playerKey us
+                    findMech inputKey us
 
 
 isMech : Unit -> Bool

@@ -37,76 +37,68 @@ getTeams game =
 think : List String -> Game -> Delta
 think inputSources game =
     deltaList
-        [ addAndRemovePlayers inputSources game
-        , updatePlayersTeam game
+        [ addAndRemoveMechs inputSources game
+        , updateAllMechsTeam game
         , maybeExitSetupPhase game
         ]
 
 
 
--- Add & Remove Players
+-- Add & Remove Mechs
 
 
-addPlayer : String -> Delta
-addPlayer inputSourceKey =
+addMech : String -> Delta
+addMech inputSourceKey =
     deltaGame <|
         \g ->
             let
                 startingPosition =
                     vec2 0 0
-
-                player =
-                    { inputSourceKey = inputSourceKey
-                    , teamId = -1
-                    , viewportPosition = startingPosition
-                    }
             in
-            { g
-                | playerByKey = Dict.insert inputSourceKey player g.playerByKey
-            }
-                |> addMech inputSourceKey -1 startingPosition
+            g
+                |> Game.addMech inputSourceKey -1 startingPosition
                 |> Tuple.first
 
 
-removePlayer : String -> Delta
-removePlayer inputSourceKey =
+removeMech : String -> Delta
+removeMech inputSourceKey =
     deltaNone
 
 
-addAndRemovePlayers : List String -> Game -> Delta
-addAndRemovePlayers inputSources game =
+addAndRemoveMechs : List String -> Game -> Delta
+addAndRemoveMechs inputSources game =
     let
         inputs =
             inputSources |> Set.fromList
 
-        players =
-            Dict.keys game.playerByKey |> Set.fromList
+        mechs =
+            game.unitById
+                |> Dict.values
+                |> List.filterMap Unit.toMech
+                |> List.map (Tuple.second >> .inputKey)
+                |> Set.fromList
 
         -- ensure that there is a player for any input
-        inputsWithoutPlayer =
-            Set.diff inputs players |> Set.toList
+        inputsWithoutMech =
+            Set.diff inputs mechs |> Set.toList
 
         -- remove players without input
-        playersWithoutInput =
-            Set.diff players inputs |> Set.toList
-
-        -- think players with input
-        playersWithInput =
-            Set.intersect players inputs |> Set.toList
+        mechsWithoutInput =
+            Set.diff mechs inputs |> Set.toList
     in
-    [ List.map addPlayer inputsWithoutPlayer
-    , List.map removePlayer playersWithoutInput
+    [ List.map addMech inputsWithoutMech
+    , List.map removeMech mechsWithoutInput
     ]
         |> List.map deltaList
         |> deltaList
 
 
 
--- Player Team
+-- Mech Team
 
 
-updatePlayerTeam : Game -> ( Unit, MechComponent ) -> Delta
-updatePlayerTeam game ( unit, mech ) =
+updateMechTeam : Game -> ( Unit, MechComponent ) -> Delta
+updateMechTeam game ( unit, mech ) =
     let
         ( leftTeam, rightTeam ) =
             getTeams game
@@ -116,8 +108,7 @@ updatePlayerTeam game ( unit, mech ) =
                 deltaNone
             else
                 deltaList
-                    [ deltaPlayer mech.playerKey (\g p -> { p | teamId = teamId })
-                    , deltaUnit unit.id (\g u -> { u | teamId = teamId })
+                    [ deltaUnit unit.id (\g u -> { u | teamId = teamId })
                     ]
     in
     if Vec2.getX unit.position < -neutralTilesHalfWidth then
@@ -128,12 +119,12 @@ updatePlayerTeam game ( unit, mech ) =
         setTeam -1
 
 
-updatePlayersTeam : Game -> Delta
-updatePlayersTeam game =
+updateAllMechsTeam : Game -> Delta
+updateAllMechsTeam game =
     game.unitById
         |> Dict.values
         |> List.filterMap Unit.toMech
-        |> List.map (updatePlayerTeam game)
+        |> List.map (updateMechTeam game)
         |> deltaList
 
 

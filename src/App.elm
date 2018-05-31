@@ -109,10 +109,10 @@ initGameWithBots model =
         game =
             Game.Init.basicGame gameSize team1 team2
 
-        makeStates playerKeys =
-            playerKeys
+        makeStates inputKey =
+          inputKey
                 |> List.filter (inputKeyIsHuman >> not)
-                |> List.indexedMap (\index bot -> ( bot, Bot.Dummy.init bot (List.any inputKeyIsHuman playerKeys) index game ))
+                |> List.indexedMap (\index bot -> ( bot, Bot.Dummy.init bot (List.any inputKeyIsHuman inputKey) index game ))
                 |> Dict.fromList
     in
     { model

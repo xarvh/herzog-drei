@@ -97,11 +97,11 @@ deltaBuildAllMechs dt game base occupied =
 
 
 deltaBuildMech : Float -> Base -> BaseOccupied -> ( String, Float ) -> Delta
-deltaBuildMech completionIncrease base occupied ( playerKey, completionAtThink ) =
+deltaBuildMech completionIncrease base occupied ( inputKey, completionAtThink ) =
     if completionAtThink + completionIncrease < 1 then
         let
             increaseCompletion ( key, completionAtUpdate ) =
-                if key == playerKey then
+                if key == inputKey then
                     ( key, completionAtUpdate + completionIncrease )
                 else
                     ( key, completionAtUpdate )
@@ -111,8 +111,8 @@ deltaBuildMech completionIncrease base occupied ( playerKey, completionAtThink )
             |> deltaBase base.id
     else
         deltaList
-            [ deltaGame (\g -> Game.addMech playerKey occupied.teamId base.position g |> Tuple.first)
-            , (\o -> { o | mechBuildCompletions = List.filter (\( key, c ) -> key /= playerKey) o.mechBuildCompletions })
+            [ deltaGame (\g -> Game.addMech inputKey occupied.teamId base.position g |> Tuple.first)
+            , (\o -> { o | mechBuildCompletions = List.filter (\( key, c ) -> key /= inputKey) o.mechBuildCompletions })
                 |> Base.updateOccupied
                 |> deltaBase base.id
             ]

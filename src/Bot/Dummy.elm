@@ -10,7 +10,7 @@ import Unit
 
 
 type alias State =
-    { playerKey : String
+    { inputKey : String
     , teamId : Id
     , basesSortedByPriority : List Id
     , hasHumanAlly : Bool
@@ -21,10 +21,10 @@ type alias State =
 
 
 init : String -> Bool -> Int -> Game -> State
-init playerKey hasHumanAlly randomInteger game =
+init inputKey hasHumanAlly randomInteger game =
     let
         teamId =
-            case Dict.get playerKey game.playerByKey of
+            case Dict.get inputKey game.playerByKey of
                 Nothing ->
                     -1
 
@@ -44,7 +44,7 @@ init playerKey hasHumanAlly randomInteger game =
                 |> List.sortBy (\base -> vectorDistance base.position mainBasePosition)
                 |> List.map .id
     in
-    { playerKey = playerKey
+    { inputKey = inputKey
     , teamId = teamId
     , basesSortedByPriority = basesSortedByPriority
     , hasHumanAlly = hasHumanAlly
@@ -104,7 +104,7 @@ gloat game state =
 
 attackBase : State -> Game -> Base -> ( State, PlayerInput )
 attackBase state game targetBase =
-    case Unit.findMech state.playerKey (Dict.values game.unitById) of
+    case Unit.findMech state.inputKey (Dict.values game.unitById) of
         Nothing ->
             -- You're dead, you can't do anything
             ( state, neutralPlayerInput )

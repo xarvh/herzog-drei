@@ -34,18 +34,9 @@ update time playerInputBySourceId game =
 
         oldGameWithUpdatedDynamicObstacles =
             { game | dynamicObstacles = updatedDynamicObstacles }
-
-        getInputForPlayer player =
-            Dict.get player.inputSourceKey playerInputBySourceId |> Maybe.withDefault Game.neutralPlayerInput
-
-        playerThink player =
-            PlayerThink.think (getInputForPlayer player) dt game player
     in
     [ units
-        |> List.map (UnitThink.think dt oldGameWithUpdatedDynamicObstacles)
-    , game.playerByKey
-        |> Dict.values
-        |> List.map playerThink
+        |> List.map (UnitThink.think dt playerInputBySourceId oldGameWithUpdatedDynamicObstacles)
     , [ case game.phase of
             PhaseSetup ->
                 SetupPhase.think (Dict.keys playerInputBySourceId) game

@@ -192,7 +192,7 @@ type TransformMode
 type alias MechComponent =
     { transformState : Float
     , transformingTo : TransformMode
-    , playerKey : String
+    , inputKey : String
     }
 
 
@@ -290,10 +290,10 @@ addSub =
 
 
 addMech : String -> Id -> Vec2 -> Game -> ( Game, Unit )
-addMech playerKey =
+addMech inputKey =
     { transformState = 1
     , transformingTo = ToPlane
-    , playerKey = playerKey
+    , inputKey = inputKey
     }
         |> UnitMech
         |> addUnit
