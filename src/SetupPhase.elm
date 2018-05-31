@@ -16,6 +16,10 @@ neutralTilesHalfWidth =
     5
 
 
+teamTilesWidth =
+    3
+
+
 getTeams : Game -> ( Team, Team )
 getTeams game =
     case game.teamById |> Dict.values |> List.sortBy .id of
@@ -27,7 +31,20 @@ getTeams game =
 
 
 
--- update
+-- Think
+
+
+think : List String -> Game -> Delta
+think inputSources game =
+    deltaList
+        [ addAndRemovePlayers inputSources game
+        , updatePlayersTeam game
+        , maybeExitSetupPhase game
+        ]
+
+
+
+-- Add & Remove Players
 
 
 addPlayer : String -> Delta
@@ -56,11 +73,11 @@ removePlayer inputSourceKey =
     deltaNone
 
 
-addAndRemovePlayers : Dict String PlayerInput -> Game -> Delta
-addAndRemovePlayers playerInputBySourceId game =
+addAndRemovePlayers : List String -> Game -> Delta
+addAndRemovePlayers inputSources game =
     let
         inputs =
-            Dict.keys playerInputBySourceId |> Set.fromList
+            inputSources |> Set.fromList
 
         players =
             Dict.keys game.playerByKey |> Set.fromList
@@ -84,40 +101,68 @@ addAndRemovePlayers playerInputBySourceId game =
         |> deltaList
 
 
-updatePlayerTeam : Game -> Player -> Delta
-updatePlayerTeam game player =
-    case Unit.findMech player.inputSourceKey (Dict.values game.unitById) of
-        Nothing ->
-            deltaNone
 
-        Just ( unit, mech ) ->
-            let
-                ( leftTeam, rightTeam ) =
-                    getTeams game
+-- Player Team
 
-                setTeam teamId =
-                    if player.teamId == teamId then
-                        deltaNone
-                    else
-                        deltaList
-                            [ deltaPlayer player.inputSourceKey (\g p -> { p | teamId = teamId })
-                            , deltaUnit unit.id (\g u -> { u | teamId = teamId })
-                            ]
-            in
-            if Vec2.getX unit.position < -neutralTilesHalfWidth then
-                setTeam leftTeam.id
-            else if Vec2.getX unit.position > neutralTilesHalfWidth then
-                setTeam rightTeam.id
+
+updatePlayerTeam : Game -> ( Unit, MechComponent ) -> Delta
+updatePlayerTeam game ( unit, mech ) =
+    let
+        ( leftTeam, rightTeam ) =
+            getTeams game
+
+        setTeam teamId =
+            if unit.teamId == teamId then
+                deltaNone
             else
-                setTeam -1
+                deltaList
+                    [ deltaPlayer mech.playerKey (\g p -> { p | teamId = teamId })
+                    , deltaUnit unit.id (\g u -> { u | teamId = teamId })
+                    ]
+    in
+    if Vec2.getX unit.position < -neutralTilesHalfWidth then
+        setTeam leftTeam.id
+    else if Vec2.getX unit.position > neutralTilesHalfWidth then
+        setTeam rightTeam.id
+    else
+        setTeam -1
 
 
 updatePlayersTeam : Game -> Delta
 updatePlayersTeam game =
-    game.playerByKey
+    game.unitById
         |> Dict.values
+        |> List.filterMap Unit.toMech
         |> List.map (updatePlayerTeam game)
         |> deltaList
+
+
+
+-- Exit Setup Phase ?
+
+
+exitSetupPhase : Game -> Game
+exitSetupPhase game =
+    game
+
+
+isReady : ( Unit, MechComponent ) -> Bool
+isReady ( unit, mech ) =
+    abs (Vec2.getX unit.position) > neutralTilesHalfWidth + teamTilesWidth
+
+
+maybeExitSetupPhase : Game -> Delta
+maybeExitSetupPhase game =
+    let
+        mechs =
+            game.unitById
+                |> Dict.values
+                |> List.filterMap Unit.toMech
+    in
+    if mechs /= [] && List.all isReady mechs then
+        deltaGame exitSetupPhase
+    else
+        deltaNone
 
 
 
@@ -131,7 +176,7 @@ viewBands game =
             getTeams game
 
         w =
-            3
+            teamTilesWidth
 
         h =
             2 + 2 * game.halfHeight |> toFloat

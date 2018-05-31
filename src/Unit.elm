@@ -89,6 +89,16 @@ takeDamage rawDamage game unit =
 -- Utilities
 
 
+toMech : Unit -> Maybe ( Unit, MechComponent )
+toMech unit =
+    case unit.component of
+        UnitMech mech ->
+            Just ( unit, mech )
+
+        _ ->
+            Nothing
+
+
 findMech : String -> List Unit -> Maybe ( Unit, MechComponent )
 findMech playerKey units =
     case units of
