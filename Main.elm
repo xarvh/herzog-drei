@@ -59,7 +59,7 @@ init flags location =
             App.init params
     in
     ( { pressedKeys = []
-      , showConfig = True
+      , showConfig = False
       , app = appModel
       }
     , appCmd |> Cmd.map OnAppMsg
@@ -87,12 +87,9 @@ update msg model =
         OnKeyPress keyCode ->
             case keyCode of
                 27 ->
-                    noCmd { model | showConfig = not model.showConfig |> Debug.log ""}
+                    noCmd { model | showConfig = not model.showConfig }
 
                 _ ->
-                  let
-                      q = Debug.log "" keyCode
-                  in
                     noCmd model
 
         OnKeyboardMsg keyboardMsg ->
