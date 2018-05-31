@@ -23,7 +23,7 @@ think dt inpuStateByKey game unit =
                     SubThink.destroy game unit sub
 
                 UnitMech mech ->
-                    respawnMech game mech.inputKey unit.teamId
+                    respawnMech game mech.inputKey unit.maybeTeamId
             ]
     else
         deltaList
@@ -62,9 +62,9 @@ thinkReload dt game unit =
 -- Respawn
 
 
-respawnMech : Game -> String -> Id -> Delta
-respawnMech game inputKey teamId =
-    case Base.teamMainBase game teamId of
+respawnMech : Game -> String -> Maybe TeamId -> Delta
+respawnMech game inputKey maybeTeamId =
+    case Base.teamMainBase game maybeTeamId of
         Nothing ->
             deltaNone
 

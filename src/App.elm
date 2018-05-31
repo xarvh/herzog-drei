@@ -83,44 +83,6 @@ inputGamepadKey index =
 -- init
 
 
-initGameWithBots : Model -> Model
-initGameWithBots model =
-    let
-        gameSize =
-            { halfWidth = model.game.halfWidth
-            , halfHeight = model.game.halfHeight
-            }
-
-        -- bot input sources
-        team1 =
-            [ inputKeyboardAndMouseKey
-            , inputBotKey 1
-            , inputBotKey 4
-            , inputBotKey 7
-            ]
-
-        team2 =
-            [ inputBotKey 2
-            , inputBotKey 3
-            , inputBotKey 5
-            , inputBotKey 6
-            ]
-
-        game =
-            Game.Init.basicGame gameSize team1 team2
-
---         makeStates inputKey =
---           inputKey
---                 |> List.filter (inputKeyIsHuman >> not)
---                 |> List.indexedMap (\index bot -> ( bot, Bot.Dummy.init bot (List.any inputKeyIsHuman inputKey) index game ))
---                 |> Dict.fromList
-    in
-    { model
-        | game = game
---         , botStatesByKey = Dict.union (makeStates team1) (makeStates team2)
-    }
-
-
 init : Dict String String -> ( Model, Cmd Msg )
 init params =
     let
@@ -148,9 +110,6 @@ init params =
 noCmd : Model -> ( Model, Cmd a )
 noCmd model =
     ( model, Cmd.none )
-
-
-
 
 
 update : List Keyboard.Extra.Key -> Msg -> Model -> ( Model, Cmd Msg )
@@ -339,7 +298,7 @@ viewMech : Game -> ( Unit, MechComponent ) -> Svg a
 viewMech game ( unit, mechRecord ) =
     let
         colorPattern =
-            Game.teamColorPattern game unit.teamId
+            Game.teamColorPattern game unit.maybeTeamId
     in
     Svg.g
         [ transform [ translate unit.position ] ]
@@ -358,7 +317,7 @@ viewSub : Game -> ( Unit, SubComponent ) -> Svg a
 viewSub game ( unit, subRecord ) =
     let
         colorPattern =
-            Game.teamColorPattern game unit.teamId
+            Game.teamColorPattern game unit.maybeTeamId
     in
     Svg.g
         [ transform [ translate unit.position ] ]
@@ -478,7 +437,7 @@ testView model =
 
 viewVictory : Game -> Svg a
 viewVictory game =
-    case game.maybeWinnerId |> Maybe.andThen (\id -> Dict.get id game.teamById) of
+    case maybeGetTeam game game.maybeWinnerTeamId of
         Nothing ->
             Html.text ""
 
@@ -524,6 +483,15 @@ gameView model viewport =
 
         ( mechs, subs ) =
             mechVsUnit units
+
+        ( setupWeight, playWeight ) =
+            SetupPhase.phasesWeight model.game.phase
+
+        maybeOpacity weight =
+            if weight == 1 then
+                []
+            else
+                [ opacity weight ]
     in
     Svg.svg
         (SplitScreen.viewportToSvgAttributes viewport)
@@ -531,12 +499,13 @@ gameView model viewport =
             [ transform [ "scale(1 -1)", scale (1 / tilesToViewport model) ]
             ]
             [ Svg.Lazy.lazy View.Background.terrain model.terrain
-            , case model.game.phase of
-                PhaseSetup ->
-                    SetupPhase.view model.game
-
-                _ ->
-                    Svg.text ""
+            , if model.game.phase == PhasePlay then
+                Svg.text ""
+              else
+                Svg.g
+                    (maybeOpacity setupWeight)
+                    [ SetupPhase.view model.game
+                    ]
             , subs
                 |> List.filter (\( u, s ) -> s.mode == UnitModeFree)
                 |> List.map (viewSub game)
@@ -556,8 +525,7 @@ gameView model viewport =
             , mechs
                 |> List.map (viewMech game)
                 |> Svg.g []
-            , game.teamById
-                |> Dict.values
+            , [ game.leftTeam, game.rightTeam ]
                 |> List.map (viewMarker game)
                 |> Svg.g []
             , game.projectileById
@@ -573,9 +541,6 @@ gameView model viewport =
             ]
         , viewVictory game
         ]
-
-
-
 
 
 view : Model -> Svg Msg

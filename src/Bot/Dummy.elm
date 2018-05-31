@@ -11,7 +11,7 @@ import Unit
 
 type alias State =
     { inputKey : String
-    , teamId : Id
+    , teamId : TeamId
     , basesSortedByPriority : List Id
     , hasHumanAlly : Bool
     , randomSeed : Random.Seed
@@ -20,13 +20,13 @@ type alias State =
     }
 
 
-init : String -> Team -> Bool -> Int -> Game -> State
-init inputKey team hasHumanAlly randomInteger game =
+init : String -> TeamId -> Bool -> Int -> Game -> State
+init inputKey teamId hasHumanAlly randomInteger game =
     let
         mainBasePosition =
             game.baseById
                 |> Dict.values
-                |> List.Extra.find (\base -> base.type_ == BaseMain && Base.isOccupiedBy team.id base)
+                |> List.Extra.find (\base -> base.type_ == BaseMain && Base.isOccupiedBy (Just teamId) base)
                 |> Maybe.map .position
                 |> Maybe.withDefault (vec2 0 0)
 
@@ -37,7 +37,7 @@ init inputKey team hasHumanAlly randomInteger game =
                 |> List.map .id
     in
     { inputKey = inputKey
-    , teamId = team.id
+    , teamId = teamId
     , basesSortedByPriority = basesSortedByPriority
     , hasHumanAlly = hasHumanAlly
     , randomSeed = Random.initialSeed randomInteger
@@ -63,7 +63,7 @@ update game state =
                             Nothing
 
                         Just base ->
-                            if Base.isOccupiedBy state.teamId base then
+                            if Base.isOccupiedBy (Just state.teamId) base then
                                 pickTargetBase bs
                             else
                                 Just base
@@ -137,7 +137,7 @@ shootEnemies playerUnit game =
         maybeUnitAndDistance =
             game.unitById
                 |> Dict.values
-                |> List.filter (\u -> u.teamId /= playerUnit.teamId)
+                |> List.filter (\u -> u.maybeTeamId /= playerUnit.maybeTeamId)
                 |> List.filterMap closeEnough
                 |> List.Extra.minimumBy Tuple.second
     in
@@ -155,7 +155,7 @@ moveToTargetBase playerUnit playerMech state game base =
         safeDistance =
             game.unitById
                 |> Dict.values
-                |> List.filter (\u -> u.teamId /= playerUnit.teamId && vectorDistance u.position base.position < 6)
+                |> List.filter (\u -> u.maybeTeamId /= playerUnit.maybeTeamId && vectorDistance u.position base.position < 6)
                 |> List.length
                 |> toFloat
                 |> sqrt

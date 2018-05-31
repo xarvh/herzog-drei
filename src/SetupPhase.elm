@@ -2,6 +2,7 @@ module SetupPhase exposing (..)
 
 import Dict exposing (Dict)
 import Game exposing (..)
+import Game.Init
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 import Svg exposing (..)
@@ -20,14 +21,43 @@ teamTilesWidth =
     3
 
 
-getTeams : Game -> ( Team, Team )
-getTeams game =
-    case game.teamById |> Dict.values |> List.sortBy .id of
-        leftTeam :: rightTeam :: _ ->
-            ( leftTeam, rightTeam )
 
-        _ ->
-            Debug.crash "WTF"
+-- phase update
+
+
+phaseTransitionDuration =
+    2.0
+
+
+phaseUpdate : Seconds -> GamePhase
+phaseUpdate time =
+    if time >= phaseTransitionDuration then
+        PhasePlay
+    else
+        PhaseTransition time
+
+
+phasesWeight : GamePhase -> ( Float, Float )
+phasesWeight phase =
+    case phase of
+        PhaseSetup ->
+            ( 1, 0 )
+
+        PhaseTransition seconds ->
+            let
+                t =
+                    2 * seconds / phaseTransitionDuration
+
+                setup =
+                    clamp 0 1 (1 - t)
+
+                play =
+                    clamp 0 1 (t - 1)
+            in
+            ( setup, play )
+
+        PhasePlay ->
+            ( 0, 1 )
 
 
 
@@ -56,7 +86,7 @@ addMech inputSourceKey =
                     vec2 0 0
             in
             g
-                |> Game.addMech inputSourceKey -1 startingPosition
+                |> Game.addMech inputSourceKey Nothing startingPosition
                 |> Tuple.first
 
 
@@ -100,23 +130,20 @@ addAndRemoveMechs inputSources game =
 updateMechTeam : Game -> ( Unit, MechComponent ) -> Delta
 updateMechTeam game ( unit, mech ) =
     let
-        ( leftTeam, rightTeam ) =
-            getTeams game
-
-        setTeam teamId =
-            if unit.teamId == teamId then
+        setTeam maybeTeamId =
+            if unit.maybeTeamId == maybeTeamId then
                 deltaNone
             else
                 deltaList
-                    [ deltaUnit unit.id (\g u -> { u | teamId = teamId })
+                    [ deltaUnit unit.id (\g u -> { u | maybeTeamId = maybeTeamId })
                     ]
     in
     if Vec2.getX unit.position < -neutralTilesHalfWidth then
-        setTeam leftTeam.id
+        setTeam (Just game.leftTeam.id)
     else if Vec2.getX unit.position > neutralTilesHalfWidth then
-        setTeam rightTeam.id
+        setTeam (Just game.rightTeam.id)
     else
-        setTeam -1
+        setTeam Nothing
 
 
 updateAllMechsTeam : Game -> Delta
@@ -132,9 +159,39 @@ updateAllMechsTeam game =
 -- Exit Setup Phase ?
 
 
+makeTeams : Game -> ( Team, Team )
+makeTeams game =
+    -- TODO
+    ( game.leftTeam, game.rightTeam )
+
+
+addMechForEveryPlayer : Game -> Game
+addMechForEveryPlayer game =
+    -- TODO
+    game
+
+
 exitSetupPhase : Game -> Game
 exitSetupPhase game =
-    game
+    let
+        ( left, right ) =
+            makeTeams game
+
+        walls =
+            Game.Init.walls
+    in
+    { game
+        | unitById = Dict.empty
+        , wallTiles = Set.fromList walls
+        , phase = PhaseTransition 0
+    }
+        |> Game.addStaticObstacles walls
+        |> Game.Init.addSmallBase ( -5, 2 )
+        |> Game.Init.addSmallBase ( 5, -2 )
+        |> Game.Init.addMainBase (Just left.id) ( -16, -6 )
+        |> Game.Init.addMainBase (Just right.id) ( 16, 6 )
+        |> Game.Init.kickstartPathing
+        |> addMechForEveryPlayer
 
 
 isReady : ( Unit, MechComponent ) -> Bool
@@ -160,12 +217,9 @@ maybeExitSetupPhase game =
 -- View
 
 
-viewBands : Game -> Svg a
-viewBands game =
+view : Game -> Svg a
+view game =
     let
-        ( leftTeam, rightTeam ) =
-            getTeams game
-
         w =
             teamTilesWidth
 
@@ -179,8 +233,8 @@ viewBands game =
             , y (-h / 2)
             , width w
             , height h
-            , fill leftTeam.colorPattern.bright
-            , stroke leftTeam.colorPattern.dark
+            , fill game.leftTeam.colorPattern.bright
+            , stroke game.leftTeam.colorPattern.dark
             , strokeWidth 0.1
             ]
             []
@@ -189,14 +243,9 @@ viewBands game =
             , y (-h / 2)
             , width w
             , height h
-            , fill rightTeam.colorPattern.bright
-            , stroke rightTeam.colorPattern.dark
+            , fill game.rightTeam.colorPattern.bright
+            , stroke game.rightTeam.colorPattern.dark
             , strokeWidth 0.1
             ]
             []
         ]
-
-
-view : Game -> Svg a
-view game =
-    viewBands game

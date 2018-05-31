@@ -12,46 +12,16 @@ import Set
 import SubThink
 
 
-{-
-
-   type GameInsert a
-       = GameInsert (Game -> ( a, Game ))
-
-
-   andThen : (a -> GameInsert b) -> GameInsert a -> GameInsert b
-   andThen callback (GameInsert insertA) =
-       GameInsert <|
-           \game ->
-               let
-                   ( result, newGame ) =
-                       insertA game
-
-                   (GameInsert insertB) =
-                       callback result
-               in
-               insertB game
+addSub : Maybe TeamId -> Vec2 -> Game -> Game
+addSub maybeTeamId position game =
+    Game.addSub maybeTeamId position game |> Tuple.first
 
 
-
-   insertAll : GameInsert a -> Game -> ( a, Game )
-   insertAll (GameInsert gameInsert) game =
-               gameInsert game
-
-
--}
---
-
-
-addSub : Id -> Vec2 -> Game -> Game
-addSub teamId position game =
-    Game.addSub teamId position game |> Tuple.first
-
-
-addEmbeddedSub : Id -> Base -> Game -> Game
-addEmbeddedSub teamId base game =
+addEmbeddedSub : Maybe TeamId -> Base -> Game -> Game
+addEmbeddedSub maybeTeamId base game =
     let
         ( game_, unit ) =
-            Game.addSub teamId (vec2 0 0) game
+            Game.addSub maybeTeamId (vec2 0 0) game
     in
     SubThink.deltaGameUnitEntersBase unit.id base.id game_
 
@@ -63,23 +33,23 @@ addSmallBase tile game =
             Base.add BaseSmall tile game
     in
     game_
-        |> addEmbeddedSub -1 base
-        |> addEmbeddedSub -1 base
-        |> addEmbeddedSub -1 base
-        |> addEmbeddedSub -1 base
+        |> addEmbeddedSub Nothing base
+        |> addEmbeddedSub Nothing base
+        |> addEmbeddedSub Nothing base
+        |> addEmbeddedSub Nothing base
 
 
-addMainBase : Id -> Tile2 -> Game -> Game
-addMainBase teamId tile game =
+addMainBase : Maybe TeamId -> Tile2 -> Game -> Game
+addMainBase maybeTeamId tile game =
     let
         ( game_, base ) =
             Base.add BaseMain tile game
     in
     game_
-        |> addEmbeddedSub teamId base
-        |> addEmbeddedSub teamId base
-        |> addEmbeddedSub teamId base
-        |> addEmbeddedSub teamId base
+        |> addEmbeddedSub maybeTeamId base
+        |> addEmbeddedSub maybeTeamId base
+        |> addEmbeddedSub maybeTeamId base
+        |> addEmbeddedSub maybeTeamId base
 
 
 {-| Pathing cannot be initialised until all static obstacles are in place
@@ -87,11 +57,13 @@ addMainBase teamId tile game =
 kickstartPathing : Game -> Game
 kickstartPathing game =
     let
-        addPathing : Id -> Team -> Team
-        addPathing id team =
+        addPathing : Team -> Team
+        addPathing team =
             { team | pathing = Pathfinding.makePaths game (vec2Tile team.markerPosition) }
     in
-    { game | teamById = Dict.map addPathing game.teamById }
+    game
+        |> updateTeam (addPathing game.leftTeam)
+        |> updateTeam (addPathing game.rightTeam)
 
 
 
@@ -119,35 +91,13 @@ mirror tiles =
         |> (++) tiles
 
 
-
---
-
-
-basicGame : GameSize -> List String -> List String -> Game
-basicGame gameSize inputSourcesTeam1 inputSourcesTeam2 =
-    let
-        walls =
-            [ rect -3 -5 1 4
-            , rect -10 -2 3 2
-            , rect -18 7 4 3
-            ]
-                |> List.concat
-                |> mirror
-
-        game =
-            Game.new gameSize (Random.initialSeed 0)
-    in
-    { game | wallTiles = Set.fromList walls }
-        |> Game.addStaticObstacles walls
-        |> addSmallBase ( -5, 2 )
-        |> addSmallBase ( 5, -2 )
---         |> addMainBase team1.id ( -16, -6 )
---         |> addMainBase team2.id ( 16, 6 )
-        |> kickstartPathing
-
-
-
---
+walls =
+    [ rect -3 -5 1 4
+    , rect -10 -2 3 2
+    , rect -18 7 4 3
+    ]
+        |> List.concat
+        |> mirror
 
 
 setupPhase : GameSize -> Game

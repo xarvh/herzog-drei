@@ -33,8 +33,13 @@ type alias Tile2 =
 -- Team
 
 
+type TeamId
+    = TeamLeft
+    | TeamRight
+
+
 type alias Team =
-    { id : Id
+    { id : TeamId
     , colorPattern : ColorPattern
     , markerPosition : Vec2
     , markerTime : Seconds
@@ -42,36 +47,29 @@ type alias Team =
     }
 
 
-addTeam : Game -> ( Game, Team )
-addTeam game =
-    let
-        id =
-            game.lastId + 1
+newTeam : TeamId -> ColorPattern -> Team
+newTeam id colorPattern =
+    { id = id
+    , colorPattern = colorPattern
+    , markerPosition = vec2 0 0
+    , markerTime = 0
+    , pathing = Dict.empty
+    }
 
-        colorPatternCount colorPattern =
-            game.teamById
-                |> Dict.values
-                |> List.filter (\team -> team.colorPattern == colorPattern)
-                |> List.length
 
-        colorPattern =
-            game.shuffledColorPatterns
-                |> List.sortBy colorPatternCount
-                |> List.head
-                |> Maybe.withDefault ColorPattern.neutral
+getTeam : Game -> TeamId -> Team
+getTeam game teamId =
+    case teamId of
+        TeamLeft ->
+            game.leftTeam
 
-        team =
-            { id = id
-            , colorPattern = colorPattern
-            , markerPosition = vec2 0 0
-            , markerTime = 0
-            , pathing = Dict.empty
-            }
+        TeamRight ->
+            game.rightTeam
 
-        teamById =
-            Dict.insert id team game.teamById
-    in
-    ( { game | teamById = teamById, lastId = id }, team )
+
+maybeGetTeam : Game -> Maybe TeamId -> Maybe Team
+maybeGetTeam game =
+    Maybe.map (getTeam game)
 
 
 
@@ -86,10 +84,10 @@ type Aim
 type alias InputState =
     { aim : Aim
 
-    -- Mech attacks
+    -- Attack
     , fire : Bool
 
-    -- Mech transforms or change base production
+    -- Transform or change base production
     , transform : Bool
 
     -- Change selected units
@@ -100,7 +98,7 @@ type alias InputState =
     -- Hold: retreat
     , rally : Bool
 
-    -- Mech moves
+    -- Move
     , move : Vec2
     }
 
@@ -121,7 +119,7 @@ inputStateNeutral =
 
 
 type alias ProjectileSeed =
-    { teamId : Id
+    { maybeTeamId : Maybe TeamId
     , position : Vec2
     , angle : Angle
     }
@@ -129,7 +127,7 @@ type alias ProjectileSeed =
 
 type alias Projectile =
     { id : Id
-    , teamId : Id
+    , maybeTeamId : Maybe TeamId
     , position : Vec2
     , spawnPosition : Vec2
     , angle : Angle
@@ -137,11 +135,11 @@ type alias Projectile =
 
 
 addProjectile : ProjectileSeed -> Game -> Game
-addProjectile { teamId, position, angle } game =
+addProjectile { maybeTeamId, position, angle } game =
     let
         projectile =
             { id = game.lastId + 1
-            , teamId = teamId
+            , maybeTeamId = maybeTeamId
             , position = position
             , spawnPosition = position
             , angle = angle
@@ -203,7 +201,7 @@ type UnitComponent
 type alias Unit =
     { id : Id
     , component : UnitComponent
-    , teamId : Id
+    , maybeTeamId : Maybe TeamId
     , integrity : Float
     , position : Vec2
     , timeToReload : Seconds
@@ -218,8 +216,8 @@ type alias Unit =
     }
 
 
-addUnit : UnitComponent -> Id -> Vec2 -> Game -> ( Game, Unit )
-addUnit component teamId position game =
+addUnit : UnitComponent -> Maybe TeamId -> Vec2 -> Game -> ( Game, Unit )
+addUnit component maybeTeamId position game =
     let
         id =
             game.lastId + 1
@@ -252,7 +250,7 @@ addUnit component teamId position game =
 
         unit =
             { id = id
-            , teamId = teamId
+            , maybeTeamId = maybeTeamId
             , position = position
             , integrity = 1
             , timeToReload = 0
@@ -273,7 +271,7 @@ addUnit component teamId position game =
     ( { game | lastId = id, unitById = unitById }, unit )
 
 
-addSub : Id -> Vec2 -> Game -> ( Game, Unit )
+addSub : Maybe TeamId -> Vec2 -> Game -> ( Game, Unit )
 addSub =
     { mode = UnitModeFree
     , targetId = -1
@@ -282,7 +280,7 @@ addSub =
         |> addUnit
 
 
-addMech : String -> Id -> Vec2 -> Game -> ( Game, Unit )
+addMech : String -> Maybe TeamId -> Vec2 -> Game -> ( Game, Unit )
 addMech inputKey =
     { transformState = 1
     , transformingTo = ToPlane
@@ -327,7 +325,7 @@ type BaseType
 
 
 type alias BaseOccupied =
-    { teamId : Id
+    { maybeTeamId : Maybe TeamId
     , unitIds : Set Id
     , isActive : Bool
     , subBuildCompletion : Float
@@ -368,7 +366,7 @@ type alias Gfx =
 
 type GamePhase
     = PhaseSetup
-    | PhaseTransition
+    | PhaseTransition Seconds
     | PhasePlay
 
 
@@ -380,13 +378,14 @@ type alias GameSize =
 
 type alias Game =
     { phase : GamePhase
-    , maybeWinnerId : Maybe Id
+    , maybeWinnerTeamId : Maybe TeamId
     , time : Seconds
     , subBuildMultiplier : Float
+    , leftTeam : Team
+    , rightTeam : Team
 
     -- entities
     , baseById : Dict Id Base
-    , teamById : Dict Id Team
     , projectileById : Dict Id Projectile
     , unitById : Dict Id Unit
     , lastId : Id
@@ -409,20 +408,32 @@ type alias Game =
 
     -- random
     , seed : Random.Seed
-    , shuffledColorPatterns : List ColorPattern
     }
 
 
 new : GameSize -> Random.Seed -> Game
 new { halfWidth, halfHeight } seed =
+    let
+        shuffledColorPatterns =
+            Random.step (Random.List.shuffle ColorPattern.patterns) seed |> Tuple.first
+
+        ( leftTeamColor, rightTeamColor ) =
+            case shuffledColorPatterns of
+                color1 :: color2 :: _ ->
+                    ( color1, color2 )
+
+                _ ->
+                    ( ColorPattern.neutral, ColorPattern.neutral )
+    in
     { phase = PhaseSetup
-    , maybeWinnerId = Nothing
+    , maybeWinnerTeamId = Nothing
     , time = 0
     , subBuildMultiplier = 2
+    , leftTeam = newTeam TeamLeft leftTeamColor
+    , rightTeam = newTeam TeamRight rightTeamColor
 
     --
     , baseById = Dict.empty
-    , teamById = Dict.empty
     , projectileById = Dict.empty
     , unitById = Dict.empty
     , lastId = 0
@@ -437,12 +448,7 @@ new { halfWidth, halfHeight } seed =
 
     --
     , seed = seed
-    , shuffledColorPatterns = Random.step (Random.List.shuffle ColorPattern.patterns) seed |> Tuple.first
     }
-        |> addTeam
-        |> Tuple.first
-        |> addTeam
-        |> Tuple.first
 
 
 
@@ -475,9 +481,19 @@ deltaBase =
     deltaEntity .baseById updateBase
 
 
-deltaTeam : Id -> (Game -> Team -> Team) -> Delta
-deltaTeam =
-    deltaEntity .teamById updateTeam
+deltaTeam : TeamId -> (Game -> Team -> Team) -> Delta
+deltaTeam teamId update =
+    let
+        updateGame : Game -> Game
+        updateGame game =
+            case teamId of
+                TeamLeft ->
+                    { game | leftTeam = update game game.leftTeam }
+
+                TeamRight ->
+                    { game | rightTeam = update game game.rightTeam }
+    in
+    DeltaGame updateGame
 
 
 deltaUnit : Id -> (Game -> Unit -> Unit) -> Delta
@@ -515,7 +531,12 @@ updateBase base game =
 
 updateTeam : Team -> Game -> Game
 updateTeam team game =
-    { game | teamById = Dict.insert team.id team game.teamById }
+    case team.id of
+        TeamLeft ->
+            { game | leftTeam = team }
+
+        TeamRight ->
+            { game | rightTeam = team }
 
 
 updateUnit : Unit -> Game -> Game
@@ -543,9 +564,14 @@ withBase =
     with .baseById
 
 
-withTeam : Game -> Id -> (Team -> Game) -> Game
-withTeam =
-    with .teamById
+withTeam : Game -> Maybe TeamId -> (Team -> Game) -> Game
+withTeam game teamId fn =
+    case maybeGetTeam game teamId of
+        Nothing ->
+            game
+
+        Just team ->
+            fn team
 
 
 withUnit : Game -> Id -> (Unit -> Game) -> Game
@@ -709,9 +735,9 @@ rotateVector angle v =
 -- Color Patterns
 
 
-teamColorPattern : Game -> Id -> ColorPattern
+teamColorPattern : Game -> Maybe TeamId -> ColorPattern
 teamColorPattern game teamId =
-    case Dict.get teamId game.teamById of
+    case maybeGetTeam game teamId of
         Nothing ->
             ColorPattern.neutral
 

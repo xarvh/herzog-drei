@@ -30,8 +30,6 @@ aimControlThreshold =
 --
 
 
-
-
 mechThink : InputState -> Seconds -> Game -> Unit -> MechComponent -> Delta
 mechThink input dt game unit mech =
     let
@@ -88,17 +86,22 @@ mechThink input dt game unit mech =
 
         moveTarget =
             if input.rally then
-                deltaTeam unit.teamId
-                    (\g t ->
-                        if g.time - t.markerTime < 1 then
-                            t
-                        else
-                            { t
-                                | markerPosition = unit.position
-                                , markerTime = g.time
-                                , pathing = Pathfinding.makePaths g (vec2Tile unit.position)
-                            }
-                    )
+                case unit.maybeTeamId of
+                    Nothing ->
+                        deltaNone
+
+                    Just teamId ->
+                        deltaTeam teamId
+                            (\g t ->
+                                if g.time - t.markerTime < 1 then
+                                    t
+                                else
+                                    { t
+                                        | markerPosition = unit.position
+                                        , markerTime = g.time
+                                        , pathing = Pathfinding.makePaths g (vec2Tile unit.position)
+                                    }
+                            )
             else
                 deltaNone
 
@@ -155,7 +158,7 @@ mechThink input dt game unit mech =
             View.Mech.rightGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
 
         deltaFire origin =
-            Game.deltaAddProjectile { teamId = unit.teamId, position = origin, angle = aimAngle }
+            Game.deltaAddProjectile { maybeTeamId = unit.maybeTeamId, position = origin, angle = aimAngle }
 
         fire =
             if input.fire && unit.timeToReload == 0 then
@@ -192,7 +195,7 @@ repairDelta dt game unit mech =
                         False
 
                     Just occupied ->
-                        (occupied.isActive && occupied.teamId == unit.teamId && occupied.subBuildCompletion > 0)
+                        (occupied.isActive && occupied.maybeTeamId == unit.maybeTeamId && occupied.subBuildCompletion > 0)
                             && (Vec2.distanceSquared base.position unit.position < 3 * 3)
         in
         case List.Extra.find canRepair (Dict.values game.baseById) of

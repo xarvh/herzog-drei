@@ -16,6 +16,8 @@ import View.Gfx
 -- Main update function
 
 
+
+
 update : Seconds -> Dict String InputState -> Game -> Game
 update time inpuStateByKey game =
     let
@@ -40,8 +42,8 @@ update time inpuStateByKey game =
             PhaseSetup ->
                 SetupPhase.think (Dict.keys inpuStateByKey) game
 
-            PhaseTransition ->
-                deltaNone
+            PhaseTransition transitionTime ->
+                deltaGame (\g -> { g | phase = SetupPhase.phaseUpdate (transitionTime + dt) })
 
             PhasePlay ->
                 VictoryThink.think dt game

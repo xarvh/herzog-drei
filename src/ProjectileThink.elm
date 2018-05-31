@@ -73,7 +73,7 @@ think dt game projectile =
         let
             collidedUnits =
                 game.unitById
-                    |> Dict.filter (\id unit -> unit.teamId /= projectile.teamId)
+                    |> Dict.filter (\id unit -> unit.maybeTeamId /= projectile.maybeTeamId)
                     |> Dict.filter (checkUnitCollision oldPosition newPosition)
                     |> Dict.values
         in

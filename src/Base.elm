@@ -67,7 +67,7 @@ unitCanEnter unit base =
             True
 
         Just occupied ->
-            occupied.teamId == unit.teamId && Set.size occupied.unitIds < maxContainedUnits
+            occupied.maybeTeamId == unit.maybeTeamId && Set.size occupied.unitIds < maxContainedUnits
 
 
 
@@ -103,12 +103,12 @@ colorPattern game base =
         case base.maybeOccupied of
             Just occupied ->
                 if occupied.isActive then
-                    occupied.teamId
+                    occupied.maybeTeamId
                 else
-                    -1
+                    Nothing
 
             Nothing ->
-                -1
+                Nothing
 
 
 isOccupied : Base -> Bool
@@ -116,21 +116,21 @@ isOccupied base =
     base.maybeOccupied /= Nothing
 
 
-isOccupiedBy : Id -> Base -> Bool
-isOccupiedBy teamId base =
+isOccupiedBy : Maybe TeamId -> Base -> Bool
+isOccupiedBy maybeTeamId base =
     case base.maybeOccupied of
         Nothing ->
             False
 
         Just occupied ->
-            occupied.teamId == teamId
+            occupied.maybeTeamId == maybeTeamId
 
 
-teamMainBase : Game -> Id -> Maybe Base
-teamMainBase game teamId =
+teamMainBase : Game -> Maybe TeamId -> Maybe Base
+teamMainBase game maybeTeamId =
     game.baseById
         |> Dict.values
-        |> List.Extra.find (\b -> b.type_ == BaseMain && isOccupiedBy teamId b)
+        |> List.Extra.find (\b -> b.type_ == BaseMain && isOccupiedBy maybeTeamId b)
 
 
 updateOccupied : (BaseOccupied -> BaseOccupied) -> Game -> Base -> Base
