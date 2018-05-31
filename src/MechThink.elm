@@ -1,4 +1,4 @@
-module PlayerThink exposing (..)
+module MechThink exposing (..)
 
 import Base
 import ColorPattern
@@ -32,7 +32,7 @@ aimControlThreshold =
 
 
 
-mechThink : PlayerInput -> Seconds -> Game -> Unit -> MechComponent -> Delta
+mechThink : InputState -> Seconds -> Game -> Unit -> MechComponent -> Delta
 mechThink input dt game unit mech =
     let
         speed =

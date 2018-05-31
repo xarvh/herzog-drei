@@ -48,7 +48,7 @@ init inputKey team hasHumanAlly randomInteger game =
     }
 
 
-update : Game -> State -> ( State, PlayerInput )
+update : Game -> State -> ( State, InputState )
 update game state =
     let
         pickTargetBase : List Id -> Maybe Base
@@ -77,7 +77,7 @@ update game state =
             attackBase state game targetBase
 
 
-gloat : Game -> State -> ( State, PlayerInput )
+gloat : Game -> State -> ( State, InputState )
 gloat game state =
     ( if game.time - state.lastChange < 0.01 then
         state
@@ -86,7 +86,7 @@ gloat game state =
             | lastChange = game.time
             , speedAroundBase = state.speedAroundBase + 0.1
         }
-    , { neutralPlayerInput
+    , { inputStateNeutral
         | fire = True
         , transform = True
         , aim = angleToVector state.speedAroundBase |> AimAbsolute
@@ -94,12 +94,12 @@ gloat game state =
     )
 
 
-attackBase : State -> Game -> Base -> ( State, PlayerInput )
+attackBase : State -> Game -> Base -> ( State, InputState )
 attackBase state game targetBase =
     case Unit.findMech state.inputKey (Dict.values game.unitById) of
         Nothing ->
             -- You're dead, you can't do anything
-            ( state, neutralPlayerInput )
+            ( state, inputStateNeutral )
 
         Just ( playerUnit, playerMech ) ->
             let

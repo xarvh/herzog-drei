@@ -3,7 +3,7 @@ module UnitThink exposing (..)
 import Base
 import Dict exposing (Dict)
 import Game exposing (..)
-import PlayerThink
+import MechThink
 import SubThink
 import View.Gfx
 import View.Sub
@@ -12,8 +12,8 @@ import View.Sub
 -- Think
 
 
-think : Float -> Dict String PlayerInput -> Game -> Unit -> Delta
-think dt playerInputBySourceId game unit =
+think : Float -> Dict String InputState -> Game -> Unit -> Delta
+think dt inpuStateByKey game unit =
     if unit.integrity <= 0 then
         deltaList
             [ deltaGame (Game.removeUnit unit.id)
@@ -35,10 +35,10 @@ think dt playerInputBySourceId game unit =
                 UnitMech mech ->
                     let
                         input =
-                            Dict.get mech.inputKey playerInputBySourceId
-                                |> Maybe.withDefault neutralPlayerInput
+                            Dict.get mech.inputKey inpuStateByKey
+                                |> Maybe.withDefault inputStateNeutral
                     in
-                    PlayerThink.mechThink input dt game unit mech
+                    MechThink.mechThink input dt game unit mech
             ]
 
 

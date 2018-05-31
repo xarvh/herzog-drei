@@ -197,7 +197,7 @@ update pressedKeys msg model =
                     , move = vec2 (toFloat x) (toFloat y)
                     }
 
-                foldBot : String -> Bot.Dummy.State -> ( Dict String Bot.Dummy.State, Dict String PlayerInput ) -> ( Dict String Bot.Dummy.State, Dict String PlayerInput )
+                foldBot : String -> Bot.Dummy.State -> ( Dict String Bot.Dummy.State, Dict String InputState ) -> ( Dict String Bot.Dummy.State, Dict String InputState )
                 foldBot inputSourceKey oldState ( statesByKey, inputsByKey ) =
                     let
                         ( newState, input ) =
@@ -208,7 +208,7 @@ update pressedKeys msg model =
                 ( botStatesByKey, botInputsByKey ) =
                     Dict.foldl foldBot ( Dict.empty, Dict.empty ) model.botStatesByKey
 
-                playerInputsByInputSourceId =
+                inputStatesByKey =
                     botInputsByKey
                         |> Dict.insert inputKeyboardAndMouseKey keyboardAndMouseInput
 
@@ -220,7 +220,7 @@ update pressedKeys msg model =
                     time - model.game.time
 
                 game =
-                    Game.Update.update time playerInputsByInputSourceId model.game
+                    Game.Update.update time inputStatesByKey model.game
             in
             noCmd
                 { model

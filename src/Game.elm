@@ -75,14 +75,7 @@ addTeam game =
 
 
 
--- Players
-
-
-type alias Player =
-    { teamId : Id
-    , inputSourceKey : String
-    , viewportPosition : Vec2
-    }
+-- Input
 
 
 type Aim
@@ -90,7 +83,7 @@ type Aim
     | AimAbsolute Vec2
 
 
-type alias PlayerInput =
+type alias InputState =
     { aim : Aim
 
     -- Mech attacks
@@ -112,8 +105,8 @@ type alias PlayerInput =
     }
 
 
-neutralPlayerInput : PlayerInput
-neutralPlayerInput =
+inputStateNeutral : InputState
+inputStateNeutral =
     { aim = AimAbsolute (vec2 0 0)
     , fire = False
     , transform = False

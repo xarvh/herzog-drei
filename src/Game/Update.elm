@@ -5,7 +5,6 @@ import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
-import PlayerThink
 import ProjectileThink
 import Set exposing (Set)
 import SetupPhase
@@ -17,8 +16,8 @@ import View.Gfx
 -- Main update function
 
 
-update : Seconds -> Dict String PlayerInput -> Game -> Game
-update time playerInputBySourceId game =
+update : Seconds -> Dict String InputState -> Game -> Game
+update time inpuStateByKey game =
     let
         -- Cap dt to 0.1 secs to avoid time integration problems
         dt =
@@ -36,10 +35,10 @@ update time playerInputBySourceId game =
             { game | dynamicObstacles = updatedDynamicObstacles }
     in
     [ units
-        |> List.map (UnitThink.think dt playerInputBySourceId oldGameWithUpdatedDynamicObstacles)
+        |> List.map (UnitThink.think dt inpuStateByKey oldGameWithUpdatedDynamicObstacles)
     , [ case game.phase of
             PhaseSetup ->
-                SetupPhase.think (Dict.keys playerInputBySourceId) game
+                SetupPhase.think (Dict.keys inpuStateByKey) game
 
             PhaseTransition ->
                 deltaNone
