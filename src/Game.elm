@@ -389,11 +389,11 @@ type alias Game =
     { phase : GamePhase
     , maybeWinnerId : Maybe Id
     , time : Seconds
+    , subBuildMultiplier : Float
 
     -- entities
     , baseById : Dict Id Base
     , teamById : Dict Id Team
-    , playerByKey : Dict String Player
     , projectileById : Dict Id Projectile
     , unitById : Dict Id Unit
     , lastId : Id
@@ -425,11 +425,11 @@ new { halfWidth, halfHeight } seed =
     { phase = PhaseSetup
     , maybeWinnerId = Nothing
     , time = 0
+    , subBuildMultiplier = 2
 
     --
     , baseById = Dict.empty
     , teamById = Dict.empty
-    , playerByKey = Dict.empty
     , projectileById = Dict.empty
     , unitById = Dict.empty
     , lastId = 0
@@ -446,10 +446,10 @@ new { halfWidth, halfHeight } seed =
     , seed = seed
     , shuffledColorPatterns = Random.step (Random.List.shuffle ColorPattern.patterns) seed |> Tuple.first
     }
-      |> addTeam
-      |> Tuple.first
-      |> addTeam
-      |> Tuple.first
+        |> addTeam
+        |> Tuple.first
+        |> addTeam
+        |> Tuple.first
 
 
 
@@ -485,11 +485,6 @@ deltaBase =
 deltaTeam : Id -> (Game -> Team -> Team) -> Delta
 deltaTeam =
     deltaEntity .teamById updateTeam
-
-
-deltaPlayer : String -> (Game -> Player -> Player) -> Delta
-deltaPlayer =
-    deltaEntity .playerByKey updatePlayer
 
 
 deltaUnit : Id -> (Game -> Unit -> Unit) -> Delta
@@ -528,11 +523,6 @@ updateBase base game =
 updateTeam : Team -> Game -> Game
 updateTeam team game =
     { game | teamById = Dict.insert team.id team game.teamById }
-
-
-updatePlayer : Player -> Game -> Game
-updatePlayer player game =
-    { game | playerByKey = Dict.insert player.inputSourceKey player game.playerByKey }
 
 
 updateUnit : Unit -> Game -> Game

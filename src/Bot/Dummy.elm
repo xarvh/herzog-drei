@@ -20,21 +20,13 @@ type alias State =
     }
 
 
-init : String -> Bool -> Int -> Game -> State
-init inputKey hasHumanAlly randomInteger game =
+init : String -> Team -> Bool -> Int -> Game -> State
+init inputKey team hasHumanAlly randomInteger game =
     let
-        teamId =
-            case Dict.get inputKey game.playerByKey of
-                Nothing ->
-                    -1
-
-                Just player ->
-                    player.teamId
-
         mainBasePosition =
             game.baseById
                 |> Dict.values
-                |> List.Extra.find (\base -> base.type_ == BaseMain && Base.isOccupiedBy teamId base)
+                |> List.Extra.find (\base -> base.type_ == BaseMain && Base.isOccupiedBy team.id base)
                 |> Maybe.map .position
                 |> Maybe.withDefault (vec2 0 0)
 
@@ -45,7 +37,7 @@ init inputKey hasHumanAlly randomInteger game =
                 |> List.map .id
     in
     { inputKey = inputKey
-    , teamId = teamId
+    , teamId = team.id
     , basesSortedByPriority = basesSortedByPriority
     , hasHumanAlly = hasHumanAlly
     , randomSeed = Random.initialSeed randomInteger

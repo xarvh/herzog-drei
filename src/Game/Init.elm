@@ -82,34 +82,6 @@ addMainBase teamId tile game =
         |> addEmbeddedSub teamId base
 
 
-addTeamAndPlayers : List String -> Vec2 -> Game -> ( Game, Team )
-addTeamAndPlayers inputSourceKeys startingPosition originalGame =
-    let
-        q =
-            Debug.crash "TODO do not create teams"
-
-        ( game, team ) =
-            addTeam originalGame
-
-        addPlayer : String -> Dict String Player -> Dict String Player
-        addPlayer inputSourceKey playerByKey =
-            Dict.insert inputSourceKey
-                { inputSourceKey = inputSourceKey
-                , teamId = team.id
-                , viewportPosition = startingPosition
-                }
-                playerByKey
-
-        playerByKey =
-            List.foldl addPlayer game.playerByKey inputSourceKeys
-
-        addUnit : String -> Game -> Game
-        addUnit inputSourceKey g =
-            addMech inputSourceKey team.id startingPosition g |> Tuple.first
-    in
-    ( List.foldl addUnit { game | playerByKey = playerByKey } inputSourceKeys, team )
-
-
 {-| Pathing cannot be initialised until all static obstacles are in place
 -}
 kickstartPathing : Game -> Game
@@ -164,19 +136,13 @@ basicGame gameSize inputSourcesTeam1 inputSourcesTeam2 =
 
         game =
             Game.new gameSize (Random.initialSeed 0)
-
-        ( game_, team1 ) =
-            game |> addTeamAndPlayers inputSourcesTeam1 (vec2 -12 -3)
-
-        ( game__, team2 ) =
-            game_ |> addTeamAndPlayers inputSourcesTeam2 (vec2 12 3)
     in
-    { game__ | wallTiles = Set.fromList walls }
+    { game | wallTiles = Set.fromList walls }
         |> Game.addStaticObstacles walls
         |> addSmallBase ( -5, 2 )
         |> addSmallBase ( 5, -2 )
-        |> addMainBase team1.id ( -16, -6 )
-        |> addMainBase team2.id ( 16, 6 )
+--         |> addMainBase team1.id ( -16, -6 )
+--         |> addMainBase team2.id ( 16, 6 )
         |> kickstartPathing
 
 

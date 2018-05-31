@@ -116,9 +116,6 @@ mechThink input dt game unit mech =
         moveMech =
             deltaUnit unit.id (\g u -> { u | position = newPosition })
 
-        moveViewport =
-            deltaPlayer mech.inputKey (\g p -> { p | viewportPosition = newPosition })
-
         reload =
             if unit.timeToReload > 0 then
                 deltaUnit unit.id (\g u -> { u | timeToReload = max 0 (u.timeToReload - dt) })
@@ -174,7 +171,6 @@ mechThink input dt game unit mech =
     in
     deltaList
         [ moveTarget
-        , moveViewport
         , moveMech
         , reload
         , aimDelta

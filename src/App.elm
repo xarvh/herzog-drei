@@ -109,15 +109,15 @@ initGameWithBots model =
         game =
             Game.Init.basicGame gameSize team1 team2
 
-        makeStates inputKey =
-          inputKey
-                |> List.filter (inputKeyIsHuman >> not)
-                |> List.indexedMap (\index bot -> ( bot, Bot.Dummy.init bot (List.any inputKeyIsHuman inputKey) index game ))
-                |> Dict.fromList
+--         makeStates inputKey =
+--           inputKey
+--                 |> List.filter (inputKeyIsHuman >> not)
+--                 |> List.indexedMap (\index bot -> ( bot, Bot.Dummy.init bot (List.any inputKeyIsHuman inputKey) index game ))
+--                 |> Dict.fromList
     in
     { model
         | game = game
-        , botStatesByKey = Dict.union (makeStates team1) (makeStates team2)
+--         , botStatesByKey = Dict.union (makeStates team1) (makeStates team2)
     }
 
 
@@ -151,19 +151,6 @@ noCmd model =
 
 
 
-{-
-   setViewports : Window.Size -> Model -> Model
-   setViewports windowSize model =
-       { model
-           | windowSize = windowSize
-           , viewports =
-               model.game.playerByKey
-                   |> Dict.keys
-                   |> List.filter inputKeyIsHuman
-                   |> List.length
-                   |> SplitScreen.makeViewports windowSize
-       }
--}
 
 
 update : List Keyboard.Extra.Key -> Msg -> Model -> ( Model, Cmd Msg )
@@ -589,18 +576,6 @@ gameView model viewport =
 
 
 
-{-
-   playersAndViewports : Model -> List ( Player, Viewport )
-   playersAndViewports model =
-       let
-           sortedPlayers =
-               model.game.playerByKey
-                   |> Dict.values
-                   |> List.filter (.inputSourceKey >> inputKeyIsHuman)
-                   |> List.sortBy (\player -> toString player.teamId ++ player.inputSourceKey)
-       in
-       List.map2 (,) sortedPlayers model.viewports
--}
 
 
 view : Model -> Svg Msg

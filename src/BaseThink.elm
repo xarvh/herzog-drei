@@ -67,14 +67,8 @@ deltaRepairEmbeddedSubs dt game base occupied =
 deltaBuildSub : Seconds -> Game -> Base -> BaseOccupied -> Delta
 deltaBuildSub dt game base occupied =
     let
-        numberOfEnemyPlayers =
-            game.playerByKey
-                |> Dict.values
-                |> List.filter (\p -> p.teamId /= occupied.teamId)
-                |> List.length
-
         completionIncrease =
-            dt * subBuildSpeed * toFloat numberOfEnemyPlayers
+            dt * subBuildSpeed * game.subBuildMultiplier
     in
     if occupied.subBuildCompletion + completionIncrease < 1 || teamHasReachedUnitCap game occupied.teamId then
         deltaBase base.id (Base.updateOccupied (\o -> { o | subBuildCompletion = o.subBuildCompletion + completionIncrease |> min 1 }))
