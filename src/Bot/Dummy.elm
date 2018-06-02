@@ -24,9 +24,7 @@ init : String -> TeamId -> Bool -> Int -> Game -> State
 init inputKey teamId hasHumanAlly randomInteger game =
     let
         mainBasePosition =
-            game.baseById
-                |> Dict.values
-                |> List.Extra.find (\base -> base.type_ == BaseMain && Base.isOccupiedBy (Just teamId) base)
+            Base.teamMainBase game (Just teamId)
                 |> Maybe.map .position
                 |> Maybe.withDefault (vec2 0 0)
 

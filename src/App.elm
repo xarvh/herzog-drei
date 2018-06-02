@@ -68,10 +68,10 @@ inputGamepadKey : Int -> String
 inputGamepadKey index =
     "gamepad " ++ toString index
 
+
 inputKeyIsHuman : String -> Bool
 inputKeyIsHuman key =
     inputIsBot key |> not
-
 
 
 
@@ -105,6 +105,38 @@ init params =
 noCmd : Model -> ( Model, Cmd a )
 noCmd model =
     ( model, Cmd.none )
+
+
+addMissingBots : Model -> Model
+addMissingBots model =
+    if model.game.phase == PhaseSetup then
+        model
+    else
+        let
+            initBot : String -> Team -> Int -> Game -> Bot.Dummy.State
+            initBot inputKey team n game =
+                Bot.Dummy.init inputKey team.id (List.all inputIsBot team.players |> not) n game
+
+            addBot : Team -> String -> Dict String Bot.Dummy.State -> Dict String Bot.Dummy.State
+            addBot team inputKey botStatesByKey =
+                Dict.insert
+                    inputKey
+                    (initBot inputKey team (Dict.size botStatesByKey) model.game)
+                    botStatesByKey
+
+            addTeamBots : Team -> Dict String Bot.Dummy.State -> Dict String Bot.Dummy.State
+            addTeamBots team botStatesByKey =
+                team.players
+                    |> List.filter inputIsBot
+                    |> List.filter (\input -> Dict.member input botStatesByKey |> not)
+                    |> List.foldl (addBot team) botStatesByKey
+
+            botStates =
+                model.botStatesByKey
+                    |> addTeamBots model.game.leftTeam
+                    |> addTeamBots model.game.rightTeam
+        in
+        { model | botStatesByKey = botStates }
 
 
 update : List Keyboard.Extra.Key -> Msg -> Model -> ( Model, Cmd Msg )
@@ -176,12 +208,13 @@ update pressedKeys msg model =
                 game =
                     Game.Update.update time inputStatesByKey model.game
             in
-            noCmd
-                { model
-                    | game = game
-                    , botStatesByKey = botStatesByKey
-                    , fps = (1 / dt) :: List.take 20 model.fps
-                }
+            { model
+                | game = game
+                , botStatesByKey = botStatesByKey
+                , fps = (1 / dt) :: List.take 20 model.fps
+            }
+                |> addMissingBots
+                |> noCmd
 
 
 

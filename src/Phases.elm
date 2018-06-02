@@ -231,7 +231,7 @@ exitSetupPhase mechs game =
             teamInputKeys TeamRight
 
         teamsSize =
-            max ( List.length leftTeamInputKeys) (List.length rightTeamInputKeys )
+            max (List.length leftTeamInputKeys) (List.length rightTeamInputKeys)
     in
     { game | maybeTransition = Just 1 }
         |> updateTeam (addBots teamsSize leftTeamInputKeys game.leftTeam)
