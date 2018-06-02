@@ -1,7 +1,9 @@
 module UnitThink exposing (..)
 
 import Base
+import Dict exposing (Dict)
 import Game exposing (..)
+import MechThink
 import SubThink
 import View.Gfx
 import View.Sub
@@ -10,20 +12,18 @@ import View.Sub
 -- Think
 
 
-think : Float -> Game -> Unit -> Delta
-think dt game unit =
+think : Float -> Dict String InputState -> Game -> Unit -> Delta
+think dt inpuStateByKey game unit =
     if unit.integrity <= 0 then
         deltaList
-            [ deltaList
-                [ deltaGame (Game.removeUnit unit.id)
-                , View.Gfx.deltaAddExplosion unit.position 1.0
-                ]
+            [ deltaGame (Game.removeUnit unit.id)
+            , View.Gfx.deltaAddExplosion unit.position 1.0
             , case unit.component of
                 UnitSub sub ->
                     SubThink.destroy game unit sub
 
                 UnitMech mech ->
-                    respawnMech game mech.playerKey unit.teamId
+                    respawnMech game mech.inputKey unit.maybeTeamId
             ]
     else
         deltaList
@@ -33,7 +33,12 @@ think dt game unit =
                     SubThink.think dt game unit sub
 
                 UnitMech mech ->
-                    deltaNone
+                    let
+                        input =
+                            Dict.get mech.inputKey inpuStateByKey
+                                |> Maybe.withDefault inputStateNeutral
+                    in
+                    MechThink.mechThink input dt game unit mech
             ]
 
 
@@ -57,11 +62,11 @@ thinkReload dt game unit =
 -- Respawn
 
 
-respawnMech : Game -> String -> Id -> Delta
-respawnMech game playerKey teamId =
-    case Base.teamMainBase game teamId of
+respawnMech : Game -> String -> Maybe TeamId -> Delta
+respawnMech game inputKey maybeTeamId =
+    case Base.teamMainBase game maybeTeamId of
         Nothing ->
             deltaNone
 
         Just mainBase ->
-            deltaBase mainBase.id (Base.updateOccupied <| \o -> { o | mechBuildCompletions = ( playerKey, 0 ) :: o.mechBuildCompletions })
+            deltaBase mainBase.id (Base.updateOccupied <| \o -> { o | mechBuildCompletions = ( inputKey, 0 ) :: o.mechBuildCompletions })

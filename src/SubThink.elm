@@ -96,7 +96,7 @@ searchForTargets game unit =
                             -distance
 
         validTargetPriority target =
-            if target.teamId == unit.teamId then
+            if target.maybeTeamId == unit.maybeTeamId then
                 Nothing
             else
                 let
@@ -172,7 +172,7 @@ thinkTarget dt game unit sub =
                             , View.Gfx.deltaAddBeam
                                 (Vec2.add unit.position (View.Sub.gunOffset unit.moveAngle))
                                 target.position
-                                (Game.teamColorPattern game unit.teamId)
+                                (Game.teamColorPattern game unit.maybeTeamId)
                             ]
                     ]
 
@@ -319,7 +319,7 @@ updateUnitEntersBase unit base game =
                 Nothing ->
                     { unitIds = Set.empty
                     , isActive = False
-                    , teamId = unit.teamId
+                    , maybeTeamId = unit.maybeTeamId
                     , subBuildCompletion = 0
                     , mechBuildCompletions = []
                     }
@@ -389,7 +389,7 @@ thinkMovement dt game unit sub =
                      if base nearby && can be entered -> move / enter
                      else -> move to marker
                 -}
-                case Dict.get unit.teamId game.teamById of
+                case maybeGetTeam game unit.maybeTeamId of
                     Nothing ->
                         deltaNone
 

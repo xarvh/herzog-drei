@@ -4,9 +4,10 @@ import BaseThink
 import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
-import PlayerThink
+import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import ProjectileThink
 import Set exposing (Set)
+import Phases
 import UnitThink
 import VictoryThink
 import View.Gfx
@@ -15,8 +16,10 @@ import View.Gfx
 -- Main update function
 
 
-update : Seconds -> Dict String PlayerInput -> Game -> Game
-update time playerInputBySourceId game =
+
+
+update : Seconds -> Dict String InputState -> Game -> Game
+update time inpuStateByKey game =
     let
         -- Cap dt to 0.1 secs to avoid time integration problems
         dt =
@@ -32,31 +35,27 @@ update time playerInputBySourceId game =
 
         oldGameWithUpdatedDynamicObstacles =
             { game | dynamicObstacles = updatedDynamicObstacles }
-
-        getInputForPlayer player =
-            Dict.get player.inputSourceKey playerInputBySourceId |> Maybe.withDefault Game.neutralPlayerInput
-
-        playerThink player =
-            PlayerThink.think (getInputForPlayer player) dt oldGameWithUpdatedDynamicObstacles player
     in
     [ units
-        |> List.map (UnitThink.think dt oldGameWithUpdatedDynamicObstacles)
-    , game.playerByKey
-        |> Dict.values
-        |> List.map playerThink
+        |> List.map (UnitThink.think dt inpuStateByKey oldGameWithUpdatedDynamicObstacles)
+    , [ case game.phase of
+            PhaseSetup ->
+                Phases.setupThink (Dict.keys inpuStateByKey) game
+
+            PhasePlay ->
+                VictoryThink.think dt game
+      ]
     , game.baseById
         |> Dict.values
         |> List.map (BaseThink.think dt oldGameWithUpdatedDynamicObstacles)
     , game.projectileById
         |> Dict.values
         |> List.map (ProjectileThink.think dt oldGameWithUpdatedDynamicObstacles)
-    , game
-        |> VictoryThink.think dt
-        |> List.singleton
     ]
         |> List.map deltaList
         |> applyGameDeltas oldGameWithUpdatedDynamicObstacles
         |> updateGfxs dt
+        |> Phases.transitionUpdate dt
         |> (\game -> { game | time = time })
 
 

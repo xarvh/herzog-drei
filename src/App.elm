@@ -14,6 +14,7 @@ import Keyboard.Extra
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mouse
+import Phases
 import Set exposing (Set)
 import SplitScreen exposing (Viewport)
 import String.Extra
@@ -63,19 +64,14 @@ inputKeyboardAndMouseKey =
     "keyboard+mouse"
 
 
-inputBotKey : Int -> String
-inputBotKey n =
-    "bot " ++ toString n
+inputGamepadKey : Int -> String
+inputGamepadKey index =
+    "gamepad " ++ toString index
 
 
 inputKeyIsHuman : String -> Bool
 inputKeyIsHuman key =
-    String.startsWith "bot " key |> not
-
-
-inputGamepadKey : Int -> String
-inputGamepadKey index =
-    "gamepad " ++ toString index
+    inputIsBot key |> not
 
 
 
@@ -85,39 +81,18 @@ inputGamepadKey index =
 init : Dict String String -> ( Model, Cmd Msg )
 init params =
     let
-        -- bot input sources
-        team1 =
-            [ inputKeyboardAndMouseKey
-            , inputBotKey 1
-            , inputBotKey 4
-            , inputBotKey 7
-            ]
-
-        team2 =
-            [ inputBotKey 2
-            , inputBotKey 3
-            , inputBotKey 5
-            , inputBotKey 6
-            ]
-
         game =
-            Game.Init.basicGame team1 team2
-
-        makeStates playerKeys =
-            playerKeys
-                |> List.filter (inputKeyIsHuman >> not)
-                |> List.indexedMap (\index bot -> ( bot, Bot.Dummy.init bot (List.any inputKeyIsHuman playerKeys) index game ))
-                |> Dict.fromList
+            Game.Init.setupPhase { halfWidth = 20, halfHeight = 10 }
     in
     ( { game = game
-      , botStatesByKey = Dict.union (makeStates team1) (makeStates team2)
+      , botStatesByKey = Dict.empty
       , mousePosition = { x = 0, y = 0 }
       , mouseIsPressed = False
       , windowSize = { width = 1, height = 1 }
       , viewport = SplitScreen.defaultViewport
       , fps = []
-      , terrain = View.Background.initRects game
       , params = params
+      , terrain = View.Background.initRects game
       }
     , Window.size |> Task.perform OnWindowResizes
     )
@@ -132,20 +107,36 @@ noCmd model =
     ( model, Cmd.none )
 
 
+addMissingBots : Model -> Model
+addMissingBots model =
+    if model.game.phase == PhaseSetup then
+        model
+    else
+        let
+            initBot : String -> Team -> Int -> Game -> Bot.Dummy.State
+            initBot inputKey team n game =
+                Bot.Dummy.init inputKey team.id (List.all inputIsBot team.players |> not) n game
 
-{-
-   setViewports : Window.Size -> Model -> Model
-   setViewports windowSize model =
-       { model
-           | windowSize = windowSize
-           , viewports =
-               model.game.playerByKey
-                   |> Dict.keys
-                   |> List.filter inputKeyIsHuman
-                   |> List.length
-                   |> SplitScreen.makeViewports windowSize
-       }
--}
+            addBot : Team -> String -> Dict String Bot.Dummy.State -> Dict String Bot.Dummy.State
+            addBot team inputKey botStatesByKey =
+                Dict.insert
+                    inputKey
+                    (initBot inputKey team (Dict.size botStatesByKey) model.game)
+                    botStatesByKey
+
+            addTeamBots : Team -> Dict String Bot.Dummy.State -> Dict String Bot.Dummy.State
+            addTeamBots team botStatesByKey =
+                team.players
+                    |> List.filter inputIsBot
+                    |> List.filter (\input -> Dict.member input botStatesByKey |> not)
+                    |> List.foldl (addBot team) botStatesByKey
+
+            botStates =
+                model.botStatesByKey
+                    |> addTeamBots model.game.leftTeam
+                    |> addTeamBots model.game.rightTeam
+        in
+        { model | botStatesByKey = botStates }
 
 
 update : List Keyboard.Extra.Key -> Msg -> Model -> ( Model, Cmd Msg )
@@ -192,7 +183,7 @@ update pressedKeys msg model =
                     , move = vec2 (toFloat x) (toFloat y)
                     }
 
-                foldBot : String -> Bot.Dummy.State -> ( Dict String Bot.Dummy.State, Dict String PlayerInput ) -> ( Dict String Bot.Dummy.State, Dict String PlayerInput )
+                foldBot : String -> Bot.Dummy.State -> ( Dict String Bot.Dummy.State, Dict String InputState ) -> ( Dict String Bot.Dummy.State, Dict String InputState )
                 foldBot inputSourceKey oldState ( statesByKey, inputsByKey ) =
                     let
                         ( newState, input ) =
@@ -203,7 +194,7 @@ update pressedKeys msg model =
                 ( botStatesByKey, botInputsByKey ) =
                     Dict.foldl foldBot ( Dict.empty, Dict.empty ) model.botStatesByKey
 
-                playerInputsByInputSourceId =
+                inputStatesByKey =
                     botInputsByKey
                         |> Dict.insert inputKeyboardAndMouseKey keyboardAndMouseInput
 
@@ -215,14 +206,15 @@ update pressedKeys msg model =
                     time - model.game.time
 
                 game =
-                    Game.Update.update time playerInputsByInputSourceId model.game
+                    Game.Update.update time inputStatesByKey model.game
             in
-            noCmd
-                { model
-                    | game = game
-                    , botStatesByKey = botStatesByKey
-                    , fps = (1 / dt) :: List.take 20 model.fps
-                }
+            { model
+                | game = game
+                , botStatesByKey = botStatesByKey
+                , fps = (1 / dt) :: List.take 20 model.fps
+            }
+                |> addMissingBots
+                |> noCmd
 
 
 
@@ -334,7 +326,7 @@ viewMech : Game -> ( Unit, MechComponent ) -> Svg a
 viewMech game ( unit, mechRecord ) =
     let
         colorPattern =
-            Game.teamColorPattern game unit.teamId
+            Game.teamColorPattern game unit.maybeTeamId
     in
     Svg.g
         [ transform [ translate unit.position ] ]
@@ -353,7 +345,7 @@ viewSub : Game -> ( Unit, SubComponent ) -> Svg a
 viewSub game ( unit, subRecord ) =
     let
         colorPattern =
-            Game.teamColorPattern game unit.teamId
+            Game.teamColorPattern game unit.maybeTeamId
     in
     Svg.g
         [ transform [ translate unit.position ] ]
@@ -473,7 +465,7 @@ testView model =
 
 viewVictory : Game -> Svg a
 viewVictory game =
-    case game.maybeWinnerId |> Maybe.andThen (\id -> Dict.get id game.teamById) of
+    case maybeGetTeam game game.maybeWinnerTeamId of
         Nothing ->
             Html.text ""
 
@@ -519,6 +511,14 @@ gameView model viewport =
 
         ( mechs, subs ) =
             mechVsUnit units
+
+        maybeOpacity =
+            case game.maybeTransition of
+                Nothing ->
+                    []
+
+                Just transition ->
+                    [ opacity transition ]
     in
     Svg.svg
         (SplitScreen.viewportToSvgAttributes viewport)
@@ -526,59 +526,47 @@ gameView model viewport =
             [ transform [ "scale(1 -1)", scale (1 / tilesToViewport model) ]
             ]
             [ Svg.Lazy.lazy View.Background.terrain model.terrain
-            , subs
-                |> List.filter (\( u, s ) -> s.mode == UnitModeFree)
-                |> List.map (viewSub game)
-                |> Svg.g []
-            , game.wallTiles
-                |> Set.toList
-                |> List.map viewWall
-                |> Svg.g []
-            , game.baseById
-                |> Dict.values
-                |> List.map (viewBase game)
-                |> Svg.g []
-            , subs
-                |> List.filter (\( u, s ) -> s.mode /= UnitModeFree)
-                |> List.map (viewSub game)
-                |> Svg.g []
-            , mechs
-                |> List.map (viewMech game)
-                |> Svg.g []
-            , game.teamById
-                |> Dict.values
-                |> List.map (viewMarker game)
-                |> Svg.g []
-            , game.projectileById
-                |> Dict.values
-                |> List.map viewProjectile
-                |> Svg.g []
-            , game.cosmetics
-                -- TODO viewport cull
-                |> List.map View.Gfx.render
-                |> Svg.g []
-            , units
-                --|> List.filter (\u -> u.teamId == player.teamId)
-                |> List.map viewHealthbar
-                |> Svg.g []
+            , Svg.g maybeOpacity
+                [ if model.game.phase == PhaseSetup then
+                    Phases.viewSetup model.game
+                  else
+                    Svg.text ""
+                , subs
+                    |> List.filter (\( u, s ) -> s.mode == UnitModeFree)
+                    |> List.map (viewSub game)
+                    |> Svg.g []
+                , game.wallTiles
+                    |> Set.toList
+                    |> List.map viewWall
+                    |> Svg.g []
+                , game.baseById
+                    |> Dict.values
+                    |> List.map (viewBase game)
+                    |> Svg.g []
+                , subs
+                    |> List.filter (\( u, s ) -> s.mode /= UnitModeFree)
+                    |> List.map (viewSub game)
+                    |> Svg.g []
+                , mechs
+                    |> List.map (viewMech game)
+                    |> Svg.g []
+                , [ game.leftTeam, game.rightTeam ]
+                    |> List.map (viewMarker game)
+                    |> Svg.g []
+                , game.projectileById
+                    |> Dict.values
+                    |> List.map viewProjectile
+                    |> Svg.g []
+                , game.cosmetics
+                    |> List.map View.Gfx.render
+                    |> Svg.g []
+                , units
+                    |> List.map viewHealthbar
+                    |> Svg.g []
+                ]
             ]
         , viewVictory game
         ]
-
-
-
-{-
-   playersAndViewports : Model -> List ( Player, Viewport )
-   playersAndViewports model =
-       let
-           sortedPlayers =
-               model.game.playerByKey
-                   |> Dict.values
-                   |> List.filter (.inputSourceKey >> inputKeyIsHuman)
-                   |> List.sortBy (\player -> toString player.teamId ++ player.inputSourceKey)
-       in
-       List.map2 (,) sortedPlayers model.viewports
--}
 
 
 view : Model -> Svg Msg

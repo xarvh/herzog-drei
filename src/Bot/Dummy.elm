@@ -10,8 +10,8 @@ import Unit
 
 
 type alias State =
-    { playerKey : String
-    , teamId : Id
+    { inputKey : String
+    , teamId : TeamId
     , basesSortedByPriority : List Id
     , hasHumanAlly : Bool
     , randomSeed : Random.Seed
@@ -20,21 +20,11 @@ type alias State =
     }
 
 
-init : String -> Bool -> Int -> Game -> State
-init playerKey hasHumanAlly randomInteger game =
+init : String -> TeamId -> Bool -> Int -> Game -> State
+init inputKey teamId hasHumanAlly randomInteger game =
     let
-        teamId =
-            case Dict.get playerKey game.playerByKey of
-                Nothing ->
-                    -1
-
-                Just player ->
-                    player.teamId
-
         mainBasePosition =
-            game.baseById
-                |> Dict.values
-                |> List.Extra.find (\base -> base.type_ == BaseMain && Base.isOccupiedBy teamId base)
+            Base.teamMainBase game (Just teamId)
                 |> Maybe.map .position
                 |> Maybe.withDefault (vec2 0 0)
 
@@ -44,7 +34,7 @@ init playerKey hasHumanAlly randomInteger game =
                 |> List.sortBy (\base -> vectorDistance base.position mainBasePosition)
                 |> List.map .id
     in
-    { playerKey = playerKey
+    { inputKey = inputKey
     , teamId = teamId
     , basesSortedByPriority = basesSortedByPriority
     , hasHumanAlly = hasHumanAlly
@@ -56,7 +46,7 @@ init playerKey hasHumanAlly randomInteger game =
     }
 
 
-update : Game -> State -> ( State, PlayerInput )
+update : Game -> State -> ( State, InputState )
 update game state =
     let
         pickTargetBase : List Id -> Maybe Base
@@ -71,7 +61,7 @@ update game state =
                             Nothing
 
                         Just base ->
-                            if Base.isOccupiedBy state.teamId base then
+                            if Base.isOccupiedBy (Just state.teamId) base then
                                 pickTargetBase bs
                             else
                                 Just base
@@ -85,7 +75,7 @@ update game state =
             attackBase state game targetBase
 
 
-gloat : Game -> State -> ( State, PlayerInput )
+gloat : Game -> State -> ( State, InputState )
 gloat game state =
     ( if game.time - state.lastChange < 0.01 then
         state
@@ -94,7 +84,7 @@ gloat game state =
             | lastChange = game.time
             , speedAroundBase = state.speedAroundBase + 0.1
         }
-    , { neutralPlayerInput
+    , { inputStateNeutral
         | fire = True
         , transform = True
         , aim = angleToVector state.speedAroundBase |> AimAbsolute
@@ -102,12 +92,12 @@ gloat game state =
     )
 
 
-attackBase : State -> Game -> Base -> ( State, PlayerInput )
+attackBase : State -> Game -> Base -> ( State, InputState )
 attackBase state game targetBase =
-    case Unit.findMech state.playerKey (Dict.values game.unitById) of
+    case Unit.findMech state.inputKey (Dict.values game.unitById) of
         Nothing ->
             -- You're dead, you can't do anything
-            ( state, neutralPlayerInput )
+            ( state, inputStateNeutral )
 
         Just ( playerUnit, playerMech ) ->
             let
@@ -145,7 +135,7 @@ shootEnemies playerUnit game =
         maybeUnitAndDistance =
             game.unitById
                 |> Dict.values
-                |> List.filter (\u -> u.teamId /= playerUnit.teamId)
+                |> List.filter (\u -> u.maybeTeamId /= playerUnit.maybeTeamId)
                 |> List.filterMap closeEnough
                 |> List.Extra.minimumBy Tuple.second
     in
@@ -163,7 +153,7 @@ moveToTargetBase playerUnit playerMech state game base =
         safeDistance =
             game.unitById
                 |> Dict.values
-                |> List.filter (\u -> u.teamId /= playerUnit.teamId && vectorDistance u.position base.position < 6)
+                |> List.filter (\u -> u.maybeTeamId /= playerUnit.maybeTeamId && vectorDistance u.position base.position < 6)
                 |> List.length
                 |> toFloat
                 |> sqrt

@@ -8,30 +8,21 @@ import List.Extra
 
 think : Seconds -> Game -> Delta
 think dt game =
-    if game.maybeWinnerId /= Nothing then
+    if game.maybeWinnerTeamId /= Nothing then
         deltaNone
     else
         let
-            teamsWithoutMainBases =
-                game.teamById
-                    |> Dict.values
-                    |> List.filter (\team -> Base.teamMainBase game team.id == Nothing)
+            teamHasNoBases team =
+                Base.teamMainBase game (Just team.id) == Nothing
+
+            deltaWinner team =
+                deltaGame (\g -> { g | maybeWinnerTeamId = Just team.id })
         in
-        case teamsWithoutMainBases of
-            [] ->
-                deltaNone
-
-            [ oneLoser ] ->
-                let
-                    winnerId =
-                        Dict.remove oneLoser.id game.teamById
-                            |> Dict.values
-                            |> List.head
-                            |> Maybe.map .id
-                            |> Maybe.withDefault -1
-                in
-                deltaGame (\g -> { g | maybeWinnerId = Just winnerId })
-
-            _ ->
-                -- mutual annhilation?
-                deltaGame (\g -> { g | maybeWinnerId = Just -1 })
+        -- Playing left team is slightly more natural,
+        -- so on mutual annhilation right team wins
+        if teamHasNoBases game.leftTeam then
+            deltaWinner game.rightTeam
+        else if teamHasNoBases game.rightTeam then
+            deltaWinner game.leftTeam
+        else
+            deltaNone

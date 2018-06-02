@@ -24,14 +24,12 @@ mechBuildSpeed =
 -- Think
 
 
-teamHasReachedUnitCap : Game -> Id -> Bool
+teamHasReachedUnitCap : Game -> TeamId -> Bool
 teamHasReachedUnitCap game teamId =
     game.unitById
-        |> Dict.filter (\id u -> Unit.isSub u && u.teamId == teamId)
+        |> Dict.filter (\id u -> Unit.isSub u && u.maybeTeamId == Just teamId)
         |> Dict.size
         |> (\unitsCount -> unitsCount >= maxSubsPerTeam)
-        -- Prevent neutral bases from spawning
-        |> (||) (not <| Dict.member teamId game.teamById)
 
 
 think : Float -> Game -> Base -> Delta
@@ -66,23 +64,22 @@ deltaRepairEmbeddedSubs dt game base occupied =
 
 deltaBuildSub : Seconds -> Game -> Base -> BaseOccupied -> Delta
 deltaBuildSub dt game base occupied =
-    let
-        numberOfEnemyPlayers =
-            game.playerByKey
-                |> Dict.values
-                |> List.filter (\p -> p.teamId /= occupied.teamId)
-                |> List.length
+    case occupied.maybeTeamId of
+        Nothing ->
+            deltaNone
 
-        completionIncrease =
-            dt * subBuildSpeed * toFloat numberOfEnemyPlayers
-    in
-    if occupied.subBuildCompletion + completionIncrease < 1 || teamHasReachedUnitCap game occupied.teamId then
-        deltaBase base.id (Base.updateOccupied (\o -> { o | subBuildCompletion = o.subBuildCompletion + completionIncrease |> min 1 }))
-    else
-        deltaList
-            [ deltaBase base.id (Base.updateOccupied (\o -> { o | subBuildCompletion = 0 }))
-            , deltaGame (\g -> Game.addSub occupied.teamId base.position g |> Tuple.first)
-            ]
+        Just teamId ->
+            let
+                completionIncrease =
+                    dt * subBuildSpeed * game.subBuildMultiplier
+            in
+            if occupied.subBuildCompletion + completionIncrease < 1 || teamHasReachedUnitCap game teamId then
+                deltaBase base.id (Base.updateOccupied (\o -> { o | subBuildCompletion = o.subBuildCompletion + completionIncrease |> min 1 }))
+            else
+                deltaList
+                    [ deltaBase base.id (Base.updateOccupied (\o -> { o | subBuildCompletion = 0 }))
+                    , deltaGame (\g -> Game.addSub occupied.maybeTeamId base.position g |> Tuple.first)
+                    ]
 
 
 deltaBuildAllMechs : Seconds -> Game -> Base -> BaseOccupied -> Delta
@@ -97,22 +94,27 @@ deltaBuildAllMechs dt game base occupied =
 
 
 deltaBuildMech : Float -> Base -> BaseOccupied -> ( String, Float ) -> Delta
-deltaBuildMech completionIncrease base occupied ( playerKey, completionAtThink ) =
-    if completionAtThink + completionIncrease < 1 then
-        let
-            increaseCompletion ( key, completionAtUpdate ) =
-                if key == playerKey then
-                    ( key, completionAtUpdate + completionIncrease )
-                else
-                    ( key, completionAtUpdate )
-        in
-        (\o -> { o | mechBuildCompletions = List.map increaseCompletion o.mechBuildCompletions })
-            |> Base.updateOccupied
-            |> deltaBase base.id
-    else
-        deltaList
-            [ deltaGame (\g -> Game.addMech playerKey occupied.teamId base.position g |> Tuple.first)
-            , (\o -> { o | mechBuildCompletions = List.filter (\( key, c ) -> key /= playerKey) o.mechBuildCompletions })
-                |> Base.updateOccupied
-                |> deltaBase base.id
-            ]
+deltaBuildMech completionIncrease base occupied ( inputKey, completionAtThink ) =
+    case occupied.maybeTeamId of
+        Nothing ->
+            deltaNone
+
+        Just teamId ->
+            if completionAtThink + completionIncrease < 1 then
+                let
+                    increaseCompletion ( key, completionAtUpdate ) =
+                        if key == inputKey then
+                            ( key, completionAtUpdate + completionIncrease )
+                        else
+                            ( key, completionAtUpdate )
+                in
+                (\o -> { o | mechBuildCompletions = List.map increaseCompletion o.mechBuildCompletions })
+                    |> Base.updateOccupied
+                    |> deltaBase base.id
+            else
+                deltaList
+                    [ deltaGame (\g -> Game.addMech inputKey (Just teamId) base.position g |> Tuple.first)
+                    , (\o -> { o | mechBuildCompletions = List.filter (\( key, c ) -> key /= inputKey) o.mechBuildCompletions })
+                        |> Base.updateOccupied
+                        |> deltaBase base.id
+                    ]

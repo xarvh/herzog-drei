@@ -1,4 +1,4 @@
-module PlayerThink exposing (..)
+module MechThink exposing (..)
 
 import Base
 import ColorPattern
@@ -30,52 +30,7 @@ aimControlThreshold =
 --
 
 
-think : PlayerInput -> Seconds -> Game -> Player -> Delta
-think input dt game player =
-    case game.unitById |> Dict.values |> Unit.findMech player.inputSourceKey of
-        Nothing ->
-            moveViewportToBase dt game player
-
-        Just ( unit, mech ) ->
-            mechThink input dt game unit mech
-
-
-moveViewportToBase : Seconds -> Game -> Player -> Delta
-moveViewportToBase dt game player =
-    case Base.teamMainBase game player.teamId of
-        Nothing ->
-            deltaNone
-
-        Just mainBase ->
-            let
-                dp =
-                    Vec2.sub mainBase.position player.viewportPosition
-
-                length =
-                    Vec2.length dp
-
-                direction =
-                    Vec2.normalize dp
-
-                speed =
-                    30
-
-                maxLength =
-                    min (speed * dt) length
-
-                maxDp =
-                    Vec2.scale maxLength direction
-
-                position =
-                    Vec2.add player.viewportPosition maxDp
-            in
-            if length < 0.01 then
-                deltaNone
-            else
-                deltaPlayer player.inputSourceKey (\g p -> { p | viewportPosition = position })
-
-
-mechThink : PlayerInput -> Seconds -> Game -> Unit -> MechComponent -> Delta
+mechThink : InputState -> Seconds -> Game -> Unit -> MechComponent -> Delta
 mechThink input dt game unit mech =
     let
         speed =
@@ -131,17 +86,22 @@ mechThink input dt game unit mech =
 
         moveTarget =
             if input.rally then
-                deltaTeam unit.teamId
-                    (\g t ->
-                        if g.time - t.markerTime < 1 then
-                            t
-                        else
-                            { t
-                                | markerPosition = unit.position
-                                , markerTime = g.time
-                                , pathing = Pathfinding.makePaths g (vec2Tile unit.position)
-                            }
-                    )
+                case unit.maybeTeamId of
+                    Nothing ->
+                        deltaNone
+
+                    Just teamId ->
+                        deltaTeam teamId
+                            (\g t ->
+                                if g.time - t.markerTime < 1 then
+                                    t
+                                else
+                                    { t
+                                        | markerPosition = unit.position
+                                        , markerTime = g.time
+                                        , pathing = Pathfinding.makePaths g (vec2Tile unit.position)
+                                    }
+                            )
             else
                 deltaNone
 
@@ -158,9 +118,6 @@ mechThink input dt game unit mech =
 
         moveMech =
             deltaUnit unit.id (\g u -> { u | position = newPosition })
-
-        moveViewport =
-            deltaPlayer mech.playerKey (\g p -> { p | viewportPosition = newPosition })
 
         reload =
             if unit.timeToReload > 0 then
@@ -201,7 +158,7 @@ mechThink input dt game unit mech =
             View.Mech.rightGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
 
         deltaFire origin =
-            Game.deltaAddProjectile { teamId = unit.teamId, position = origin, angle = aimAngle }
+            Game.deltaAddProjectile { maybeTeamId = unit.maybeTeamId, position = origin, angle = aimAngle }
 
         fire =
             if input.fire && unit.timeToReload == 0 then
@@ -217,7 +174,6 @@ mechThink input dt game unit mech =
     in
     deltaList
         [ moveTarget
-        , moveViewport
         , moveMech
         , reload
         , aimDelta
@@ -239,7 +195,7 @@ repairDelta dt game unit mech =
                         False
 
                     Just occupied ->
-                        (occupied.isActive && occupied.teamId == unit.teamId && occupied.subBuildCompletion > 0)
+                        (occupied.isActive && occupied.maybeTeamId == unit.maybeTeamId && occupied.subBuildCompletion > 0)
                             && (Vec2.distanceSquared base.position unit.position < 3 * 3)
         in
         case List.Extra.find canRepair (Dict.values game.baseById) of
