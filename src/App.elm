@@ -65,7 +65,7 @@ init : Dict String String -> Flags -> ( Model, Cmd Msg )
 init params flags =
     let
         game =
-            Init.setupPhase { halfWidth = 20, halfHeight = 10 }
+            Init.setupPhase flags.dateNow { halfWidth = 20, halfHeight = 10 }
     in
     ( { game = game
       , botStatesByKey = Dict.empty

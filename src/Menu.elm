@@ -188,13 +188,16 @@ view model =
                                 []
                                 [ text "Use Keyboard & Mouse" ]
                             ]
-                        , [ "ASDW: Move"
+                        , if actuallyUseKeyboardAndMouse then
+                          [ "ASDW: Move"
                           , "Q: Move units"
                           , "E: Transform"
                           , "Click: Fire"
                           ]
                             |> List.map (\t -> div [] [ text t ])
                             |> div []
+                          else
+                            text ""
                         ]
                     , section
                         [ class "mt2" ]
