@@ -1,4 +1,4 @@
-module Game.Init exposing (..)
+module Init exposing (..)
 
 import Base
 import ColorPattern

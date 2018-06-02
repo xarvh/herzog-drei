@@ -3,7 +3,7 @@ module Phases exposing (..)
 import Base
 import Dict exposing (Dict)
 import Game exposing (..)
-import Game.Init
+import Init
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 import Svg exposing (..)
@@ -187,7 +187,7 @@ setupToPlayPhase : Game -> Game
 setupToPlayPhase game =
     let
         walls =
-            Game.Init.walls
+            Init.walls
     in
     { game
         | unitById = Dict.empty
@@ -196,11 +196,11 @@ setupToPlayPhase game =
         , maybeTransition = Just 0
     }
         |> Game.addStaticObstacles walls
-        |> Game.Init.addSmallBase ( -5, 2 )
-        |> Game.Init.addSmallBase ( 5, -2 )
-        |> Game.Init.addMainBase (Just game.leftTeam.id) ( -16, -6 )
-        |> Game.Init.addMainBase (Just game.rightTeam.id) ( 16, 6 )
-        |> Game.Init.kickstartPathing
+        |> Init.addSmallBase ( -5, 2 )
+        |> Init.addSmallBase ( 5, -2 )
+        |> Init.addMainBase (Just game.leftTeam.id) ( -16, -6 )
+        |> Init.addMainBase (Just game.rightTeam.id) ( 16, 6 )
+        |> Init.kickstartPathing
         |> addMechForEveryPlayer
 
 

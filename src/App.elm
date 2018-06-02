@@ -4,8 +4,8 @@ import AnimationFrame
 import Bot.Dummy
 import Dict exposing (Dict)
 import Game exposing (..)
-import Game.Init
-import Game.Update
+import Init
+import Update
 import Html exposing (Html, div)
 import Html.Attributes exposing (class, style)
 import Keyboard.Extra
@@ -66,7 +66,7 @@ init : Dict String String -> ( Model, Cmd Msg )
 init params =
     let
         game =
-            Game.Init.setupPhase { halfWidth = 20, halfHeight = 10 }
+            Init.setupPhase { halfWidth = 20, halfHeight = 10 }
     in
     ( { game = game
       , botStatesByKey = Dict.empty
@@ -190,7 +190,7 @@ update pressedKeys msg model =
                     time - model.game.time
 
                 game =
-                    Game.Update.update time inputStatesByKey model.game
+                    Update.update time inputStatesByKey model.game
             in
             { model
                 | game = game
