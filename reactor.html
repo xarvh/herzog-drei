@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Herzog Drei - Work in progress</title>
+        <script type="text/javascript" src="/_compile/Main.elm"></script>
+        <script type="text/javascript" src="static/gamepadPort.js"></script>
+        <script type="text/javascript" src="static/localStoragePort.js"></script>
+        <!--
+        <script type="text/javascript" src="src/Ports/mousePort.js"></script>
+        <script type="text/javascript" src="src/Ports/Sound.js"></script>
+        -->
+    </head>
+    <body>
+        <script type="text/javascript">
+            var gamepadDatabaseKey = "gamepadDatabase"
+            var elmApp = Elm.Main.fullscreen({
+                dateNow: Date.now(),
+                gamepadDatabaseKey: gamepadDatabaseKey,
+                gamepadDatabaseAsString: localStorage[gamepadDatabaseKey] || "",
+            });
+            addGamepadPort(elmApp);
+            addLocalStoragePort(elmApp);
+            /*
+            addMousePort(elmApp);
+            playSoundPort(elmApp);
+            */
+        </script>
+    </body>
+</html>
