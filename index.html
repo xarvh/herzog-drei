@@ -4,9 +4,9 @@
         <meta charset="UTF-8">
         <title>Herzog Drei - Work in progress</title>
         <script type="text/javascript" src="build/app.js"></script>
+        <script type="text/javascript" src="static/gamepadPort.js"></script>
+        <script type="text/javascript" src="static/localStoragePort.js"></script>
         <!--
-        <script type="text/javascript" src="src/Ports/gamepadPort.js"></script>
-        <script type="text/javascript" src="src/Ports/localStoragePort.js"></script>
         <script type="text/javascript" src="src/Ports/mousePort.js"></script>
         <script type="text/javascript" src="src/Ports/Sound.js"></script>
         -->
@@ -19,10 +19,10 @@
                 gamepadDatabaseKey: gamepadDatabaseKey,
                 gamepadDatabaseAsString: localStorage[gamepadDatabaseKey] || "",
             });
-            /*
             addGamepadPort(elmApp);
-            addMousePort(elmApp);
             addLocalStoragePort(elmApp);
+            /*
+            addMousePort(elmApp);
             playSoundPort(elmApp);
             */
         </script>

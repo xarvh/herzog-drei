@@ -5,7 +5,6 @@ import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes exposing (class)
 import Keyboard
-import Keyboard.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Navigation
 import Svg
@@ -14,17 +13,9 @@ import Task
 import View.Background
 
 
-type alias Flags =
-    { gamepadDatabaseAsString : String
-    , gamepadDatabaseKey : String
-    , dateNow : Int
-    }
-
-
 type alias Model =
     { app : App.Model
     , showConfig : Bool
-    , pressedKeys : List Keyboard.Extra.Key
     }
 
 
@@ -32,7 +23,6 @@ type Msg
     = Noop
     | OnAppMsg App.Msg
     | OnKeyPress Keyboard.KeyCode
-    | OnKeyboardMsg Keyboard.Extra.Msg
 
 
 stringToTuple : String -> Maybe ( String, String )
@@ -45,7 +35,7 @@ stringToTuple str =
             Nothing
 
 
-init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
+init : App.Flags -> Navigation.Location -> ( Model, Cmd Msg )
 init flags location =
     let
         params =
@@ -56,10 +46,9 @@ init flags location =
                 |> Dict.fromList
 
         ( appModel, appCmd ) =
-            App.init params
+            App.init params flags
     in
-    ( { pressedKeys = []
-      , showConfig = False
+    ( { showConfig = False
       , app = appModel
       }
     , appCmd |> Cmd.map OnAppMsg
@@ -80,7 +69,7 @@ update msg model =
         OnAppMsg nestedMsg ->
             let
                 ( appModel, appCmd ) =
-                    App.update model.pressedKeys nestedMsg model.app
+                    App.update nestedMsg model.app
             in
             ( { model | app = appModel }, Cmd.map OnAppMsg appCmd )
 
@@ -92,15 +81,13 @@ update msg model =
                 _ ->
                     noCmd model
 
-        OnKeyboardMsg keyboardMsg ->
-            noCmd { model | pressedKeys = Keyboard.Extra.update keyboardMsg model.pressedKeys }
-
 
 
 --
 
+
 globalStyle =
-  """
+    """
   .flex { display: flex; }
   .flex1 { flex: 1; }
   .alignCenter { align-items: center; }
@@ -136,16 +123,16 @@ globalStyle =
   .ml2 { margin-left: 2em; }
   """
 
+
 viewConfig : Model -> Html Msg
 viewConfig model =
-  div
-    [ class "fullWindow flex alignCenter justifyCenter"
-    ]
-    [ div
-      [ class "bgConfig borderConfig p2" ]
-      [ text "LOL"]
-    ]
-
+    div
+        [ class "fullWindow flex alignCenter justifyCenter"
+        ]
+        [ div
+            [ class "bgConfig borderConfig p2" ]
+            [ text "LOL" ]
+        ]
 
 
 view : Model -> Html Msg
@@ -161,7 +148,7 @@ view model =
         , App.view model.app
             |> Svg.map OnAppMsg
         , if model.showConfig then
-          viewConfig model
+            viewConfig model
           else
             text ""
         ]
@@ -171,7 +158,6 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ App.subscriptions model.app |> Sub.map OnAppMsg
-        , Sub.map OnKeyboardMsg Keyboard.Extra.subscriptions
         , Keyboard.ups OnKeyPress
         ]
 
