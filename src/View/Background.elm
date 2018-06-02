@@ -28,6 +28,7 @@ classAndAnimation =
     .background-path {
       stroke-dasharray: 1, 50;
       animation: dash 100s linear;
+      animation-iteration-count: infinite;
       stroke: gray;
     }
 
