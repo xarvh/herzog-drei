@@ -10,6 +10,7 @@ import Html.Attributes exposing (class, style)
 import Init
 import Keyboard
 import Keyboard.Extra
+import LocalStoragePort
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Menu
 import Mouse
@@ -54,6 +55,7 @@ type alias Model =
     , pressedKeys : List Keyboard.Extra.Key
     , gamepadDatabase : Gamepad.Database
     , maybeMenu : Maybe Menu.Model
+    , flags : Flags
     }
 
 
@@ -81,6 +83,7 @@ init params flags =
             Gamepad.databaseFromString flags.gamepadDatabaseAsString
                 |> Result.withDefault Gamepad.emptyDatabase
       , maybeMenu = Just Menu.init
+      , flags = flags
       }
     , Window.size |> Task.perform OnWindowResizes
     )
@@ -103,6 +106,15 @@ inputGamepadKey index =
 inputKeyIsHuman : String -> Bool
 inputKeyIsHuman key =
     inputIsBot key |> not
+
+
+
+-- gamepad database
+
+
+saveGamepadDatabase : Model -> Gamepad.Database -> Cmd Msg
+saveGamepadDatabase model database =
+    LocalStoragePort.set model.flags.gamepadDatabaseKey (Gamepad.databaseToString database)
 
 
 
@@ -260,6 +272,15 @@ update msg model =
                     case Menu.update menuMsg menu of
                         Menu.StillOpen newMenu menuCmd ->
                             ( { model | maybeMenu = Just newMenu }, Cmd.map OnMenuMsg menuCmd )
+
+                        Menu.UpdateDatabase newMenu updateDatabase ->
+                            let
+                                gamepadDatabase =
+                                    updateDatabase model.gamepadDatabase
+                            in
+                            ( { model | maybeMenu = Just newMenu, gamepadDatabase = gamepadDatabase }
+                            , saveGamepadDatabase model gamepadDatabase
+                            )
 
                         Menu.Close ->
                             noCmd { model | maybeMenu = Nothing }

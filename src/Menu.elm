@@ -73,6 +73,7 @@ init =
 
 type Outcome
     = StillOpen Model (Cmd Msg)
+    | UpdateDatabase Model (Gamepad.Database -> Gamepad.Database)
     | Close
 
 
@@ -118,16 +119,15 @@ update msg model =
                             Debug.crash message
 
                         Gamepad.Remap.UpdateDatabase updateDatabase ->
-                            -- TODO
-                            Close
+                            UpdateDatabase { model | maybeRemapping = Nothing } updateDatabase
 
 
 
 -- View
 
 
-view : Model -> Html Msg
-view model =
+viewConfig : Model -> Html Msg
+viewConfig model =
     let
         noGamepads =
             Dict.size model.gamepadIdByIndex == 0
@@ -163,53 +163,67 @@ view model =
                 ]
     in
     div
+        []
+        [ section
+            []
+            [ div
+                []
+                [ input
+                    [ type_ "checkbox"
+                    , checked actuallyUseKeyboardAndMouse
+                    , onClick OnToggleKeyboardAndMouse
+                    , disabled noGamepads
+                    ]
+                    []
+                , span
+                    []
+                    [ text "Use Keyboard & Mouse" ]
+                ]
+            , if actuallyUseKeyboardAndMouse then
+                [ "ASDW: Move"
+                , "Q: Move units"
+                , "E: Transform"
+                , "Click: Fire"
+                ]
+                    |> List.map (\t -> div [] [ text t ])
+                    |> div []
+              else
+                text ""
+            ]
+        , section
+            [ class "mt2" ]
+            [ if noGamepads then
+                text "Could not find any gamepad connected =("
+              else
+                gamepadIndexesGroupedById
+                    |> List.map viewRemapIds
+                    |> div []
+            ]
+        ]
+
+
+view : Model -> Html Msg
+view model =
+    div
         [ class "fullWindow flex alignCenter justifyCenter"
         ]
         [ div
             [ class "bgConfig borderConfig p2" ]
-            (case model.maybeRemapping of
-                Just remap ->
-                    [ remap |> Gamepad.Remap.view |> text
-                    ]
+            [ div
+                []
+                [ section
+                    []
+                    [ text "Press Esc to toggle the Menu" ]
+                , case model.maybeRemapping of
+                    Nothing ->
+                        viewConfig model
 
-                Nothing ->
-                    [ section
-                        []
-                        [ div
+                    Just remap ->
+                        section
                             []
-                            [ input
-                                [ type_ "checkbox"
-                                , checked actuallyUseKeyboardAndMouse
-                                , onClick OnToggleKeyboardAndMouse
-                                , disabled noGamepads
-                                ]
-                                []
-                            , span
-                                []
-                                [ text "Use Keyboard & Mouse" ]
-                            ]
-                        , if actuallyUseKeyboardAndMouse then
-                          [ "ASDW: Move"
-                          , "Q: Move units"
-                          , "E: Transform"
-                          , "Click: Fire"
-                          ]
-                            |> List.map (\t -> div [] [ text t ])
-                            |> div []
-                          else
-                            text ""
-                        ]
-                    , section
-                        [ class "mt2" ]
-                        [ if noGamepads then
-                            text "Could not find any gamepad connected =("
-                          else
-                            gamepadIndexesGroupedById
-                                |> List.map viewRemapIds
-                                |> div []
-                        ]
-                    ]
-            )
+                            [ remap |> Gamepad.Remap.view |> text ]
+                ]
+            ]
         ]
 
 
