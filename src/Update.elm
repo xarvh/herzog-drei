@@ -1,4 +1,4 @@
-module Game.Update exposing (..)
+module Update exposing (..)
 
 import BaseThink
 import Dict exposing (Dict)
