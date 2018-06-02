@@ -1,5 +1,6 @@
 module Phases exposing (..)
 
+import Base
 import Dict exposing (Dict)
 import Game exposing (..)
 import Game.Init
@@ -78,8 +79,8 @@ setupThink inputSources game =
 -- Add & Remove Mechs
 
 
-addMech : String -> Delta
-addMech inputSourceKey =
+addSetupPhaseMech : String -> Delta
+addSetupPhaseMech inputSourceKey =
     deltaGame <|
         \g ->
             let
@@ -117,7 +118,7 @@ addAndRemoveMechs inputSources game =
         mechsWithoutInput =
             Set.diff mechs inputs |> Set.toList
     in
-    [ List.map addMech inputsWithoutMech
+    [ List.map addSetupPhaseMech inputsWithoutMech
     , List.map removeMech mechsWithoutInput
     ]
         |> List.map deltaList
@@ -160,24 +161,31 @@ updateAllMechsTeam game =
 -- Exit Setup Phase ?
 
 
-makeTeams : Game -> ( Team, Team )
-makeTeams game =
-    -- TODO
-    ( game.leftTeam, game.rightTeam )
+addMechsForTeam : Team -> Game -> Game
+addMechsForTeam team game =
+    case Base.teamMainBase game (Just team.id) of
+        Nothing ->
+            game
+
+        Just base ->
+            let
+                addPlayPhaseMech : String -> Game -> Game
+                addPlayPhaseMech inputKey g =
+                    Game.addMech inputKey (Just team.id) base.position g |> Tuple.first
+            in
+            List.foldl addPlayPhaseMech game team.players
 
 
 addMechForEveryPlayer : Game -> Game
 addMechForEveryPlayer game =
-    -- TODO
     game
+        |> addMechsForTeam game.leftTeam
+        |> addMechsForTeam game.rightTeam
 
 
 setupToPlayPhase : Game -> Game
 setupToPlayPhase game =
     let
-        ( left, right ) =
-            makeTeams game
-
         walls =
             Game.Init.walls
     in
@@ -190,15 +198,49 @@ setupToPlayPhase game =
         |> Game.addStaticObstacles walls
         |> Game.Init.addSmallBase ( -5, 2 )
         |> Game.Init.addSmallBase ( 5, -2 )
-        |> Game.Init.addMainBase (Just left.id) ( -16, -6 )
-        |> Game.Init.addMainBase (Just right.id) ( 16, 6 )
+        |> Game.Init.addMainBase (Just game.leftTeam.id) ( -16, -6 )
+        |> Game.Init.addMainBase (Just game.rightTeam.id) ( 16, 6 )
         |> Game.Init.kickstartPathing
         |> addMechForEveryPlayer
 
 
+addBots : Int -> List String -> Team -> Team
+addBots targetSize humanPlayers team =
+    let
+        botsToAdd =
+            targetSize - List.length humanPlayers
+
+        botPlayers =
+            List.range 1 botsToAdd |> List.map (\n -> inputBot team.id n)
+    in
+    { team | players = humanPlayers ++ botPlayers }
+
+
+exitSetupPhase : List ( Unit, MechComponent ) -> Game -> Game
+exitSetupPhase mechs game =
+    let
+        teamInputKeys teamId =
+            mechs
+                |> List.filter (\( u, m ) -> u.maybeTeamId == Just teamId)
+                |> List.map (Tuple.second >> .inputKey)
+
+        leftTeamInputKeys =
+            teamInputKeys TeamLeft
+
+        rightTeamInputKeys =
+            teamInputKeys TeamRight
+
+        teamsSize =
+            max ( List.length leftTeamInputKeys) (List.length rightTeamInputKeys )
+    in
+    { game | maybeTransition = Just 1 }
+        |> updateTeam (addBots teamsSize leftTeamInputKeys game.leftTeam)
+        |> updateTeam (addBots teamsSize rightTeamInputKeys game.rightTeam)
+
+
 isReady : ( Unit, MechComponent ) -> Bool
 isReady ( unit, mech ) =
-    abs (Vec2.getX unit.position) > neutralTilesHalfWidth + teamTilesWidth
+    unit.maybeTeamId /= Nothing
 
 
 maybeExitSetupPhase : Game -> Delta
@@ -210,7 +252,7 @@ maybeExitSetupPhase game =
                 |> List.filterMap Unit.toMech
     in
     if mechs /= [] && List.all isReady mechs then
-        deltaGame (\g -> { g | maybeTransition = Just 1 })
+        deltaGame (exitSetupPhase mechs)
     else
         deltaNone
 

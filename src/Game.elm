@@ -44,6 +44,7 @@ type alias Team =
     , markerPosition : Vec2
     , markerTime : Seconds
     , pathing : Dict Tile2 Float
+    , players : List String
     }
 
 
@@ -54,6 +55,7 @@ newTeam id colorPattern =
     , markerPosition = vec2 0 0
     , markerTime = 0
     , pathing = Dict.empty
+    , players = []
     }
 
 
@@ -112,6 +114,25 @@ inputStateNeutral =
     , rally = False
     , move = vec2 0 0
     }
+
+
+inputBot : TeamId -> Int -> String
+inputBot teamId n =
+    let
+        t =
+            case teamId of
+                TeamLeft ->
+                    "L"
+
+                TeamRight ->
+                    "R"
+    in
+    "bot " ++ t ++ toString n
+
+
+inputIsBot : String -> Bool
+inputIsBot key =
+    String.startsWith "bot " key
 
 
 

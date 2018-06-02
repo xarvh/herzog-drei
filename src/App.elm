@@ -64,19 +64,14 @@ inputKeyboardAndMouseKey =
     "keyboard+mouse"
 
 
-inputBotKey : Int -> String
-inputBotKey n =
-    "bot " ++ toString n
-
-
-inputKeyIsHuman : String -> Bool
-inputKeyIsHuman key =
-    String.startsWith "bot " key |> not
-
-
 inputGamepadKey : Int -> String
 inputGamepadKey index =
     "gamepad " ++ toString index
+
+inputKeyIsHuman : String -> Bool
+inputKeyIsHuman key =
+    inputIsBot key |> not
+
 
 
 
