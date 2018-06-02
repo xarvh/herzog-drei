@@ -90,56 +90,9 @@ update msg model =
             noCmd { model | useKeyboardAndMouse = flag }
 
 
-
---
-
-
-viewConfig : Model -> Html Msg
-viewConfig model =
-    div
-        [ class "fullWindow flex alignCenter justifyCenter"
-        ]
-        [ div
-            [ class "bgConfig borderConfig p2" ]
-            [ div
-                []
-                [ input
-                    [ type_ "checkbox"
-                    , checked model.useKeyboardAndMouse
-                    , model.useKeyboardAndMouse |> not |> OnToggleKeyboardAndMouse |> onClick
-                    ]
-                    []
-                , span
-                    []
-                    [ text "Use Keyboard & Mouse" ]
-                ]
-            , div
-                []
-                [ button
-                  []
-                  [ text "Remap gamepads" ]
-                ]
-            ]
-        ]
-
-
 view : Model -> Html Msg
 view model =
-    div
-        [ class "relative" ]
-        [ Html.node "style"
-            []
-            [ text "body { margin: 0; }"
-            , text Style.global
-            , text View.Background.classAndAnimation
-            ]
-        , App.view model.app
-            |> Svg.map OnAppMsg
-        , if model.showConfig then
-            viewConfig model
-          else
-            text ""
-        ]
+    App.view model.app |> Html.map OnAppMsg
 
 
 subscriptions : Model -> Sub Msg

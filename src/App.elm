@@ -5,13 +5,15 @@ import Dict exposing (Dict)
 import Game exposing (..)
 import Gamepad exposing (Gamepad)
 import GamepadPort
-import Html exposing (Html, div)
+import Html exposing (..)
 import Html.Attributes exposing (class, style)
 import Init
 import Keyboard.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Menu
 import Mouse
 import SplitScreen exposing (Viewport)
+import Style
 import Task
 import Time exposing (Time)
 import Update
@@ -33,6 +35,7 @@ type Msg
     | OnMouseMoves Mouse.Position
     | OnKeyboardMsg Keyboard.Extra.Msg
     | OnWindowResizes Window.Size
+    | OnMenuMsg Menu.Msg
 
 
 type alias Model =
@@ -47,26 +50,8 @@ type alias Model =
     , params : Dict String String
     , pressedKeys : List Keyboard.Extra.Key
     , gamepadDatabase : Gamepad.Database
+    , maybeMenu : Maybe Menu.Model
     }
-
-
-
--- input stuff
-
-
-inputKeyboardAndMouseKey : String
-inputKeyboardAndMouseKey =
-    "keyboard+mouse"
-
-
-inputGamepadKey : Int -> String
-inputGamepadKey index =
-    "gamepad " ++ toString index
-
-
-inputKeyIsHuman : String -> Bool
-inputKeyIsHuman key =
-    inputIsBot key |> not
 
 
 
@@ -92,9 +77,29 @@ init params flags =
       , gamepadDatabase =
             Gamepad.databaseFromString flags.gamepadDatabaseAsString
                 |> Result.withDefault Gamepad.emptyDatabase
+      , maybeMenu = Just Menu.init
       }
     , Window.size |> Task.perform OnWindowResizes
     )
+
+
+
+-- input stuff
+
+
+inputKeyboardAndMouseKey : String
+inputKeyboardAndMouseKey =
+    "keyboard+mouse"
+
+
+inputGamepadKey : Int -> String
+inputGamepadKey index =
+    "gamepad " ++ toString index
+
+
+inputKeyIsHuman : String -> Bool
+inputKeyIsHuman key =
+    inputIsBot key |> not
 
 
 
@@ -240,46 +245,24 @@ update msg model =
             }
                 |> noCmd
 
+        OnMenuMsg menuMsg ->
+            case model.maybeMenu of
+                Nothing ->
+                    noCmd model
+
+                Just menu ->
+                    case Menu.update menuMsg menu of
+                        Menu.StillOpen newMenu menuCmd ->
+                            ( { model | maybeMenu = Just newMenu }, Cmd.map OnMenuMsg menuCmd )
+
+                        Menu.Close ->
+                            noCmd { model | maybeMenu = Nothing }
+
         OnKeyboardMsg keyboardMsg ->
             noCmd { model | pressedKeys = Keyboard.Extra.update keyboardMsg model.pressedKeys }
 
         OnGamepad timeAndGamepadBlob ->
             updateOnGamepad timeAndGamepadBlob model
-
-
-
--- Test View
-{-
-   testView : Model -> Svg a
-   testView model =
-       let
-           moveAngle =
-               turns 0.1
-
-           period =
-               5
-
-           wrap n p =
-               n - (toFloat (floor (n / p)) * p)
-
-           age =
-               wrap model.game.time period / 5
-       in
-       Svg.svg
-           [ Svg.Attributes.viewBox "-1 -1 2 2"
-           , Svg.Attributes.width "100vh"
-           , Svg.Attributes.height "100vh"
-           ]
-           [ Svg.g
-               [ transform [ "scale(0.1, -0.1)" ]
-               ]
-               [ View.Base.main_ age neutral.bright neutral.dark
-
-               --[ View.Mech.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
-               --[ View.Sub.sub (pi / 4) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
-               ]
-           ]
--}
 
 
 view : Model -> Html Msg
@@ -292,17 +275,30 @@ view model =
             SplitScreen.makeViewports model.windowSize 1
     in
     div
-        []
-        [ [ View.Game.view model.terrain model.viewport model.game ]
-            |> SplitScreen.viewportsWrapper
-        , [ "FPS " ++ toString fps
-          , "ASDW: Move"
-          , "Q: Move units"
-          , "E: Transform"
-          , "Click: Fire"
-          ]
-            |> List.map (\t -> div [] [ Html.text t ])
-            |> div [ style [ ( "position", "absolute" ), ( "top", "0" ) ] ]
+        [ class "relative" ]
+        [ Html.node "style"
+            []
+            [ text "body { margin: 0; }"
+            , text Style.global
+            , text View.Background.classAndAnimation
+            ]
+        , div
+            []
+            [ [ View.Game.view model.terrain model.viewport model.game ]
+                |> SplitScreen.viewportsWrapper
+            , if Dict.member "fps" model.params then
+                div
+                    [ style [ ( "position", "absolute" ), ( "top", "0" ) ] ]
+                    [ text ("FPS " ++ toString fps) ]
+              else
+                text ""
+            ]
+        , case model.maybeMenu of
+            Just menu ->
+                Menu.view menu |> Html.map OnMenuMsg
+
+            Nothing ->
+                text ""
         ]
 
 
@@ -319,4 +315,10 @@ subscriptions model =
         , Mouse.moves OnMouseMoves
         , Sub.map OnKeyboardMsg Keyboard.Extra.subscriptions
         , Window.resizes OnWindowResizes
+        , case model.maybeMenu of
+            Nothing ->
+                Sub.none
+
+            Just menu ->
+                Menu.subscriptions menu |> Sub.map OnMenuMsg
         ]
