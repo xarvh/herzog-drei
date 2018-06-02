@@ -14,8 +14,8 @@ import Keyboard.Extra
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mouse
+import Phases
 import Set exposing (Set)
-import SetupPhase
 import SplitScreen exposing (Viewport)
 import String.Extra
 import Svg exposing (Svg)
@@ -484,14 +484,13 @@ gameView model viewport =
         ( mechs, subs ) =
             mechVsUnit units
 
-        ( setupWeight, playWeight ) =
-            SetupPhase.phasesWeight model.game.phase
+        maybeOpacity =
+            case game.maybeTransition of
+                Nothing ->
+                    []
 
-        maybeOpacity weight =
-            if weight == 1 then
-                []
-            else
-                [ opacity weight ]
+                Just transition ->
+                    [ opacity transition ]
     in
     Svg.svg
         (SplitScreen.viewportToSvgAttributes viewport)
@@ -499,45 +498,44 @@ gameView model viewport =
             [ transform [ "scale(1 -1)", scale (1 / tilesToViewport model) ]
             ]
             [ Svg.Lazy.lazy View.Background.terrain model.terrain
-            , if model.game.phase == PhasePlay then
-                Svg.text ""
-              else
-                Svg.g
-                    (maybeOpacity setupWeight)
-                    [ SetupPhase.view model.game
-                    ]
-            , subs
-                |> List.filter (\( u, s ) -> s.mode == UnitModeFree)
-                |> List.map (viewSub game)
-                |> Svg.g []
-            , game.wallTiles
-                |> Set.toList
-                |> List.map viewWall
-                |> Svg.g []
-            , game.baseById
-                |> Dict.values
-                |> List.map (viewBase game)
-                |> Svg.g []
-            , subs
-                |> List.filter (\( u, s ) -> s.mode /= UnitModeFree)
-                |> List.map (viewSub game)
-                |> Svg.g []
-            , mechs
-                |> List.map (viewMech game)
-                |> Svg.g []
-            , [ game.leftTeam, game.rightTeam ]
-                |> List.map (viewMarker game)
-                |> Svg.g []
-            , game.projectileById
-                |> Dict.values
-                |> List.map viewProjectile
-                |> Svg.g []
-            , game.cosmetics
-                |> List.map View.Gfx.render
-                |> Svg.g []
-            , units
-                |> List.map viewHealthbar
-                |> Svg.g []
+            , Svg.g maybeOpacity
+                [ if model.game.phase == PhaseSetup then
+                    Phases.viewSetup model.game
+                  else
+                    Svg.text ""
+                , subs
+                    |> List.filter (\( u, s ) -> s.mode == UnitModeFree)
+                    |> List.map (viewSub game)
+                    |> Svg.g []
+                , game.wallTiles
+                    |> Set.toList
+                    |> List.map viewWall
+                    |> Svg.g []
+                , game.baseById
+                    |> Dict.values
+                    |> List.map (viewBase game)
+                    |> Svg.g []
+                , subs
+                    |> List.filter (\( u, s ) -> s.mode /= UnitModeFree)
+                    |> List.map (viewSub game)
+                    |> Svg.g []
+                , mechs
+                    |> List.map (viewMech game)
+                    |> Svg.g []
+                , [ game.leftTeam, game.rightTeam ]
+                    |> List.map (viewMarker game)
+                    |> Svg.g []
+                , game.projectileById
+                    |> Dict.values
+                    |> List.map viewProjectile
+                    |> Svg.g []
+                , game.cosmetics
+                    |> List.map View.Gfx.render
+                    |> Svg.g []
+                , units
+                    |> List.map viewHealthbar
+                    |> Svg.g []
+                ]
             ]
         , viewVictory game
         ]

@@ -1,4 +1,4 @@
-module SetupPhase exposing (..)
+module Phases exposing (..)
 
 import Dict exposing (Dict)
 import Game exposing (..)
@@ -25,52 +25,53 @@ teamTilesWidth =
 -- phase update
 
 
-phaseTransitionDuration =
-    2.0
+transitionDuration =
+    1.0
 
 
-phaseUpdate : Seconds -> GamePhase
-phaseUpdate time =
-    if time >= phaseTransitionDuration then
-        PhasePlay
-    else
-        PhaseTransition time
+transitionUpdate : Seconds -> Game -> Game
+transitionUpdate dt game =
+    case game.maybeTransition of
+        Nothing ->
+            game
 
-
-phasesWeight : GamePhase -> ( Float, Float )
-phasesWeight phase =
-    case phase of
-        PhaseSetup ->
-            ( 1, 0 )
-
-        PhaseTransition seconds ->
+        Just transition ->
             let
-                t =
-                    2 * seconds / phaseTransitionDuration
-
-                setup =
-                    clamp 0 1 (1 - t)
-
-                play =
-                    clamp 0 1 (t - 1)
+                d =
+                    dt / transitionDuration
             in
-            ( setup, play )
+            case game.phase of
+                PhaseSetup ->
+                    if transition - d > 0 then
+                        -- continue fading out setup phase
+                        { game | maybeTransition = Just (transition - d) }
+                    else
+                        -- start fading in Play phase
+                        setupToPlayPhase game
 
-        PhasePlay ->
-            ( 0, 1 )
+                PhasePlay ->
+                    if transition + d < 1 then
+                        -- continue fading in Play phase
+                        { game | maybeTransition = Just (transition + d) }
+                    else
+                        -- transitions complete
+                        { game | maybeTransition = Nothing }
 
 
 
 -- Think
 
 
-think : List String -> Game -> Delta
-think inputSources game =
-    deltaList
-        [ addAndRemoveMechs inputSources game
-        , updateAllMechsTeam game
-        , maybeExitSetupPhase game
-        ]
+setupThink : List String -> Game -> Delta
+setupThink inputSources game =
+    if game.maybeTransition /= Nothing then
+        deltaNone
+    else
+        deltaList
+            [ addAndRemoveMechs inputSources game
+            , updateAllMechsTeam game
+            , maybeExitSetupPhase game
+            ]
 
 
 
@@ -171,8 +172,8 @@ addMechForEveryPlayer game =
     game
 
 
-exitSetupPhase : Game -> Game
-exitSetupPhase game =
+setupToPlayPhase : Game -> Game
+setupToPlayPhase game =
     let
         ( left, right ) =
             makeTeams game
@@ -183,7 +184,8 @@ exitSetupPhase game =
     { game
         | unitById = Dict.empty
         , wallTiles = Set.fromList walls
-        , phase = PhaseTransition 0
+        , phase = PhasePlay
+        , maybeTransition = Just 0
     }
         |> Game.addStaticObstacles walls
         |> Game.Init.addSmallBase ( -5, 2 )
@@ -208,7 +210,7 @@ maybeExitSetupPhase game =
                 |> List.filterMap Unit.toMech
     in
     if mechs /= [] && List.all isReady mechs then
-        deltaGame exitSetupPhase
+        deltaGame (\g -> { g | maybeTransition = Just 1 })
     else
         deltaNone
 
@@ -217,8 +219,8 @@ maybeExitSetupPhase game =
 -- View
 
 
-view : Game -> Svg a
-view game =
+viewSetup : Game -> Svg a
+viewSetup game =
     let
         w =
             teamTilesWidth

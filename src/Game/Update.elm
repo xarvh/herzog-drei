@@ -7,7 +7,7 @@ import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import ProjectileThink
 import Set exposing (Set)
-import SetupPhase
+import Phases
 import UnitThink
 import VictoryThink
 import View.Gfx
@@ -40,10 +40,7 @@ update time inpuStateByKey game =
         |> List.map (UnitThink.think dt inpuStateByKey oldGameWithUpdatedDynamicObstacles)
     , [ case game.phase of
             PhaseSetup ->
-                SetupPhase.think (Dict.keys inpuStateByKey) game
-
-            PhaseTransition transitionTime ->
-                deltaGame (\g -> { g | phase = SetupPhase.phaseUpdate (transitionTime + dt) })
+                Phases.setupThink (Dict.keys inpuStateByKey) game
 
             PhasePlay ->
                 VictoryThink.think dt game
@@ -58,6 +55,7 @@ update time inpuStateByKey game =
         |> List.map deltaList
         |> applyGameDeltas oldGameWithUpdatedDynamicObstacles
         |> updateGfxs dt
+        |> Phases.transitionUpdate dt
         |> (\game -> { game | time = time })
 
 

@@ -366,7 +366,6 @@ type alias Gfx =
 
 type GamePhase
     = PhaseSetup
-    | PhaseTransition Seconds
     | PhasePlay
 
 
@@ -378,6 +377,7 @@ type alias GameSize =
 
 type alias Game =
     { phase : GamePhase
+    , maybeTransition : Maybe Float
     , maybeWinnerTeamId : Maybe TeamId
     , time : Seconds
     , subBuildMultiplier : Float
@@ -426,6 +426,7 @@ new { halfWidth, halfHeight } seed =
                     ( ColorPattern.neutral, ColorPattern.neutral )
     in
     { phase = PhaseSetup
+    , maybeTransition = Nothing
     , maybeWinnerTeamId = Nothing
     , time = 0
     , subBuildMultiplier = 2
