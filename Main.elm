@@ -3,10 +3,12 @@ module Main exposing (..)
 import App
 import Dict exposing (Dict)
 import Html exposing (..)
-import Html.Attributes exposing (class)
+import Html.Attributes exposing (..)
+import Html.Events exposing (onClick)
 import Keyboard
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Navigation
+import Style
 import Svg
 import Svg.Attributes exposing (transform)
 import Task
@@ -16,6 +18,7 @@ import View.Background
 type alias Model =
     { app : App.Model
     , showConfig : Bool
+    , useKeyboardAndMouse : Bool
     }
 
 
@@ -23,6 +26,7 @@ type Msg
     = Noop
     | OnAppMsg App.Msg
     | OnKeyPress Keyboard.KeyCode
+    | OnToggleKeyboardAndMouse Bool
 
 
 stringToTuple : String -> Maybe ( String, String )
@@ -50,6 +54,7 @@ init flags location =
     in
     ( { showConfig = False
       , app = appModel
+      , useKeyboardAndMouse = True
       }
     , appCmd |> Cmd.map OnAppMsg
     )
@@ -81,47 +86,12 @@ update msg model =
                 _ ->
                     noCmd model
 
+        OnToggleKeyboardAndMouse flag ->
+            noCmd { model | useKeyboardAndMouse = flag }
+
 
 
 --
-
-
-globalStyle =
-    """
-  .flex { display: flex; }
-  .flex1 { flex: 1; }
-  .alignCenter { align-items: center; }
-  .alignEnd { align-items: flex-end; }
-  .justifyCenter { justify-content: center; }
-  .justifyBetween { justify-content: space-between; }
-
-  .relative { position: relative; }
-  .fullWindow { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-
-  .bgConfig { background-color: white; }
-  .borderConfig { border: 1px solid black; }
-
-  /* padding */
-  .p2 { padding: 2em; }
-  .pt2 { padding-top: 2em; }
-  .pr2 { padding-right: 2em; }
-  .pb2 { padding-bottom: 2em; }
-  .pl2 { padding-left: 2em; }
-
-
-  /* margin */
-  .m1 { margin: 1em; }
-  .mt1 { margin-top: 1em; }
-  .mr1 { margin-right: 1em; }
-  .mb1 { margin-bottom: 1em; }
-  .ml1 { margin-left: 1em; }
-
-  .m2 { margin: 2em; }
-  .mt2 { margin-top: 2em; }
-  .mr2 { margin-right: 2em; }
-  .mb2 { margin-bottom: 2em; }
-  .ml2 { margin-left: 2em; }
-  """
 
 
 viewConfig : Model -> Html Msg
@@ -131,7 +101,25 @@ viewConfig model =
         ]
         [ div
             [ class "bgConfig borderConfig p2" ]
-            [ text "LOL" ]
+            [ div
+                []
+                [ input
+                    [ type_ "checkbox"
+                    , checked model.useKeyboardAndMouse
+                    , model.useKeyboardAndMouse |> not |> OnToggleKeyboardAndMouse |> onClick
+                    ]
+                    []
+                , span
+                    []
+                    [ text "Use Keyboard & Mouse" ]
+                ]
+            , div
+                []
+                [ button
+                  []
+                  [ text "Remap gamepads" ]
+                ]
+            ]
         ]
 
 
@@ -142,8 +130,8 @@ view model =
         [ Html.node "style"
             []
             [ text "body { margin: 0; }"
+            , text Style.global
             , text View.Background.classAndAnimation
-            , text globalStyle
             ]
         , App.view model.app
             |> Svg.map OnAppMsg
