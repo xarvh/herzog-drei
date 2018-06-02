@@ -151,7 +151,7 @@ view model =
                         "s"
 
                 list =
-                    ids |> List.map toString |> String.join ", "
+                    ids |> List.map ((+) 1) |> List.map toString |> String.join ", "
 
                 first =
                     List.head ids |> Maybe.withDefault 0

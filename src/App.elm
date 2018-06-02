@@ -8,6 +8,7 @@ import GamepadPort
 import Html exposing (..)
 import Html.Attributes exposing (class, style)
 import Init
+import Keyboard
 import Keyboard.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Menu
@@ -30,12 +31,14 @@ type alias Flags =
 
 
 type Msg
-    = OnGamepad ( Time, Gamepad.Blob )
+    = Noop
+    | OnGamepad ( Time, Gamepad.Blob )
     | OnMouseButton Bool
     | OnMouseMoves Mouse.Position
     | OnKeyboardMsg Keyboard.Extra.Msg
     | OnWindowResizes Window.Size
     | OnMenuMsg Menu.Msg
+    | OnKeyPress Keyboard.KeyCode
 
 
 type alias Model =
@@ -229,6 +232,9 @@ updateOnGamepad ( timeInMilliseconds, gamepadBlob ) model =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        Noop ->
+            noCmd model
+
         OnMouseButton state ->
             noCmd { model | mouseIsPressed = state }
 
@@ -263,6 +269,21 @@ update msg model =
 
         OnGamepad timeAndGamepadBlob ->
             updateOnGamepad timeAndGamepadBlob model
+
+        OnKeyPress keyCode ->
+            case keyCode of
+                27 ->
+                    noCmd
+                        { model
+                            | maybeMenu =
+                                if model.maybeMenu == Nothing then
+                                    Just Menu.init
+                                else
+                                    Nothing
+                        }
+
+                _ ->
+                    noCmd model
 
 
 view : Model -> Html Msg
@@ -315,6 +336,7 @@ subscriptions model =
         , Mouse.moves OnMouseMoves
         , Sub.map OnKeyboardMsg Keyboard.Extra.subscriptions
         , Window.resizes OnWindowResizes
+        , Keyboard.ups OnKeyPress
         , case model.maybeMenu of
             Nothing ->
                 Sub.none
