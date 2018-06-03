@@ -1,29 +1,45 @@
 module App exposing (..)
 
-import AnimationFrame
 import Bot.Dummy
 import Dict exposing (Dict)
 import Game exposing (..)
-import Init
-import Update
-import Html exposing (Html, div)
+import Gamepad exposing (Gamepad)
+import GamepadPort
+import Html exposing (..)
 import Html.Attributes exposing (class, style)
+import Init
+import Keyboard
 import Keyboard.Extra
+import LocalStoragePort
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Menu
 import Mouse
 import SplitScreen exposing (Viewport)
+import Style
 import Task
 import Time exposing (Time)
+import Update
 import View.Background
 import View.Game
 import Window
 
 
+type alias Flags =
+    { gamepadDatabaseAsString : String
+    , gamepadDatabaseKey : String
+    , dateNow : Int
+    }
+
+
 type Msg
-    = OnAnimationFrame Time
+    = Noop
+    | OnGamepad ( Time, Gamepad.Blob )
     | OnMouseButton Bool
     | OnMouseMoves Mouse.Position
+    | OnKeyboardMsg Keyboard.Extra.Msg
     | OnWindowResizes Window.Size
+    | OnMenuMsg Menu.Msg
+    | OnKeyPress Keyboard.KeyCode
 
 
 type alias Model =
@@ -36,7 +52,43 @@ type alias Model =
     , fps : List Float
     , terrain : List View.Background.Rect
     , params : Dict String String
+    , pressedKeys : List Keyboard.Extra.Key
+    , gamepadDatabase : Gamepad.Database
+    , maybeMenu : Maybe Menu.Model
+    , flags : Flags
     }
+
+
+
+-- init
+
+
+init : Dict String String -> Flags -> ( Model, Cmd Msg )
+init params flags =
+    let
+        game =
+            Init.setupPhase flags.dateNow { halfWidth = 20, halfHeight = 10 }
+
+        gamepadDatabase =
+            Gamepad.databaseFromString flags.gamepadDatabaseAsString
+                |> Result.withDefault Gamepad.emptyDatabase
+    in
+    ( { game = game
+      , botStatesByKey = Dict.empty
+      , mousePosition = { x = 0, y = 0 }
+      , mouseIsPressed = False
+      , windowSize = { width = 1, height = 1 }
+      , viewport = SplitScreen.defaultViewport
+      , fps = []
+      , params = params
+      , terrain = View.Background.initRects game
+      , pressedKeys = []
+      , gamepadDatabase = gamepadDatabase
+      , maybeMenu = Just (Menu.init gamepadDatabase)
+      , flags = flags
+      }
+    , Window.size |> Task.perform OnWindowResizes
+    )
 
 
 
@@ -59,27 +111,12 @@ inputKeyIsHuman key =
 
 
 
--- init
+-- gamepad database
 
 
-init : Dict String String -> ( Model, Cmd Msg )
-init params =
-    let
-        game =
-            Init.setupPhase { halfWidth = 20, halfHeight = 10 }
-    in
-    ( { game = game
-      , botStatesByKey = Dict.empty
-      , mousePosition = { x = 0, y = 0 }
-      , mouseIsPressed = False
-      , windowSize = { width = 1, height = 1 }
-      , viewport = SplitScreen.defaultViewport
-      , fps = []
-      , params = params
-      , terrain = View.Background.initRects game
-      }
-    , Window.size |> Task.perform OnWindowResizes
-    )
+saveGamepadDatabase : Model -> Gamepad.Database -> Cmd Msg
+saveGamepadDatabase model database =
+    LocalStoragePort.set model.flags.gamepadDatabaseKey (Gamepad.databaseToString database)
 
 
 
@@ -123,9 +160,95 @@ addMissingBots model =
         { model | botStatesByKey = botStates }
 
 
-update : List Keyboard.Extra.Key -> Msg -> Model -> ( Model, Cmd Msg )
-update pressedKeys msg model =
+gamepadToInput : Gamepad -> ( String, InputState )
+gamepadToInput gamepad =
+    ( "gamepad " ++ toString (Gamepad.getIndex gamepad)
+    , { aim = vec2 (Gamepad.rightX gamepad) (Gamepad.rightY gamepad) |> AimAbsolute
+      , fire =
+            Gamepad.rightBumperIsPressed gamepad
+                || Gamepad.rightTriggerIsPressed gamepad
+                || Gamepad.rightStickIsPressed gamepad
+      , transform = Gamepad.aIsPressed gamepad
+      , switchUnit = False
+      , rally = Gamepad.bIsPressed gamepad
+      , move = vec2 (Gamepad.leftX gamepad) (Gamepad.leftY gamepad)
+      }
+    )
+
+
+updateOnGamepad : ( Time, Gamepad.Blob ) -> Model -> ( Model, Cmd Msg )
+updateOnGamepad ( timeInMilliseconds, gamepadBlob ) model =
+    let
+        { x, y } =
+            Keyboard.Extra.wasd model.pressedKeys
+
+        isPressed key =
+            List.member key model.pressedKeys
+
+        mouseAim =
+            SplitScreen.mouseScreenToViewport model.mousePosition model.viewport
+                |> Vec2.fromTuple
+                |> Vec2.scale (View.Game.tilesToViewport model.game model.viewport)
+                |> AimRelative
+
+        gamepadsInputByKey =
+            gamepadBlob
+                |> Gamepad.getGamepads model.gamepadDatabase
+                |> List.map gamepadToInput
+                |> Dict.fromList
+
+        keyboardAndMouseInput =
+            { aim = mouseAim
+            , fire = model.mouseIsPressed
+            , transform = isPressed Keyboard.Extra.CharE
+            , switchUnit = isPressed Keyboard.Extra.Space
+
+            -- TODO this should be right mouse button
+            , rally = isPressed Keyboard.Extra.CharQ
+            , move = vec2 (toFloat x) (toFloat y)
+            }
+
+        foldBot : String -> Bot.Dummy.State -> ( Dict String Bot.Dummy.State, Dict String InputState ) -> ( Dict String Bot.Dummy.State, Dict String InputState )
+        foldBot inputSourceKey oldState ( statesByKey, inputsByKey ) =
+            let
+                ( newState, input ) =
+                    Bot.Dummy.update model.game oldState
+            in
+            ( Dict.insert inputSourceKey newState statesByKey, Dict.insert inputSourceKey input inputsByKey )
+
+        ( botStatesByKey, botInputsByKey ) =
+            Dict.foldl foldBot ( Dict.empty, Dict.empty ) model.botStatesByKey
+
+        inputStatesByKey =
+            botInputsByKey
+                |> Dict.union gamepadsInputByKey
+                |> Dict.insert inputKeyboardAndMouseKey keyboardAndMouseInput
+
+        -- All times in the game are in seconds
+        time =
+            timeInMilliseconds / 1000
+
+        dt =
+            time - model.game.time
+
+        game =
+            Update.update time inputStatesByKey model.game
+    in
+    { model
+        | game = game
+        , botStatesByKey = botStatesByKey
+        , fps = (1 / dt) :: List.take 20 model.fps
+    }
+        |> addMissingBots
+        |> noCmd
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
     case msg of
+        Noop ->
+            noCmd model
+
         OnMouseButton state ->
             noCmd { model | mouseIsPressed = state }
 
@@ -142,98 +265,41 @@ update pressedKeys msg model =
             }
                 |> noCmd
 
-        OnAnimationFrame timeInMilliseconds ->
-            let
-                { x, y } =
-                    Keyboard.Extra.wasd pressedKeys
+        OnMenuMsg menuMsg ->
+            case model.maybeMenu of
+                Nothing ->
+                    noCmd model
 
-                isPressed key =
-                    List.member key pressedKeys
+                Just menu ->
+                    case Menu.update menuMsg menu of
+                        ( menu, Nothing ) ->
+                            noCmd { model | maybeMenu = Just menu }
 
-                mouseAim =
-                    SplitScreen.mouseScreenToViewport model.mousePosition model.viewport
-                        |> Vec2.fromTuple
-                        |> Vec2.scale (View.Game.tilesToViewport model.game model.viewport)
-                        |> AimRelative
+                        ( menu, Just db ) ->
+                            ( { model | maybeMenu = Just menu, gamepadDatabase = db }
+                            , saveGamepadDatabase model db
+                            )
 
-                keyboardAndMouseInput =
-                    { aim = mouseAim
-                    , fire = model.mouseIsPressed
-                    , transform = isPressed Keyboard.Extra.CharE
-                    , switchUnit = isPressed Keyboard.Extra.Space
+        OnKeyboardMsg keyboardMsg ->
+            noCmd { model | pressedKeys = Keyboard.Extra.update keyboardMsg model.pressedKeys }
 
-                    -- TODO this should be right mouse button
-                    , rally = isPressed Keyboard.Extra.CharQ
-                    , move = vec2 (toFloat x) (toFloat y)
-                    }
+        OnGamepad timeAndGamepadBlob ->
+            updateOnGamepad timeAndGamepadBlob model
 
-                foldBot : String -> Bot.Dummy.State -> ( Dict String Bot.Dummy.State, Dict String InputState ) -> ( Dict String Bot.Dummy.State, Dict String InputState )
-                foldBot inputSourceKey oldState ( statesByKey, inputsByKey ) =
-                    let
-                        ( newState, input ) =
-                            Bot.Dummy.update model.game oldState
-                    in
-                    ( Dict.insert inputSourceKey newState statesByKey, Dict.insert inputSourceKey input inputsByKey )
+        OnKeyPress keyCode ->
+            case keyCode of
+                27 ->
+                    noCmd
+                        { model
+                            | maybeMenu =
+                                if model.maybeMenu == Nothing then
+                                    Just (Menu.init model.gamepadDatabase)
+                                else
+                                    Nothing
+                        }
 
-                ( botStatesByKey, botInputsByKey ) =
-                    Dict.foldl foldBot ( Dict.empty, Dict.empty ) model.botStatesByKey
-
-                inputStatesByKey =
-                    botInputsByKey
-                        |> Dict.insert inputKeyboardAndMouseKey keyboardAndMouseInput
-
-                -- All times in the game are in seconds
-                time =
-                    timeInMilliseconds / 1000
-
-                dt =
-                    time - model.game.time
-
-                game =
-                    Update.update time inputStatesByKey model.game
-            in
-            { model
-                | game = game
-                , botStatesByKey = botStatesByKey
-                , fps = (1 / dt) :: List.take 20 model.fps
-            }
-                |> addMissingBots
-                |> noCmd
-
-
-
--- Test View
-{-
-   testView : Model -> Svg a
-   testView model =
-       let
-           moveAngle =
-               turns 0.1
-
-           period =
-               5
-
-           wrap n p =
-               n - (toFloat (floor (n / p)) * p)
-
-           age =
-               wrap model.game.time period / 5
-       in
-       Svg.svg
-           [ Svg.Attributes.viewBox "-1 -1 2 2"
-           , Svg.Attributes.width "100vh"
-           , Svg.Attributes.height "100vh"
-           ]
-           [ Svg.g
-               [ transform [ "scale(0.1, -0.1)" ]
-               ]
-               [ View.Base.main_ age neutral.bright neutral.dark
-
-               --[ View.Mech.mech age (Game.vecToAngle model.mousePosition) 0 neutral.bright neutral.dark
-               --[ View.Sub.sub (pi / 4) (Game.vecToAngle model.mousePosition) neutral.bright neutral.dark
-               ]
-           ]
--}
+                _ ->
+                    noCmd model
 
 
 view : Model -> Html Msg
@@ -246,17 +312,29 @@ view model =
             SplitScreen.makeViewports model.windowSize 1
     in
     div
-        []
-        [ [ View.Game.view model.terrain model.viewport model.game ]
-            |> SplitScreen.viewportsWrapper
-        , [ "FPS " ++ toString fps
-          , "ASDW: Move"
-          , "Q: Move units"
-          , "E: Transform"
-          , "Click: Fire"
-          ]
-            |> List.map (\t -> div [] [ Html.text t ])
-            |> div [ style [ ( "position", "absolute" ), ( "top", "0" ) ] ]
+        [ class "relative" ]
+        [ Html.node "style"
+            []
+            [ text Style.global
+            , text View.Background.classAndAnimation
+            ]
+        , div
+            []
+            [ [ View.Game.view model.terrain model.viewport model.game ]
+                |> SplitScreen.viewportsWrapper
+            , if Dict.member "fps" model.params then
+                div
+                    [ style [ ( "position", "absolute" ), ( "top", "0" ) ] ]
+                    [ text ("FPS " ++ toString fps) ]
+              else
+                text ""
+            ]
+        , case model.maybeMenu of
+            Just menu ->
+                Menu.view menu |> Html.map OnMenuMsg
+
+            Nothing ->
+                text ""
         ]
 
 
@@ -267,9 +345,17 @@ view model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ AnimationFrame.times OnAnimationFrame
+        [ GamepadPort.gamepad OnGamepad
         , Mouse.downs (\_ -> OnMouseButton True)
         , Mouse.ups (\_ -> OnMouseButton False)
         , Mouse.moves OnMouseMoves
+        , Sub.map OnKeyboardMsg Keyboard.Extra.subscriptions
         , Window.resizes OnWindowResizes
+        , Keyboard.ups OnKeyPress
+        , case model.maybeMenu of
+            Nothing ->
+                Sub.none
+
+            Just menu ->
+                Menu.subscriptions menu |> Sub.map OnMenuMsg
         ]

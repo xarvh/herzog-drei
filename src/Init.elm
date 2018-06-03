@@ -100,6 +100,6 @@ walls =
         |> mirror
 
 
-setupPhase : GameSize -> Game
-setupPhase gameSize =
-    Game.new gameSize (Random.initialSeed 0)
+setupPhase : Int -> GameSize -> Game
+setupPhase dateNow gameSize =
+    Game.new gameSize (Random.initialSeed dateNow)
