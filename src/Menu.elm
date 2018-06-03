@@ -27,6 +27,7 @@ gamepadButtonMap =
 
     --
     , ( Gamepad.RightTrigger, "FIRE" )
+    , ( Gamepad.RightBumper, "Alt FIRE" )
     , ( Gamepad.A, "Transform" )
     , ( Gamepad.B, "Rally" )
     ]

@@ -1,7 +1,7 @@
 module Remap exposing (..)
 
 import Dict exposing (Dict)
-import Gamepad exposing (Blob, Database, Destination, Gamepad, UnknownGamepad)
+import Gamepad exposing (..)
 import Gamepad.Remap
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -72,11 +72,91 @@ update msg model =
 -- View
 
 
-viewGamepadWithIndex : Database -> Blob -> Int -> Html Msg
-viewGamepadWithIndex db blob index =
+type Getter
+    = Bin (Gamepad -> Bool)
+    | Pos (Gamepad -> Float)
+    | Neg (Gamepad -> Float)
+    | DpadNeg (Gamepad -> Bool) (Gamepad -> Int)
+    | DpadPos (Gamepad -> Bool) (Gamepad -> Int)
+
+
+getters : List ( Destination, Getter )
+getters =
+    [ ( A, Bin aIsPressed )
+    , ( B, Bin bIsPressed )
+    , ( X, Bin xIsPressed )
+    , ( Y, Bin yIsPressed )
+    , ( Start, Bin startIsPressed )
+    , ( Back, Bin backIsPressed )
+    , ( Home, Bin homeIsPressed )
+    , ( LeftLeft, Neg leftX )
+    , ( LeftRight, Pos leftX )
+    , ( LeftUp, Pos leftY )
+    , ( LeftDown, Neg leftY )
+    , ( LeftStick, Bin leftStickIsPressed )
+    , ( LeftBumper, Bin leftBumperIsPressed )
+    , ( LeftTrigger, Pos leftTriggerValue )
+    , ( RightLeft, Neg rightX )
+    , ( RightRight, Pos rightX )
+    , ( RightUp, Pos rightY )
+    , ( RightDown, Neg rightY )
+    , ( RightStick, Bin rightStickIsPressed )
+    , ( RightBumper, Bin rightBumperIsPressed )
+    , ( RightTrigger, Pos rightTriggerValue )
+    , ( DpadUp, DpadPos dpadUpIsPressed dpadY )
+    , ( DpadDown, DpadNeg dpadDownIsPressed dpadY )
+    , ( DpadLeft, DpadNeg dpadLeftIsPressed dpadX )
+    , ( DpadRight, DpadPos dpadRightIsPressed dpadX )
+    ]
+
+
+getterToState : Gamepad -> Getter -> Bool
+getterToState gamepad getter =
+    case getter of
+        Bin getBinary ->
+            getBinary gamepad
+
+        Neg getValue ->
+            getValue gamepad < -0.2
+
+        Pos getValue ->
+            getValue gamepad > 0.2
+
+        DpadNeg getBinary getValue ->
+            getBinary gamepad || getValue gamepad < 0
+
+        DpadPos getBinary getValue ->
+            getBinary gamepad || getValue gamepad > 0
+
+
+destinationState : Gamepad -> Destination -> Bool
+destinationState gamepad destination =
+    case List.Extra.find (\( dest, getter ) -> dest == destination) getters of
+        Nothing ->
+            False
+
+        Just ( destination, getter ) ->
+            getterToState gamepad getter
+
+
+firstPadControl : Gamepad -> List ( Destination, String ) -> String
+firstPadControl gamepad destinations =
+    case List.Extra.find (\( dest, name ) -> destinationState gamepad dest) destinations of
+        Just ( destination, name ) ->
+            name
+
+        Nothing ->
+            if List.any (\( dest, getter ) -> getterToState gamepad getter) getters then
+                "(not mapped)"
+            else
+                ""
+
+
+viewGamepadWithIndex : Model -> Blob -> Int -> Html Msg
+viewGamepadWithIndex model blob index =
     let
         maybeRecognised =
-            Gamepad.getGamepads db blob
+            Gamepad.getGamepads model.gamepadDatabase blob
                 |> List.Extra.find (\pad -> Gamepad.getIndex pad == index)
 
         hasSignal =
@@ -88,15 +168,22 @@ viewGamepadWithIndex db blob index =
     li
         []
         [ "Gamepad #" ++ toString (index + 1) |> text
-        , if hasSignal then
-            text " (receiving signal)"
-          else
-            text ""
+        , text " "
+        , text <|
+            case maybeRecognised of
+                Just pad ->
+                    firstPadControl pad model.buttons
+
+                Nothing ->
+                    if hasSignal then
+                        "(receiving signal)"
+                    else
+                        ""
         ]
 
 
-viewAllGamepadsWithId : Database -> Blob -> ( String, List Int ) -> Html Msg
-viewAllGamepadsWithId db blob ( id, indexes ) =
+viewAllGamepadsWithId : Model -> Blob -> ( String, List Int ) -> Html Msg
+viewAllGamepadsWithId model blob ( id, indexes ) =
     let
         findFirst : List Gamepad -> Maybe Gamepad
         findFirst =
@@ -106,7 +193,7 @@ viewAllGamepadsWithId db blob ( id, indexes ) =
             Gamepad.getGamepads Gamepad.emptyDatabase blob |> findFirst
 
         maybeRecognised =
-            Gamepad.getGamepads db blob |> findFirst
+            Gamepad.getGamepads model.gamepadDatabase blob |> findFirst
 
         isAuto =
             maybeStandardGamepad == maybeRecognised
@@ -132,7 +219,7 @@ viewAllGamepadsWithId db blob ( id, indexes ) =
         -- TODO also show number of axes/buttons?
         , indexes
             |> List.sort
-            |> List.map (viewGamepadWithIndex db blob)
+            |> List.map (viewGamepadWithIndex model blob)
             |> ul []
         ]
 
@@ -158,9 +245,10 @@ view model =
                         |> List.map Gamepad.unknownGetId
                         |> List.Extra.unique
                         |> List.map (\id -> ( id, allIndexesForId id ))
+                        |> List.sortBy Tuple.first
             in
             gamepadIndexesGroupedById
-                |> List.map (viewAllGamepadsWithId model.gamepadDatabase blob)
+                |> List.map (viewAllGamepadsWithId model blob)
                 |> div []
 
 
