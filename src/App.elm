@@ -68,6 +68,10 @@ init params flags =
     let
         game =
             Init.setupPhase flags.dateNow { halfWidth = 20, halfHeight = 10 }
+
+        gamepadDatabase =
+            Gamepad.databaseFromString flags.gamepadDatabaseAsString
+                |> Result.withDefault Gamepad.emptyDatabase
     in
     ( { game = game
       , botStatesByKey = Dict.empty
@@ -79,10 +83,8 @@ init params flags =
       , params = params
       , terrain = View.Background.initRects game
       , pressedKeys = []
-      , gamepadDatabase =
-            Gamepad.databaseFromString flags.gamepadDatabaseAsString
-                |> Result.withDefault Gamepad.emptyDatabase
-      , maybeMenu = Just Menu.init
+      , gamepadDatabase = gamepadDatabase
+      , maybeMenu = Just (Menu.init gamepadDatabase)
       , flags = flags
       }
     , Window.size |> Task.perform OnWindowResizes
@@ -270,20 +272,13 @@ update msg model =
 
                 Just menu ->
                     case Menu.update menuMsg menu of
-                        Menu.StillOpen newMenu menuCmd ->
-                            ( { model | maybeMenu = Just newMenu }, Cmd.map OnMenuMsg menuCmd )
+                        ( menu, Nothing ) ->
+                            noCmd { model | maybeMenu = Just menu }
 
-                        Menu.UpdateDatabase newMenu updateDatabase ->
-                            let
-                                gamepadDatabase =
-                                    updateDatabase model.gamepadDatabase
-                            in
-                            ( { model | maybeMenu = Just newMenu, gamepadDatabase = gamepadDatabase }
-                            , saveGamepadDatabase model gamepadDatabase
+                        ( menu, Just db ) ->
+                            ( { model | maybeMenu = Just menu, gamepadDatabase = db }
+                            , saveGamepadDatabase model db
                             )
-
-                        Menu.Close ->
-                            noCmd { model | maybeMenu = Nothing }
 
         OnKeyboardMsg keyboardMsg ->
             noCmd { model | pressedKeys = Keyboard.Extra.update keyboardMsg model.pressedKeys }
@@ -298,7 +293,7 @@ update msg model =
                         { model
                             | maybeMenu =
                                 if model.maybeMenu == Nothing then
-                                    Just Menu.init
+                                    Just (Menu.init model.gamepadDatabase)
                                 else
                                     Nothing
                         }
@@ -320,8 +315,7 @@ view model =
         [ class "relative" ]
         [ Html.node "style"
             []
-            [ text "body { margin: 0; }"
-            , text Style.global
+            [ text Style.global
             , text View.Background.classAndAnimation
             ]
         , div
