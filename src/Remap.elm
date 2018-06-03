@@ -1,8 +1,11 @@
 module Remap exposing (..)
 
+-- TODO remove GamepadPort once I get rid of Gamepad.Remap
+
 import Dict exposing (Dict)
 import Gamepad exposing (..)
 import Gamepad.Remap
+import GamepadPort
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
@@ -12,6 +15,8 @@ import List.Extra
 type Msg
     = Noop
     | OnGamepad ( Float, Blob )
+    | OnRemapMsg Gamepad.Remap.Msg
+    | OnStartRemapping Int
 
 
 
@@ -22,6 +27,7 @@ type alias Model =
     { buttons : List ( Destination, String )
     , gamepadDatabase : Database
     , maybeBlob : Maybe Blob
+    , maybeRemap : Maybe (Gamepad.Remap.Model String)
     }
 
 
@@ -31,12 +37,13 @@ init buttons db =
     { buttons = buttons
     , gamepadDatabase = db
     , maybeBlob = Nothing
+    , maybeRemap = Nothing
     }
 
 
 isRemapping : Model -> Bool
 isRemapping model =
-    False
+    model.maybeRemap /= Nothing
 
 
 gamepadsCount : Model -> Int
@@ -66,6 +73,25 @@ update msg model =
 
         OnGamepad ( time, blob ) ->
             noCmd { model | maybeBlob = Just blob }
+
+        OnStartRemapping index ->
+            noCmd { model | maybeRemap = Just (Gamepad.Remap.init index model.buttons) }
+
+        OnRemapMsg remapMsg ->
+            case model.maybeRemap of
+                Nothing ->
+                    noCmd model
+
+                Just remap ->
+                    case Gamepad.Remap.update remapMsg remap of
+                        Gamepad.Remap.StillOpen newRemap ->
+                            noCmd { model | maybeRemap = Just newRemap }
+
+                        Gamepad.Remap.Error message ->
+                            Debug.crash message
+
+                        Gamepad.Remap.UpdateDatabase updateDatabase ->
+                            ( { model | maybeRemap = Nothing }, Just (updateDatabase model.gamepadDatabase) )
 
 
 
@@ -201,11 +227,14 @@ viewAllGamepadsWithId model blob ( id, indexes ) =
         mappingStatus =
             if maybeRecognised == Nothing then
                 -- TODO add an "highlight" class?
-                span [] [ text "Needs mapping!" ]
+                span [] [ text "Need mapping" ]
             else if isAuto then
                 span [] [ text "Auto mapped" ]
             else
                 span [] [ text "Custom mapped" ]
+
+        index =
+            List.head indexes |> Maybe.withDefault 0
     in
     div
         []
@@ -213,7 +242,7 @@ viewAllGamepadsWithId model blob ( id, indexes ) =
             []
             [ mappingStatus
             , span [] [ text ": " ]
-            , span [] [ text id ]
+            , button [ onClick (OnStartRemapping index) ] [ text "Remap" ]
             ]
 
         -- TODO also show number of axes/buttons?
@@ -226,11 +255,18 @@ viewAllGamepadsWithId model blob ( id, indexes ) =
 
 view : Model -> Html Msg
 view model =
-    case model.maybeBlob of
-        Nothing ->
+    case ( model.maybeRemap, model.maybeBlob ) of
+        ( Just remap, _ ) ->
+            div
+                []
+                [ div [] [ text "Press: " ]
+                , div [] [ Gamepad.Remap.view remap |> text ]
+                ]
+
+        ( Nothing, Nothing ) ->
             text ""
 
-        Just blob ->
+        ( Nothing, Just blob ) ->
             let
                 allPads =
                     Gamepad.getAllGamepadsAsUnknown blob
@@ -249,17 +285,20 @@ view model =
             in
             gamepadIndexesGroupedById
                 |> List.map (viewAllGamepadsWithId model blob)
-                |> div []
+                |> div [ class "elm-gamepad-remap" ]
 
 
 
 -- Subscriptions
 
 
-type alias PortSubscription =
-    (( Float, Blob ) -> Msg) -> Sub Msg
+type alias PortSubscription msg =
+    (( Float, Blob ) -> msg) -> Sub msg
 
 
-subscriptions : PortSubscription -> Sub Msg
+subscriptions : PortSubscription Msg -> Sub Msg
 subscriptions gamepadPort =
-    gamepadPort OnGamepad
+    Sub.batch
+        [ gamepadPort OnGamepad
+        , Gamepad.Remap.subscriptions GamepadPort.gamepad |> Sub.map OnRemapMsg
+        ]
