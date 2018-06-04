@@ -8,6 +8,10 @@ body {
   font-family: sans-serif;
 }
 
+.game-area {
+  cursor: url(static/crosshair.png) 64 64, crosshair;
+}
+
 .flex { display: flex; }
 .flex1 { flex: 1; }
 .alignCenter { align-items: center; }

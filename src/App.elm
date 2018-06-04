@@ -359,7 +359,7 @@ view model =
             , text View.Background.classAndAnimation
             ]
         , div
-            []
+            [ class "game-area" ]
             [ [ View.Game.view model.terrain model.viewport model.game ]
                 |> SplitScreen.viewportsWrapper
             , if Dict.member "fps" model.params then
