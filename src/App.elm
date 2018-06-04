@@ -164,10 +164,18 @@ addMissingBots model =
 -- Input: Gamepads
 
 
+threshold : Vec2 -> Vec2
+threshold v =
+    if Vec2.length v > 0.1 then
+        v
+    else
+        vec2 0 0
+
+
 gamepadToInput : Gamepad -> ( String, InputState )
 gamepadToInput gamepad =
     ( "gamepad " ++ toString (Gamepad.getIndex gamepad)
-    , { aim = vec2 (Gamepad.rightX gamepad) (Gamepad.rightY gamepad) |> AimAbsolute
+    , { aim = vec2 (Gamepad.rightX gamepad) (Gamepad.rightY gamepad) |> threshold |> AimAbsolute
       , fire =
             Gamepad.rightBumperIsPressed gamepad
                 || Gamepad.rightTriggerIsPressed gamepad
@@ -175,7 +183,7 @@ gamepadToInput gamepad =
       , transform = Gamepad.aIsPressed gamepad
       , switchUnit = False
       , rally = Gamepad.bIsPressed gamepad
-      , move = vec2 (Gamepad.leftX gamepad) (Gamepad.leftY gamepad)
+      , move = vec2 (Gamepad.leftX gamepad) (Gamepad.leftY gamepad) |> threshold
       }
     )
 
