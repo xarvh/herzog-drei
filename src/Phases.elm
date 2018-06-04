@@ -94,7 +94,18 @@ addSetupPhaseMech inputSourceKey =
 
 removeMech : String -> Delta
 removeMech inputSourceKey =
-    deltaNone
+    let
+        keepUnit id unit =
+            case Unit.toMech unit of
+                Nothing ->
+                    True
+
+                Just ( u, mech ) ->
+                    mech.inputKey /= inputSourceKey
+    in
+    deltaGame <|
+        \g ->
+            { g | unitById = Dict.filter keepUnit g.unitById }
 
 
 addAndRemoveMechs : List String -> Game -> Delta
