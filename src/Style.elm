@@ -3,9 +3,24 @@ module Style exposing (..)
 
 global =
     """
+/* From: https://fontlibrary.org/en/font/xolonium */
+@font-face {
+  font-family: 'XoloniumBold';
+  src: url('static/XoloniumBold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'XoloniumRegular';
+  src: url('static/XoloniumRegular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
 body {
   margin: 0;
-  font-family: sans-serif;
+  font-family: 'XoloniumRegular', sans-serif;
 }
 
 .game-area {

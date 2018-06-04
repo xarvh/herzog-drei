@@ -243,7 +243,7 @@ viewVictory game =
             text_
                 [ Svg.Attributes.textAnchor "middle"
                 , Svg.Attributes.fontSize "0.2"
-                , Svg.Attributes.fontFamily "'proxima-nova', sans-serif"
+                , Svg.Attributes.fontFamily "'XoloniumRegular', sans-serif"
                 , Svg.Attributes.fontWeight "700"
                 , Svg.Attributes.fill pattern.bright
                 , Svg.Attributes.stroke pattern.dark
