@@ -53,8 +53,8 @@ type alias Model =
     , terrain : List View.Background.Rect
     , params : Dict String String
     , pressedKeys : List Keyboard.Extra.Key
-    , gamepadDatabase : Gamepad.Database
     , maybeMenu : Maybe Menu.Model
+    , config : Menu.Config
     , flags : Flags
     }
 
@@ -72,6 +72,11 @@ init params flags =
         gamepadDatabase =
             Gamepad.databaseFromString flags.gamepadDatabaseAsString
                 |> Result.withDefault Gamepad.emptyDatabase
+
+        config =
+            { gamepadDatabase = gamepadDatabase
+            , useKeyboardAndMouse = True
+            }
     in
     ( { game = game
       , botStatesByKey = Dict.empty
@@ -83,8 +88,8 @@ init params flags =
       , params = params
       , terrain = View.Background.initRects game
       , pressedKeys = []
-      , gamepadDatabase = gamepadDatabase
-      , maybeMenu = Just (Menu.init gamepadDatabase)
+      , maybeMenu = Just (Menu.init config)
+      , config = config
       , flags = flags
       }
     , Window.size |> Task.perform OnWindowResizes
@@ -120,12 +125,7 @@ saveGamepadDatabase model database =
 
 
 
--- Update
-
-
-noCmd : Model -> ( Model, Cmd a )
-noCmd model =
-    ( model, Cmd.none )
+-- Input: Bots
 
 
 addMissingBots : Model -> Model
@@ -160,6 +160,10 @@ addMissingBots model =
         { model | botStatesByKey = botStates }
 
 
+
+-- Input: Gamepads
+
+
 gamepadToInput : Gamepad -> ( String, InputState )
 gamepadToInput gamepad =
     ( "gamepad " ++ toString (Gamepad.getIndex gamepad)
@@ -176,8 +180,26 @@ gamepadToInput gamepad =
     )
 
 
-updateOnGamepad : ( Time, Gamepad.Blob ) -> Model -> ( Model, Cmd Msg )
-updateOnGamepad ( timeInMilliseconds, gamepadBlob ) model =
+allBotsThink : Model -> ( Dict String Bot.Dummy.State, Dict String InputState )
+allBotsThink model =
+    let
+        foldBot : String -> Bot.Dummy.State -> ( Dict String Bot.Dummy.State, Dict String InputState ) -> ( Dict String Bot.Dummy.State, Dict String InputState )
+        foldBot inputSourceKey oldState ( statesByKey, inputsByKey ) =
+            let
+                ( newState, input ) =
+                    Bot.Dummy.update model.game oldState
+            in
+            ( Dict.insert inputSourceKey newState statesByKey, Dict.insert inputSourceKey input inputsByKey )
+    in
+    Dict.foldl foldBot ( Dict.empty, Dict.empty ) model.botStatesByKey
+
+
+
+-- Input: Keyboard & Mouse
+
+
+getKeyboardAndMouseInputState : Model -> InputState
+getKeyboardAndMouseInputState model =
     let
         { x, y } =
             Keyboard.Extra.wasd model.pressedKeys
@@ -190,39 +212,49 @@ updateOnGamepad ( timeInMilliseconds, gamepadBlob ) model =
                 |> Vec2.fromTuple
                 |> Vec2.scale (View.Game.tilesToViewport model.game model.viewport)
                 |> AimRelative
+    in
+    { aim = mouseAim
+    , fire = model.mouseIsPressed
+    , transform = isPressed Keyboard.Extra.CharE
+    , switchUnit = isPressed Keyboard.Extra.Space
 
+    -- TODO this should be right mouse button
+    , rally = isPressed Keyboard.Extra.CharQ
+    , move = vec2 (toFloat x) (toFloat y)
+    }
+
+
+
+-- Update
+
+
+noCmd : Model -> ( Model, Cmd a )
+noCmd model =
+    ( model, Cmd.none )
+
+
+updateOnGamepad : ( Time, Gamepad.Blob ) -> Model -> ( Model, Cmd Msg )
+updateOnGamepad ( timeInMilliseconds, gamepadBlob ) model =
+    let
         gamepadsInputByKey =
             gamepadBlob
-                |> Gamepad.getGamepads model.gamepadDatabase
+                |> Gamepad.getGamepads model.config.gamepadDatabase
                 |> List.map gamepadToInput
                 |> Dict.fromList
 
-        keyboardAndMouseInput =
-            { aim = mouseAim
-            , fire = model.mouseIsPressed
-            , transform = isPressed Keyboard.Extra.CharE
-            , switchUnit = isPressed Keyboard.Extra.Space
-
-            -- TODO this should be right mouse button
-            , rally = isPressed Keyboard.Extra.CharQ
-            , move = vec2 (toFloat x) (toFloat y)
-            }
-
-        foldBot : String -> Bot.Dummy.State -> ( Dict String Bot.Dummy.State, Dict String InputState ) -> ( Dict String Bot.Dummy.State, Dict String InputState )
-        foldBot inputSourceKey oldState ( statesByKey, inputsByKey ) =
-            let
-                ( newState, input ) =
-                    Bot.Dummy.update model.game oldState
-            in
-            ( Dict.insert inputSourceKey newState statesByKey, Dict.insert inputSourceKey input inputsByKey )
+        keyAndMouse =
+            if model.config.useKeyboardAndMouse || Dict.size gamepadsInputByKey == 0 then
+                Dict.singleton inputKeyboardAndMouseKey (getKeyboardAndMouseInputState model)
+            else
+                Dict.empty
 
         ( botStatesByKey, botInputsByKey ) =
-            Dict.foldl foldBot ( Dict.empty, Dict.empty ) model.botStatesByKey
+            allBotsThink model
 
         inputStatesByKey =
             botInputsByKey
                 |> Dict.union gamepadsInputByKey
-                |> Dict.insert inputKeyboardAndMouseKey keyboardAndMouseInput
+                |> Dict.union keyAndMouse
 
         -- All times in the game are in seconds
         time =
@@ -271,13 +303,13 @@ update msg model =
                     noCmd model
 
                 Just menu ->
-                    case Menu.update menuMsg menu of
+                    case Menu.update menuMsg model.config menu of
                         ( menu, Nothing ) ->
                             noCmd { model | maybeMenu = Just menu }
 
-                        ( menu, Just db ) ->
-                            ( { model | maybeMenu = Just menu, gamepadDatabase = db }
-                            , saveGamepadDatabase model db
+                        ( menu, Just config ) ->
+                            ( { model | maybeMenu = Just menu, config = config }
+                            , saveGamepadDatabase model config.gamepadDatabase
                             )
 
         OnKeyboardMsg keyboardMsg ->
@@ -293,7 +325,7 @@ update msg model =
                         { model
                             | maybeMenu =
                                 if model.maybeMenu == Nothing then
-                                    Just (Menu.init model.gamepadDatabase)
+                                    Just (Menu.init model.config)
                                 else
                                     Nothing
                         }
@@ -331,7 +363,7 @@ view model =
             ]
         , case model.maybeMenu of
             Just menu ->
-                Menu.view menu |> Html.map OnMenuMsg
+                Menu.view model.config menu |> Html.map OnMenuMsg
 
             Nothing ->
                 text ""

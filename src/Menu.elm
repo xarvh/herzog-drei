@@ -10,6 +10,13 @@ import Remap
 import Set exposing (Set)
 
 
+type alias Config =
+    { gamepadDatabase : Gamepad.Database
+    , useKeyboardAndMouse : Bool
+    }
+
+
+
 -- Gamepad Button Map
 
 
@@ -49,18 +56,12 @@ type Msg
 
 type alias Model =
     { remap : Remap.Model
-
-    -- actual config
-    , useKeyboardAndMouse : Bool
     }
 
 
-init : Gamepad.Database -> Model
-init db =
-    { remap = Remap.init gamepadButtonMap db
-
-    --
-    , useKeyboardAndMouse = True
+init : Config -> Model
+init config =
+    { remap = Remap.init gamepadButtonMap config.gamepadDatabase
     }
 
 
@@ -68,37 +69,38 @@ init db =
 -- Update
 
 
-noCmd : Model -> ( Model, Maybe Gamepad.Database )
+noCmd : Model -> ( Model, Maybe Config )
 noCmd model =
     ( model, Nothing )
 
 
-update : Msg -> Model -> ( Model, Maybe Gamepad.Database )
-update msg model =
+update : Msg -> Config -> Model -> ( Model, Maybe Config )
+update msg config model =
     case msg of
         Noop ->
             noCmd model
 
         OnToggleKeyboardAndMouse ->
-            noCmd { model | useKeyboardAndMouse = not model.useKeyboardAndMouse }
+            ( model, Just { config | useKeyboardAndMouse = not config.useKeyboardAndMouse } )
 
         OnRemapMsg remapMsg ->
             Remap.update remapMsg model.remap
                 |> Tuple.mapFirst (\newRemap -> { model | remap = newRemap })
+                |> Tuple.mapSecond (Maybe.map <| \db -> { config | gamepadDatabase = db })
 
 
 
 -- View
 
 
-viewConfig : Model -> Html Msg
-viewConfig model =
+viewConfig : Config -> Model -> Html Msg
+viewConfig config model =
     let
         noGamepads =
             Remap.gamepadsCount model.remap == 0
 
         actuallyUseKeyboardAndMouse =
-            noGamepads || model.useKeyboardAndMouse
+            noGamepads || config.useKeyboardAndMouse
 
         keyboardInstructionsClass =
             if actuallyUseKeyboardAndMouse then
@@ -131,8 +133,8 @@ viewConfig model =
         ]
 
 
-view : Model -> Html Msg
-view model =
+view : Config -> Model -> Html Msg
+view config model =
     div
         [ class "fullWindow flex alignCenter justifyCenter"
         ]
@@ -141,7 +143,7 @@ view model =
             [ div
                 []
                 [ if not <| Remap.isRemapping model.remap then
-                    viewConfig model
+                    viewConfig config model
                   else
                     text ""
                 , section
