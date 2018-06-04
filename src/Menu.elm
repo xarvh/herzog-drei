@@ -142,7 +142,10 @@ view config model =
             [ class "menu p2" ]
             [ div
                 []
-                [ if not <| Remap.isRemapping model.remap then
+                [ section
+                    []
+                    [ text "Press Esc to toggle the Menu" ]
+                , if not <| Remap.isRemapping model.remap then
                     viewConfig config model
                   else
                     text ""
@@ -150,9 +153,6 @@ view config model =
                     []
                     [ Remap.view model.remap |> Html.map OnRemapMsg
                     ]
-                , section
-                    [ class "gray" ]
-                    [ text "Press Esc to toggle the Menu" ]
                 ]
             ]
         ]
