@@ -10,6 +10,11 @@ import Svg.Attributes
 --
 
 
+textNotSelectable : Svg.Attribute a
+textNotSelectable =
+    Svg.Attributes.style "user-select: none; -moz-user-select: none;"
+
+
 smooth : Float -> Float -> Float -> Float
 smooth t a b =
     let

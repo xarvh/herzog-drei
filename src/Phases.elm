@@ -373,6 +373,7 @@ viewSetup rects game =
                 , SA.fontSize "1"
                 , SA.fontFamily "'NewAcademy', sans-serif"
                 , SA.fontWeight "700"
+                , textNotSelectable
                 ]
                 [ text "Select your team" ]
         ]

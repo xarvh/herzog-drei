@@ -249,7 +249,7 @@ viewVictory game =
                 , Svg.Attributes.stroke pattern.dark
                 , Svg.Attributes.strokeWidth "0.005"
                 , Svg.Attributes.y "-0.2"
-                , Svg.Attributes.style "user-select: none; -moz-user-select: none;"
+                , textNotSelectable
                 ]
                 [ String.Extra.toTitleCase pattern.key ++ " wins!" |> text ]
 
