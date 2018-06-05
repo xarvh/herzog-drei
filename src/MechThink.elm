@@ -205,6 +205,7 @@ repairDelta dt game unit mech =
                 deltaList
                     [ Base.deltaRepairUnit dt base.id unit.id
                     , View.Gfx.deltaAddRepairBeam base.position unit.position
+                    , View.Gfx.deltaAddRepairBubbles 4 dt unit.position
                     ]
 
 

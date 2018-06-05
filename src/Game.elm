@@ -382,6 +382,7 @@ type GfxRender
     | GfxProjectileCase Vec2 Angle
     | GfxRepairBeam Vec2 Vec2
     | GfxFlyingHead Vec2 Vec2 ColorPattern
+    | GfxRepairBubble Vec2
 
 
 type alias Gfx =
