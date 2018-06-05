@@ -24,9 +24,9 @@ smooth t a b =
     tt * b + (1 - tt) * a
 
 
-step : Float -> Float -> Float -> Float
-step t a b =
-    if t > 0 then
+step : Float -> Float -> Float -> Float -> Float
+step t threshold a b =
+    if t > threshold then
         b
     else
         a

@@ -49,7 +49,7 @@ mech t headAngle topAngle darkColor brightColor =
             View.smooth t
 
         step =
-            View.step t
+            View.step t 0
 
         rectPlate strokeColor fillColor xx yy ww hh aa =
             rect
@@ -69,17 +69,6 @@ mech t headAngle topAngle darkColor brightColor =
                 [ rectPlate brightColor darkColor -xx yy ww hh -aa
                 , rectPlate brightColor darkColor xx yy ww hh aa
                 ]
-
-        eye xx yy aa =
-            ellipse
-                [ transform [ translate2 xx yy, rotateDeg aa ]
-                , fill "#f80000"
-                , stroke "#990000"
-                , strokeWidth 0.01
-                , ry 0.027
-                , rx 0.018
-                ]
-                []
     in
     g []
         [ g
@@ -114,21 +103,77 @@ mech t headAngle topAngle darkColor brightColor =
                 (smooth 0.23 0.25)
                 (smooth 10 -45)
             ]
-        , g
-            [ transform [ scale 3, rotateRad (step headAngle topAngle) ] ]
-            [ ellipse
-                [ cx 0
-                , cy -0.01
-                , rx 0.08
-                , ry <| smooth 0.17 0.34
-                , fill darkColor
-                , stroke brightColor
-                , strokeWidth 0.02
+        , head t brightColor darkColor (step headAngle topAngle)
+
+        {- , g
+           [ transform [ scale 3, rotateRad (step headAngle topAngle) ] ]
+           [ ellipse
+               [ cx 0
+               , cy -0.01
+               , rx 0.08
+               , ry <| smooth 0.17 0.34
+               , fill darkColor
+               , stroke brightColor
+               , strokeWidth 0.02
+               ]
+               []
+           , eye 0.03 (smooth 0.1 0.22) 14
+           , eye -0.03 (smooth 0.1 0.22) -14
+           , eye 0.05 (smooth 0.03 0.15) 6
+           , eye -0.05 (smooth 0.03 0.15) -6
+           ]
+        -}
+        ]
+
+
+head : Float -> String -> String -> Angle -> Svg a
+head t brightColor darkColor angle =
+    let
+        smooth =
+            View.smooth t
+
+        eye xx yy aa =
+            ellipse
+                [ transform [ translate2 xx yy, rotateDeg aa ]
+                , fill "#f80000"
+                , stroke "#990000"
+                , strokeWidth 0.01
+                , ry 0.027
+                , rx 0.018
                 ]
                 []
-            , eye 0.03 (smooth 0.1 0.22) 14
-            , eye -0.03 (smooth 0.1 0.22) -14
-            , eye 0.05 (smooth 0.03 0.15) 6
-            , eye -0.05 (smooth 0.03 0.15) -6
+    in
+    g
+        [ transform [ scale 3, rotateRad angle ] ]
+        [ ellipse
+            [ cx 0
+            , cy -0.01
+            , rx 0.08
+            , ry <| smooth 0.17 0.34
+            , fill darkColor
+            , stroke brightColor
+            , strokeWidth 0.02
             ]
+            []
+        , eye 0.03 (smooth 0.1 0.22) 14
+        , eye -0.03 (smooth 0.1 0.22) -14
+        , eye 0.05 (smooth 0.03 0.15) 6
+        , eye -0.05 (smooth 0.03 0.15) -6
+        ]
+
+
+headOverlay : Float -> Angle -> Svg a
+headOverlay op angle =
+    g
+        [ transform [ scale 3, rotateRad angle ]
+        , opacity op
+        ]
+        [ ellipse
+            [ cx 0
+            , cy -0.01
+            , rx 0.08
+            , ry 0.17
+            , fill "#fff"
+            ]
+            []
         ]

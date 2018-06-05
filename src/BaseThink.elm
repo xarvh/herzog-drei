@@ -6,6 +6,7 @@ import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 import Unit
+import View.Gfx
 
 
 maxSubsPerTeam =
@@ -58,7 +59,13 @@ deltaRepairEmbeddedSubs dt game base occupied =
             |> Set.toList
             |> List.filterMap (\id -> Dict.get id game.unitById)
             |> List.filter (\u -> u.integrity < 1)
-            |> List.map (\u -> Base.deltaRepairUnit dt base.id u.id)
+            |> List.map
+                (\u ->
+                    deltaList
+                        [ Base.deltaRepairUnit dt base.id u.id
+                        , View.Gfx.deltaAddRepairBubbles 0.5 dt u.position
+                        ]
+                )
             |> deltaList
 
 

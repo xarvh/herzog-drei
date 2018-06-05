@@ -237,34 +237,11 @@ type alias Unit =
     }
 
 
-addUnit : UnitComponent -> Maybe TeamId -> Vec2 -> Game -> ( Game, Unit )
-addUnit component maybeTeamId position game =
+addUnit : UnitComponent -> Maybe TeamId -> Vec2 -> Angle -> Game -> ( Game, Unit )
+addUnit component maybeTeamId position startAngle game =
     let
         id =
             game.lastId + 1
-
-        ( x, y ) =
-            Vec2.toTuple position
-
-        -- When a newly constructed unit leaves the base, it will face the
-        -- orhtogonal direction closest to the center.
-        startAngle =
-            case ( y > x, y > -x ) of
-                ( True, True ) ->
-                    -- base is above map center, unit exits down
-                    pi
-
-                ( False, True ) ->
-                    -- base is right of map center, unit exits left
-                    -pi / 2
-
-                ( False, False ) ->
-                    -- base is below map center, unit exits up
-                    0
-
-                ( True, False ) ->
-                    -- base left of map center, unit exits right
-                    pi / 2
 
         faceCenterOfMap =
             Vec2.negate position |> vecToAngle
@@ -293,22 +270,54 @@ addUnit component maybeTeamId position game =
 
 
 addSub : Maybe TeamId -> Vec2 -> Game -> ( Game, Unit )
-addSub =
-    { mode = UnitModeFree
-    , targetId = -1
-    }
-        |> UnitSub
-        |> addUnit
+addSub maybeTeamId position game =
+    let
+        ( x, y ) =
+            Vec2.toTuple position
+
+        -- When a newly constructed unit leaves the base, it will face the
+        -- orhtogonal direction closest to the center.
+        startAngle =
+            case ( y > x, y > -x ) of
+                ( True, True ) ->
+                    -- base is above map center, unit exits down
+                    pi
+
+                ( False, True ) ->
+                    -- base is right of map center, unit exits left
+                    -pi / 2
+
+                ( False, False ) ->
+                    -- base is below map center, unit exits up
+                    0
+
+                ( True, False ) ->
+                    -- base left of map center, unit exits right
+                    pi / 2
+
+        subComponent =
+            UnitSub
+                { mode = UnitModeFree
+                , targetId = -1
+                }
+    in
+    addUnit subComponent maybeTeamId position startAngle game
 
 
 addMech : String -> Maybe TeamId -> Vec2 -> Game -> ( Game, Unit )
-addMech inputKey =
-    { transformState = 1
-    , transformingTo = ToPlane
-    , inputKey = inputKey
-    }
-        |> UnitMech
-        |> addUnit
+addMech inputKey maybeTeamId position game =
+    let
+        startAngle =
+            0
+
+        mechComponent =
+            UnitMech
+                { transformState = 1
+                , transformingTo = ToPlane
+                , inputKey = inputKey
+                }
+    in
+    addUnit mechComponent maybeTeamId position startAngle game
 
 
 removeUnit : Id -> Game -> Game
@@ -372,6 +381,8 @@ type GfxRender
     | GfxExplosion Vec2 Float
     | GfxProjectileCase Vec2 Angle
     | GfxRepairBeam Vec2 Vec2
+    | GfxFlyingHead Vec2 Vec2 ColorPattern
+    | GfxRepairBubble Vec2
 
 
 type alias Gfx =
