@@ -6,6 +6,7 @@ import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import View exposing (..)
+import View.Mech
 
 
 deltaAddGfx : Gfx -> Delta
@@ -53,6 +54,22 @@ deltaAddExplosion position size =
         }
 
 
+deltaAddFlyingHead : Vec2 -> Vec2 -> ColorPattern -> Delta
+deltaAddFlyingHead origin destination colorPattern =
+    let
+        speed =
+            13
+
+        maxAge =
+            Vec2.distance origin destination / speed
+    in
+    deltaAddGfx
+        { age = 0
+        , maxAge = maxAge
+        , render = GfxFlyingHead origin destination colorPattern
+        }
+
+
 
 -- Update
 
@@ -73,6 +90,35 @@ update dt cosmetic =
 -- View
 
 
+renderRepairBeam : Vec2 -> Vec2 -> Float -> Svg a
+renderRepairBeam start end t =
+    let
+        dp =
+            Vec2.sub end start
+
+        a =
+            vecToAngle dp
+
+        l =
+            Vec2.length dp
+
+        x1 =
+            sin (13 * t)
+
+        x2 =
+            cos (50 * t)
+    in
+    path
+        [ transform [ translate start, rotateRad a, scale2 1 l ]
+        , d <| "M0,0 C" ++ toString x1 ++ ",0.33 " ++ toString x2 ++ ",0.66 0,1"
+        , fill "none"
+        , stroke "#2f0"
+        , strokeWidth 0.06
+        , opacity 0.8
+        ]
+        []
+
+
 render : Gfx -> Svg a
 render cosmetic =
     let
@@ -81,31 +127,7 @@ render cosmetic =
     in
     case cosmetic.render of
         GfxRepairBeam start end ->
-            let
-                dp =
-                    Vec2.sub end start
-
-                a =
-                    vecToAngle dp
-
-                l =
-                    Vec2.length dp
-
-                x1 =
-                    sin (13 * t)
-
-                x2 =
-                    cos (50 * t)
-            in
-            path
-                [ transform [ translate start, rotateRad a, scale2 1 l ]
-                , d <| "M0,0 C" ++ toString x1 ++ ",0.33 " ++ toString x2 ++ ",0.66 0,1"
-                , fill "none"
-                , stroke "#2f0"
-                , strokeWidth 0.06
-                , opacity 0.8
-                ]
-                []
+            renderRepairBeam start end t
 
         GfxProjectileCase origin angle ->
             rect
@@ -176,3 +198,23 @@ render cosmetic =
                         , "scale(0.3,0.3)"
                         ]
                     ]
+
+        GfxFlyingHead origin destination colorPattern ->
+            let
+                headPosition =
+                    Vec2.add (Vec2.scale t destination) (Vec2.scale (1 - t) origin)
+
+                angle =
+                    vecToAngle (Vec2.sub destination origin)
+            in
+            g
+                []
+                [ renderRepairBeam destination headPosition t
+                , g
+                    [ transform [ translate headPosition ]
+                    , opacity (1 - t * t)
+                    ]
+                    [ View.Mech.head 0 colorPattern.dark colorPattern.bright angle
+                    , View.Mech.headOverlay (0.3 + 0.3 * sin (cosmetic.age * 30)) angle
+                    ]
+                ]

@@ -1,7 +1,6 @@
 module MechThink exposing (..)
 
 import Base
-import ColorPattern
 import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra

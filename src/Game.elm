@@ -372,6 +372,7 @@ type GfxRender
     | GfxExplosion Vec2 Float
     | GfxProjectileCase Vec2 Angle
     | GfxRepairBeam Vec2 Vec2
+    | GfxFlyingHead Vec2 Vec2 ColorPattern
 
 
 type alias Gfx =

@@ -23,7 +23,7 @@ think dt inpuStateByKey game unit =
                     SubThink.destroy game unit sub
 
                 UnitMech mech ->
-                    respawnMech game mech.inputKey unit.maybeTeamId
+                    respawnMech game unit mech
             ]
     else
         deltaList
@@ -62,11 +62,15 @@ thinkReload dt game unit =
 -- Respawn
 
 
-respawnMech : Game -> String -> Maybe TeamId -> Delta
-respawnMech game inputKey maybeTeamId =
-    case Base.teamMainBase game maybeTeamId of
+respawnMech : Game -> Unit -> MechComponent -> Delta
+respawnMech game unit mech =
+    case Base.teamMainBase game unit.maybeTeamId of
         Nothing ->
+            -- base destroyed, can't respawn
             deltaNone
 
         Just mainBase ->
-            deltaBase mainBase.id (Base.updateOccupied <| \o -> { o | mechBuildCompletions = ( inputKey, 0 ) :: o.mechBuildCompletions })
+            deltaList
+                [ View.Gfx.deltaAddFlyingHead unit.position mainBase.position (teamColorPattern game unit.maybeTeamId)
+                , deltaBase mainBase.id (Base.updateOccupied <| \o -> { o | mechBuildCompletions = ( mech.inputKey, 0 ) :: o.mechBuildCompletions })
+                ]
