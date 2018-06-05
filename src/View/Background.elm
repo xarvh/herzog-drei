@@ -20,27 +20,6 @@ type alias Rect =
 
 
 
--- CSS animation for darker moving lines
-
-
-classAndAnimation =
-    """
-    .background-path {
-      stroke-dasharray: 1, 50;
-      animation: dash 100s linear;
-      animation-iteration-count: infinite;
-      stroke: gray;
-    }
-
-    @keyframes dash {
-      to {
-        stroke-dashoffset: 1000;
-      }
-    }
-    """
-
-
-
 -- Random generation
 
 

@@ -15,7 +15,6 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Menu
 import Mouse
 import SplitScreen exposing (Viewport)
-import Style
 import Task
 import Time exposing (Time)
 import Update
@@ -353,12 +352,7 @@ view model =
     in
     div
         [ class "relative" ]
-        [ Html.node "style"
-            []
-            [ text Style.global
-            , text View.Background.classAndAnimation
-            ]
-        , div
+        [ div
             [ class "game-area" ]
             [ [ View.Game.view model.terrain model.viewport model.game ]
                 |> SplitScreen.viewportsWrapper
