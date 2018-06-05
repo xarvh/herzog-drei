@@ -1,12 +1,30 @@
-module Style exposing (..)
-
-
-global =
-    """
-body {
-  margin: 0;
-  font-family: sans-serif;
+/* From: https://fontlibrary.org/en/font/xolonium */
+@font-face {
+  font-family: 'XoloniumBold';
+  src: url('XoloniumBold.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
 }
+
+@font-face {
+  font-family: 'XoloniumRegular';
+  src: url('XoloniumRegular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+
+/* From: https://fontlibrary.org/en/font/new-academy */
+@font-face {
+  font-family: 'NewAcademy';
+  src: url('NewAcademy.ttf') format('truetype');
+  font-weight: bold;
+  font-style: normal;
+}
+
+
+
+/* Atomic CSS */
 
 .flex { display: flex; }
 .flex1 { flex: 1; }
@@ -45,7 +63,22 @@ body {
 .gray { color: gray; }
 
 
-/* menu */
+
+/* Main */
+
+body {
+  margin: 0;
+  font-family: 'XoloniumRegular', sans-serif;
+}
+
+.game-area {
+  cursor: url(crosshair.png) 64 64, crosshair;
+}
+
+
+
+/* Menu */
+
 .menu {
   background-color: white;
   border: 1px solid black;
@@ -54,4 +87,20 @@ body {
 .menu * + section {
   margin-top: 2em;
 }
-"""
+
+
+
+/* Background animation */
+
+.background-path {
+  stroke-dasharray: 1, 50;
+  animation: dash 100s linear;
+  animation-iteration-count: infinite;
+  stroke: gray;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: 1000;
+  }
+}

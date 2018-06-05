@@ -243,13 +243,13 @@ viewVictory game =
             text_
                 [ Svg.Attributes.textAnchor "middle"
                 , Svg.Attributes.fontSize "0.2"
-                , Svg.Attributes.fontFamily "'proxima-nova', sans-serif"
+                , Svg.Attributes.fontFamily "'NewAcademy', sans-serif"
                 , Svg.Attributes.fontWeight "700"
                 , Svg.Attributes.fill pattern.bright
                 , Svg.Attributes.stroke pattern.dark
                 , Svg.Attributes.strokeWidth "0.005"
                 , Svg.Attributes.y "-0.2"
-                , Svg.Attributes.style "user-select: none;"
+                , Svg.Attributes.style "user-select: none; -moz-user-select: none;"
                 ]
                 [ String.Extra.toTitleCase pattern.key ++ " wins!" |> text ]
 
@@ -288,7 +288,7 @@ view terrain viewport game =
             [ Svg.Lazy.lazy View.Background.terrain terrain
             , Svg.g maybeOpacity
                 [ if game.phase == PhaseSetup then
-                    Phases.viewSetup game
+                    Phases.viewSetup terrain game
                   else
                     Svg.text ""
                 , subs

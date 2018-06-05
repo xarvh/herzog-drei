@@ -65,6 +65,9 @@ transformMode mech =
 
 takeDamage : Int -> Game -> Unit -> Unit
 takeDamage rawDamage game unit =
+  if game.phase == PhaseSetup then
+    unit
+  else
     let
         ( healthPoints, armor ) =
             case unit.component of
