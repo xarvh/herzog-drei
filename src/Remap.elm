@@ -267,25 +267,27 @@ view model =
             text ""
 
         ( Nothing, Just blob ) ->
-            let
-                allPads =
-                    Gamepad.getAllGamepadsAsUnknown blob
+            case Gamepad.getAllGamepadsAsUnknown blob of
+                [] ->
+                    text "No Gamepads found"
 
-                allIndexesForId id =
-                    allPads
-                        |> List.filter (\pad -> Gamepad.unknownGetId pad == id)
-                        |> List.map Gamepad.unknownGetIndex
+                allPads ->
+                    let
+                        allIndexesForId id =
+                            allPads
+                                |> List.filter (\pad -> Gamepad.unknownGetId pad == id)
+                                |> List.map Gamepad.unknownGetIndex
 
-                gamepadIndexesGroupedById =
-                    allPads
-                        |> List.map Gamepad.unknownGetId
-                        |> List.Extra.unique
-                        |> List.map (\id -> ( id, allIndexesForId id ))
-                        |> List.sortBy Tuple.first
-            in
-            gamepadIndexesGroupedById
-                |> List.map (viewAllGamepadsWithId model blob)
-                |> div [ class "elm-gamepad-remap" ]
+                        gamepadIndexesGroupedById =
+                            allPads
+                                |> List.map Gamepad.unknownGetId
+                                |> List.Extra.unique
+                                |> List.map (\id -> ( id, allIndexesForId id ))
+                                |> List.sortBy Tuple.first
+                    in
+                    gamepadIndexesGroupedById
+                        |> List.map (viewAllGamepadsWithId model blob)
+                        |> div [ class "elm-gamepad-remap" ]
 
 
 
