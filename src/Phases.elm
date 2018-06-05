@@ -193,6 +193,24 @@ addMechForEveryPlayer game =
         |> addMechsForTeam game.rightTeam
 
 
+initMarkerPosition : Team -> Game -> Game
+initMarkerPosition team game =
+    case Base.teamMainBase game (Just team.id) of
+        Nothing ->
+            game
+
+        Just base ->
+            let
+                markerPosition =
+                    base.position
+                        |> Vec2.negate
+                        |> Vec2.normalize
+                        |> Vec2.scale 5
+                        |> Vec2.add base.position
+            in
+            updateTeam { team | markerPosition = markerPosition } game
+
+
 setupToPlayPhase : Game -> Game
 setupToPlayPhase game =
     let
@@ -210,6 +228,8 @@ setupToPlayPhase game =
         |> Init.addSmallBase ( 5, -2 )
         |> Init.addMainBase (Just game.leftTeam.id) ( -16, -6 )
         |> Init.addMainBase (Just game.rightTeam.id) ( 16, 6 )
+        |> initMarkerPosition game.leftTeam
+        |> initMarkerPosition game.rightTeam
         |> Init.kickstartPathing
         |> addMechForEveryPlayer
 
@@ -367,13 +387,13 @@ viewSetup rects game =
             |> List.sortBy .x
             |> viewTeamRects game.rightTeam.colorPattern
         , text_
-                [ transform [ scale2 1 -1 ]
-                , y (2 - toFloat game.halfHeight)
-                , SA.textAnchor "middle"
-                , SA.fontSize "1"
-                , SA.fontFamily "'NewAcademy', sans-serif"
-                , SA.fontWeight "700"
-                , textNotSelectable
-                ]
-                [ text "Select your team" ]
+            [ transform [ scale2 1 -1 ]
+            , y (2 - toFloat game.halfHeight)
+            , SA.textAnchor "middle"
+            , SA.fontSize "1"
+            , SA.fontFamily "'NewAcademy', sans-serif"
+            , SA.fontWeight "700"
+            , textNotSelectable
+            ]
+            [ text "Select your team" ]
         ]
