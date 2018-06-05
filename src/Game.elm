@@ -611,6 +611,27 @@ addStaticObstacles tiles game =
 
 
 
+-- Seconds helpers
+
+
+periodLinear : Game -> Float -> Seconds -> Float
+periodLinear game phase period =
+    let
+        t =
+            game.time + phase * period
+
+        n =
+            t / period |> floor |> toFloat
+    in
+    t / period - n
+
+
+periodHarmonic : Game -> Angle -> Seconds -> Float
+periodHarmonic game phase period =
+    periodLinear game phase period * pi |> sin
+
+
+
 -- Geometry helpers
 
 

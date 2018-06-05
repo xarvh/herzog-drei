@@ -1,7 +1,7 @@
 module View.Game exposing (..)
 
 import Base
-import ColorPattern exposing (neutral)
+import ColorPattern exposing (ColorPattern, neutral)
 import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
@@ -175,9 +175,77 @@ mechVsUnit units =
     List.foldl folder ( [], [] ) units
 
 
+arrowUp : String -> String -> Svg a
+arrowUp fillColor strokeColor =
+    path
+        [ [ "M -1,0"
+          , "L 0,1"
+          , "L 1,0"
+          , "L 0.5,0"
+          , "L 0.5,-1"
+          , "L -0.5,-1"
+          , "L -0.5,0"
+          , "Z"
+          ]
+            |> String.join " "
+            |> d
+        , fill fillColor
+        , stroke strokeColor
+        , strokeWidth 0.2
+        ]
+        []
+
+
 viewMarker : Game -> Team -> Svg a
 viewMarker game team =
-    circle team.markerPosition team.colorPattern.dark 0.2
+    let
+        fillColor =
+            team.colorPattern.dark
+
+        strokeColor =
+            team.colorPattern.bright
+
+        distance =
+            2 + 1 * periodHarmonic game 0 1.2
+
+        an =
+            periodHarmonic game 0.1 20 * 180
+
+        arrow angle =
+            g
+                [ transform
+                    [ rotateDeg angle
+                    , scale 0.4
+                    , translate2 0 -distance
+                    ]
+                ]
+                [ arrowUp fillColor strokeColor ]
+    in
+    g
+        [ transform [ translate team.markerPosition, scale -0.5 ]
+        ]
+        [ ellipse
+            [ fill fillColor
+            , stroke strokeColor
+            , strokeWidth 0.1
+            , rx 0.5
+            , ry 0.6
+            ]
+            []
+        , ellipse
+            [ fill fillColor
+            , stroke strokeColor
+            , strokeWidth 0.07
+            , cy 0.27
+            , rx 0.25
+            , ry 0.3
+            ]
+            []
+        , arrow (an + 45)
+        , arrow (an + 135)
+        , arrow (an + 225)
+        , arrow (an + -45)
+        ]
 
 
 viewProjectile : Projectile -> Svg a
@@ -249,7 +317,7 @@ viewVictory game =
                 , Svg.Attributes.stroke pattern.dark
                 , Svg.Attributes.strokeWidth "0.005"
                 , Svg.Attributes.y "-0.2"
-                , Svg.Attributes.style "user-select: none; -moz-user-select: none;"
+                , textNotSelectable
                 ]
                 [ String.Extra.toTitleCase pattern.key ++ " wins!" |> text ]
 
