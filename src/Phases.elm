@@ -366,4 +366,13 @@ viewSetup rects game =
             |> List.filter (\rect -> rect.x + rect.w / 2 > neutralTilesHalfWidth)
             |> List.sortBy .x
             |> viewTeamRects game.rightTeam.colorPattern
+        , text_
+                [ transform [ scale2 1 -1 ]
+                , y (2 - toFloat game.halfHeight)
+                , SA.textAnchor "middle"
+                , SA.fontSize "1"
+                , SA.fontFamily "'NewAcademy', sans-serif"
+                , SA.fontWeight "700"
+                ]
+                [ text "Select your team" ]
         ]
