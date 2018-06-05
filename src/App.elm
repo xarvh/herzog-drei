@@ -76,6 +76,12 @@ init params flags =
             { gamepadDatabase = gamepadDatabase
             , useKeyboardAndMouse = True
             }
+
+        maybeMenu =
+            if Dict.member "noMenu" params then
+                Nothing
+            else
+                Just (Menu.init config)
     in
     ( { game = game
       , botStatesByKey = Dict.empty
@@ -87,7 +93,7 @@ init params flags =
       , params = params
       , terrain = View.Background.initRects game
       , pressedKeys = []
-      , maybeMenu = Just (Menu.init config)
+      , maybeMenu = maybeMenu
       , config = config
       , flags = flags
       }
@@ -271,7 +277,10 @@ updateOnGamepad ( timeInMilliseconds, gamepadBlob ) model =
             time - model.game.time
 
         game =
-            Update.update time inputStatesByKey model.game
+            if model.maybeMenu == Nothing then
+                Update.update time inputStatesByKey model.game
+            else
+                model.game
     in
     { model
         | game = game
