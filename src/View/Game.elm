@@ -354,43 +354,46 @@ view terrain viewport game =
             [ transform [ "scale(1 -1)", scale (1 / tilesToViewport game viewport) ]
             ]
             [ Svg.Lazy.lazy View.Background.terrain terrain
-            , Svg.g maybeOpacity
+            , g maybeOpacity
                 [ if game.phase == PhaseSetup then
                     Phases.viewSetup terrain game
                   else
-                    Svg.text ""
+                    text ""
                 , subs
                     |> List.filter (\( u, s ) -> s.mode == UnitModeFree)
                     |> List.map (viewSub game)
-                    |> Svg.g []
+                    |> g []
                 , game.wallTiles
                     |> Set.toList
                     |> List.map wall
-                    |> Svg.g []
+                    |> g []
                 , game.baseById
                     |> Dict.values
                     |> List.map (viewBase game)
-                    |> Svg.g []
+                    |> g []
                 , subs
                     |> List.filter (\( u, s ) -> s.mode /= UnitModeFree)
                     |> List.map (viewSub game)
-                    |> Svg.g []
+                    |> g []
                 , mechs
                     |> List.map (viewMech game)
-                    |> Svg.g []
-                , [ game.leftTeam, game.rightTeam ]
-                    |> List.map (viewMarker game)
-                    |> Svg.g []
+                    |> g []
+                , if game.phase /= PhasePlay then
+                    text ""
+                  else
+                    [ game.leftTeam, game.rightTeam ]
+                        |> List.map (viewMarker game)
+                        |> g []
                 , game.projectileById
                     |> Dict.values
                     |> List.map viewProjectile
-                    |> Svg.g []
+                    |> g []
                 , game.cosmetics
                     |> List.map View.Gfx.render
-                    |> Svg.g []
+                    |> g []
                 , units
                     |> List.map viewHealthbar
-                    |> Svg.g []
+                    |> g []
                 ]
             ]
         , viewVictory game
