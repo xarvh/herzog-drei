@@ -87,7 +87,7 @@ initRects game =
                 |> List.concat
                 |> Random.Extra.combine
     in
-    Random.step generator (Random.initialSeed 0)
+    Random.step generator game.seed
         |> Tuple.first
 
 

@@ -288,7 +288,7 @@ view terrain viewport game =
             [ Svg.Lazy.lazy View.Background.terrain terrain
             , Svg.g maybeOpacity
                 [ if game.phase == PhaseSetup then
-                    Phases.viewSetup game
+                    Phases.viewSetup terrain game
                   else
                     Svg.text ""
                 , subs
