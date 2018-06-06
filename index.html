@@ -16,11 +16,11 @@
     </head>
     <body>
         <script type="text/javascript">
-            var gamepadDatabaseKey = "gamepadDatabase"
+            var configKey = "config"
             var elmApp = Elm.Main.fullscreen({
                 dateNow: Date.now(),
-                gamepadDatabaseKey: gamepadDatabaseKey,
-                gamepadDatabaseAsString: localStorage[gamepadDatabaseKey] || "",
+                configKey: configKey,
+                configAsString: localStorage[configKey] || "",
             });
             addGamepadPort(elmApp);
             addLocalStoragePort(elmApp);

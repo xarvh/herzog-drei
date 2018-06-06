@@ -1,5 +1,6 @@
 module Menu exposing (..)
 
+import Config exposing (Config)
 import Dict exposing (Dict)
 import Gamepad exposing (Gamepad)
 import GamepadPort
@@ -8,13 +9,6 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Remap
 import Set exposing (Set)
-
-
-type alias Config =
-    { gamepadDatabase : Gamepad.Database
-    , useKeyboardAndMouse : Bool
-    }
-
 
 
 -- Gamepad Button Map
