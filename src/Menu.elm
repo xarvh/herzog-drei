@@ -53,9 +53,9 @@ type alias Model =
     }
 
 
-init : Config -> Model
-init config =
-    { remap = Remap.init gamepadButtonMap config.gamepadDatabase
+init : Model
+init =
+    { remap = Remap.init gamepadButtonMap
     }
 
 
@@ -80,7 +80,7 @@ update msg config model =
         OnRemapMsg remapMsg ->
             Remap.update remapMsg model.remap
                 |> Tuple.mapFirst (\newRemap -> { model | remap = newRemap })
-                |> Tuple.mapSecond (Maybe.map <| \db -> { config | gamepadDatabase = db })
+                |> Tuple.mapSecond (Maybe.map <| \updateDb -> { config | gamepadDatabase = updateDb config.gamepadDatabase })
 
 
 
@@ -145,7 +145,7 @@ view config model =
                     text ""
                 , section
                     []
-                    [ Remap.view model.remap |> Html.map OnRemapMsg
+                    [ Remap.view config.gamepadDatabase model.remap |> Html.map OnRemapMsg
                     ]
                 ]
             ]

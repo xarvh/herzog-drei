@@ -76,7 +76,7 @@ init params flags =
             if Dict.member "noMenu" params then
                 Nothing
             else
-                Just (Menu.init config)
+                Just Menu.init
     in
     ( { game = game
       , botStatesByKey = Dict.empty
@@ -336,7 +336,7 @@ update msg model =
                         { model
                             | maybeMenu =
                                 if model.maybeMenu == Nothing then
-                                    Just (Menu.init model.config)
+                                    Just Menu.init
                                 else
                                     Nothing
                         }
