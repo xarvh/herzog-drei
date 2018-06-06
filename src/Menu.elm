@@ -1,5 +1,6 @@
 module Menu exposing (..)
 
+import Config exposing (Config)
 import Dict exposing (Dict)
 import Gamepad exposing (Gamepad)
 import GamepadPort
@@ -8,13 +9,6 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
 import Remap
 import Set exposing (Set)
-
-
-type alias Config =
-    { gamepadDatabase : Gamepad.Database
-    , useKeyboardAndMouse : Bool
-    }
-
 
 
 -- Gamepad Button Map
@@ -59,9 +53,9 @@ type alias Model =
     }
 
 
-init : Config -> Model
-init config =
-    { remap = Remap.init gamepadButtonMap config.gamepadDatabase
+init : Model
+init =
+    { remap = Remap.init gamepadButtonMap
     }
 
 
@@ -86,7 +80,7 @@ update msg config model =
         OnRemapMsg remapMsg ->
             Remap.update remapMsg model.remap
                 |> Tuple.mapFirst (\newRemap -> { model | remap = newRemap })
-                |> Tuple.mapSecond (Maybe.map <| \db -> { config | gamepadDatabase = db })
+                |> Tuple.mapSecond (Maybe.map <| \updateDb -> { config | gamepadDatabase = updateDb config.gamepadDatabase })
 
 
 
@@ -143,7 +137,7 @@ view config model =
             [ div
                 []
                 [ section
-                    []
+                    [ class "highlight-animation"]
                     [ text "Press Esc to toggle the Menu" ]
                 , if not <| Remap.isRemapping model.remap then
                     viewConfig config model
@@ -151,7 +145,7 @@ view config model =
                     text ""
                 , section
                     []
-                    [ Remap.view model.remap |> Html.map OnRemapMsg
+                    [ Remap.view config.gamepadDatabase model.remap |> Html.map OnRemapMsg
                     ]
                 ]
             ]

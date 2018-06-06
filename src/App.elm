@@ -1,6 +1,7 @@
 module App exposing (..)
 
 import Bot.Dummy
+import Config exposing (Config)
 import Dict exposing (Dict)
 import Game exposing (..)
 import Gamepad exposing (Gamepad)
@@ -24,8 +25,8 @@ import Window
 
 
 type alias Flags =
-    { gamepadDatabaseAsString : String
-    , gamepadDatabaseKey : String
+    { configAsString : String
+    , configKey : String
     , dateNow : Int
     }
 
@@ -53,7 +54,7 @@ type alias Model =
     , params : Dict String String
     , pressedKeys : List Keyboard.Extra.Key
     , maybeMenu : Maybe Menu.Model
-    , config : Menu.Config
+    , config : Config
     , flags : Flags
     }
 
@@ -68,20 +69,14 @@ init params flags =
         game =
             Init.setupPhase flags.dateNow { halfWidth = 20, halfHeight = 10 }
 
-        gamepadDatabase =
-            Gamepad.databaseFromString flags.gamepadDatabaseAsString
-                |> Result.withDefault Gamepad.emptyDatabase
-
         config =
-            { gamepadDatabase = gamepadDatabase
-            , useKeyboardAndMouse = True
-            }
+            Config.fromString flags.configAsString
 
         maybeMenu =
             if Dict.member "noMenu" params then
                 Nothing
             else
-                Just (Menu.init config)
+                Just Menu.init
     in
     ( { game = game
       , botStatesByKey = Dict.empty
@@ -124,9 +119,9 @@ inputKeyIsHuman key =
 -- gamepad database
 
 
-saveGamepadDatabase : Model -> Gamepad.Database -> Cmd Msg
-saveGamepadDatabase model database =
-    LocalStoragePort.set model.flags.gamepadDatabaseKey (Gamepad.databaseToString database)
+saveConfig : Model -> Config -> Cmd a
+saveConfig model config =
+    LocalStoragePort.set model.flags.configKey (Config.toString config)
 
 
 
@@ -325,7 +320,7 @@ update msg model =
 
                         ( menu, Just config ) ->
                             ( { model | maybeMenu = Just menu, config = config }
-                            , saveGamepadDatabase model config.gamepadDatabase
+                            , saveConfig model config
                             )
 
         OnKeyboardMsg keyboardMsg ->
@@ -341,7 +336,7 @@ update msg model =
                         { model
                             | maybeMenu =
                                 if model.maybeMenu == Nothing then
-                                    Just (Menu.init model.config)
+                                    Just Menu.init
                                 else
                                     Nothing
                         }

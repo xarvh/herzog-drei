@@ -25,17 +25,15 @@ type Msg
 
 type alias Model =
     { buttons : List ( Destination, String )
-    , gamepadDatabase : Database
     , maybeBlob : Maybe Blob
     , maybeRemap : Maybe (Gamepad.Remap.Model String)
     }
 
 
-init : List ( Destination, String ) -> Database -> Model
-init buttons db =
-    -- TODO: keep buttons + gamepadDatabase out of the Model?
+init : List ( Destination, String ) -> Model
+init buttons =
+    -- TODO: keep buttons out of the Model?
     { buttons = buttons
-    , gamepadDatabase = db
     , maybeBlob = Nothing
     , maybeRemap = Nothing
     }
@@ -60,12 +58,12 @@ gamepadsCount model =
 -- Update
 
 
-noCmd : Model -> ( Model, Maybe Database )
+noCmd : Model -> ( Model, Maybe (Database -> Database) )
 noCmd model =
     ( model, Nothing )
 
 
-update : Msg -> Model -> ( Model, Maybe Database )
+update : Msg -> Model -> ( Model, Maybe (Database -> Database) )
 update msg model =
     case msg of
         Noop ->
@@ -91,7 +89,7 @@ update msg model =
                             Debug.crash message
 
                         Gamepad.Remap.UpdateDatabase updateDatabase ->
-                            ( { model | maybeRemap = Nothing }, Just (updateDatabase model.gamepadDatabase) )
+                            ( { model | maybeRemap = Nothing }, Just updateDatabase )
 
 
 
@@ -178,11 +176,11 @@ firstPadControl gamepad destinations =
                 ""
 
 
-viewGamepadWithIndex : Model -> Blob -> Int -> Html Msg
-viewGamepadWithIndex model blob index =
+viewGamepadWithIndex : Database -> Model -> Blob -> Int -> Html Msg
+viewGamepadWithIndex db model blob index =
     let
         maybeRecognised =
-            Gamepad.getGamepads model.gamepadDatabase blob
+            Gamepad.getGamepads db blob
                 |> List.Extra.find (\pad -> Gamepad.getIndex pad == index)
 
         hasSignal =
@@ -208,8 +206,8 @@ viewGamepadWithIndex model blob index =
         ]
 
 
-viewAllGamepadsWithId : Model -> Blob -> ( String, List Int ) -> Html Msg
-viewAllGamepadsWithId model blob ( id, indexes ) =
+viewAllGamepadsWithId : Database -> Model -> Blob -> ( String, List Int ) -> Html Msg
+viewAllGamepadsWithId db model blob ( id, indexes ) =
     let
         findFirst : List Gamepad -> Maybe Gamepad
         findFirst =
@@ -219,7 +217,7 @@ viewAllGamepadsWithId model blob ( id, indexes ) =
             Gamepad.getGamepads Gamepad.emptyDatabase blob |> findFirst
 
         maybeRecognised =
-            Gamepad.getGamepads model.gamepadDatabase blob |> findFirst
+            Gamepad.getGamepads db blob |> findFirst
 
         isAuto =
             maybeStandardGamepad == maybeRecognised
@@ -248,13 +246,13 @@ viewAllGamepadsWithId model blob ( id, indexes ) =
         -- TODO also show number of axes/buttons?
         , indexes
             |> List.sort
-            |> List.map (viewGamepadWithIndex model blob)
+            |> List.map (viewGamepadWithIndex db model blob)
             |> ul []
         ]
 
 
-view : Model -> Html Msg
-view model =
+view : Database -> Model -> Html Msg
+view db model =
     case ( model.maybeRemap, model.maybeBlob ) of
         ( Just remap, _ ) ->
             div
@@ -286,7 +284,7 @@ view model =
                                 |> List.sortBy Tuple.first
                     in
                     gamepadIndexesGroupedById
-                        |> List.map (viewAllGamepadsWithId model blob)
+                        |> List.map (viewAllGamepadsWithId db model blob)
                         |> div [ class "elm-gamepad-remap" ]
 
 
