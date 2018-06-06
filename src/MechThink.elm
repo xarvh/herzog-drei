@@ -37,7 +37,7 @@ mechThink input dt game unit mech =
                 ToMech ->
                     5.0
 
-                ToPlane ->
+                ToFlyer ->
                     12.0
 
         dx =
@@ -51,7 +51,7 @@ mechThink input dt game unit mech =
         transformingTo =
             if input.transform && hasFreeGround unit then
                 case mech.transformingTo of
-                    ToPlane ->
+                    ToFlyer ->
                         if mech.transformState == 1 then
                             ToMech
                         else
@@ -59,7 +59,7 @@ mechThink input dt game unit mech =
 
                     ToMech ->
                         if mech.transformState == 0 then
-                            ToPlane
+                            ToFlyer
                         else
                             mech.transformingTo
             else
@@ -70,7 +70,7 @@ mechThink input dt game unit mech =
                 ToMech ->
                     (-)
 
-                ToPlane ->
+                ToFlyer ->
                     (+)
 
         transform =
@@ -109,7 +109,7 @@ mechThink input dt game unit mech =
                 ToMech ->
                     walk
 
-                ToPlane ->
+                ToFlyer ->
                     fly
 
         newPosition =

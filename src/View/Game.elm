@@ -20,6 +20,7 @@ import View.Gfx
 import View.Hud
 import View.Mech
 import View.Projectile
+import View.Propeller
 import View.Sub
 
 
@@ -119,12 +120,19 @@ viewBase game base =
                     * sin (pi * completion * 10)
                     |> opacity
                 ]
-                [ View.Mech.mech 1 0 0 neutral.dark colorPattern.dark ]
+                [ View.Mech.mech
+                    { transformState = 1
+                    , lookAngle = 0
+                    , fireAngle = 0
+                    , fill = neutral.dark
+                    , stroke = colorPattern.dark
+                    }
+                ]
         ]
 
 
 viewMech : Game -> ( Unit, MechComponent ) -> Svg a
-viewMech game ( unit, mechRecord ) =
+viewMech game ( unit, mech ) =
     let
         colorPattern =
             Game.teamColorPattern game unit.maybeTeamId
@@ -132,11 +140,13 @@ viewMech game ( unit, mechRecord ) =
     Svg.g
         [ transform [ translate unit.position ] ]
         [ View.Mech.mech
-            mechRecord.transformState
-            unit.lookAngle
-            unit.fireAngle
-            colorPattern.bright
-            colorPattern.dark
+            { transformState = mech.transformState
+            , lookAngle = unit.lookAngle
+            , fireAngle = unit.fireAngle
+            , fill = colorPattern.bright
+            , stroke = colorPattern.dark
+            }
+        , View.Propeller.propeller 3 game.time
 
         --, View.Mech.collider mechRecord.transformState unit.fireAngle (vec2 0 0) |> View.renderCollider
         ]

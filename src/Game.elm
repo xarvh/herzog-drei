@@ -198,13 +198,19 @@ type UnitMode
 
 type TransformMode
     = ToMech
-    | ToPlane
+    | ToFlyer
+
+
+type MechType
+    = Plane
+    | Heli
 
 
 type alias MechComponent =
     { transformState : Float
     , transformingTo : TransformMode
     , inputKey : String
+    , type_ : MechType
     }
 
 
@@ -313,8 +319,9 @@ addMech inputKey maybeTeamId position game =
         mechComponent =
             UnitMech
                 { transformState = 1
-                , transformingTo = ToPlane
+                , transformingTo = ToFlyer
                 , inputKey = inputKey
+                , type_ = Heli
                 }
     in
     addUnit mechComponent maybeTeamId position startAngle game

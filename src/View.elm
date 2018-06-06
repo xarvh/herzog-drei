@@ -32,6 +32,36 @@ step t threshold a b =
         a
 
 
+-- Round Arc
+
+roundArcD : Float -> Float -> Float -> Svg.Attribute a
+roundArcD radius startA endA =
+    let
+        -- https://stackoverflow.com/questions/5736398/how-to-calculate-the-svg-path-for-an-arc-of-a-circle
+        startX =
+            radius * cos startA |> toString
+
+        startY =
+            radius * sin startA |> toString
+
+        endX =
+            radius * cos endA |> toString
+
+        endY =
+            radius * sin endA |> toString
+
+        largeArcFlag =
+            if endA - startA <= pi then
+                "0"
+            else
+                "1"
+
+        r =
+            toString radius
+    in
+    [ "M 0 0 L", startX, startY, "A", r, r, "0", largeArcFlag, "0", endX, endY ]
+        |> String.join " "
+        |> d
 
 -- String
 
