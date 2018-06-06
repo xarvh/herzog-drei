@@ -395,5 +395,5 @@ viewSetup rects game =
             , SA.fontWeight "700"
             , textNotSelectable
             ]
-            [ text "Select your team" ]
+            [ text "Move to a color" ]
         ]
