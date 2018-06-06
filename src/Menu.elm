@@ -137,7 +137,7 @@ view config model =
             [ div
                 []
                 [ section
-                    []
+                    [ class "highlight-animation"]
                     [ text "Press Esc to toggle the Menu" ]
                 , if not <| Remap.isRemapping model.remap then
                     viewConfig config model

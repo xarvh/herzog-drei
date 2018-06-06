@@ -69,6 +69,7 @@
 body, button {
   margin: 0;
   font-family: 'XoloniumRegular', sans-serif;
+  /* text-shadow: 2px 2px 4px grey; */
 }
 
 .game-area {
@@ -87,6 +88,21 @@ body, button {
 
 .menu * + section {
   margin-top: 2em;
+}
+
+
+
+/* Text animation */
+.highlight-animation {
+  animation-name: highlight;
+  animation-duration: 0.2s;
+  animation-direction: alternate;
+  animation-iteration-count: 6;
+}
+
+@keyframes highlight {
+  from { text-shadow: 0px 0px 0px grey; }
+  to { text-shadow: 3px 3px 6px grey; }
 }
 
 
