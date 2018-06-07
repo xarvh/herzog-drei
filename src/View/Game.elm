@@ -146,7 +146,7 @@ viewMech game ( unit, mech ) =
             , fill = colorPattern.bright
             , stroke = colorPattern.dark
             }
-        , View.Propeller.propeller 3 game.time
+        , View.Propeller.propeller (2.4 * mech.transformState) game.time
 
         --, View.Mech.collider mechRecord.transformState unit.fireAngle (vec2 0 0) |> View.renderCollider
         ]

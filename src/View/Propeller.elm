@@ -6,12 +6,13 @@ import Svg.Attributes as SA
 import View exposing (..)
 
 
+bladeLength : Float
+bladeLength =
+    0.5
+
+
 blade : Angle -> Svg a
 blade angle =
-    let
-        length =
-            0.4
-    in
     g
         [ transform [ rotateDeg angle ]
         , SA.filter "url(#blur)"
@@ -19,13 +20,13 @@ blade angle =
         [ Svg.rect
             [ width 0.025
             , x -0.0125
-            , height length
+            , height bladeLength
             , fill "url(#bladeRect)"
             , stroke "none"
             ]
             []
         , Svg.path
-            [ roundArcD length (7 * pi / 12) (5 * pi / 12)
+            [ roundArcD bladeLength (7 * pi / 12) (5 * pi / 12)
             , fill "url(#bladeArc)"
             , stroke "none"
             ]
@@ -47,7 +48,7 @@ propeller size time =
             toFloat (floor v % 360)
     in
     g
-        [ transform [ scale size ]]
+        [ transform [ scale size ] ]
         [ defs
             []
             [ Svg.filter
@@ -86,7 +87,7 @@ propeller size time =
             , blade 216
             , blade 288
             , circle
-                [ r 0.4
+                [ r bladeLength
                 , opacity 0.05
                 ]
                 []
