@@ -17,7 +17,7 @@ import View.Mech
 
 transformTime : Float
 transformTime =
-    0.2
+    0.5
 
 
 aimControlThreshold : Float
