@@ -20,7 +20,6 @@ import View.Gfx
 import View.Hud
 import View.Mech
 import View.Projectile
-import View.Propeller
 import View.Sub
 
 
@@ -129,6 +128,7 @@ viewBase game base =
                         , fireAngle = 0
                         , fill = neutral.dark
                         , stroke = colorPattern.dark
+                        , time = game.time
                         }
                     ]
         ]
@@ -148,11 +148,8 @@ viewMech game ( unit, mech ) =
             , fireAngle = unit.fireAngle
             , fill = colorPattern.bright
             , stroke = colorPattern.dark
+            , time = game.time
             }
-        , if mech.class == Heli then
-            View.Propeller.propeller (2.4 * mech.transformState) game.time
-          else
-            text ""
 
         --, View.Mech.collider mechRecord.transformState unit.fireAngle (vec2 0 0) |> View.renderCollider
         ]

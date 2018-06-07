@@ -4,6 +4,7 @@ import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import View exposing (..)
+import View.Propeller
 
 
 {-| TODO: this should go inside View
@@ -19,6 +20,7 @@ type alias Args =
     , fireAngle : Angle
     , fill : String
     , stroke : String
+    , time : Seconds
     }
 
 
@@ -211,6 +213,13 @@ heli args =
                 }
             ]
         , heliHead args.transformState args.fill args.stroke (step args.lookAngle args.fireAngle)
+        , g
+            [ transform
+                [ rotateRad args.fireAngle
+                , translate2 0 (smooth -0.41 0.1)
+                ]
+            ]
+            [ View.Propeller.propeller (2.4 * args.transformState) args.time ]
         ]
 
 
