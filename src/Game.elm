@@ -321,7 +321,7 @@ addMech class inputKey maybeTeamId position game =
                 { transformState = 1
                 , transformingTo = ToFlyer
                 , inputKey = inputKey
-                , class = Heli
+                , class = class
                 }
     in
     addUnit mechComponent maybeTeamId position startAngle game

@@ -6,6 +6,7 @@ import Dict exposing (Dict)
 import Game exposing (..)
 import Init
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Random
 import Set exposing (Set)
 import Svg exposing (..)
 import Svg.Attributes as SA
@@ -59,6 +60,34 @@ transitionUpdate dt game =
 
 
 
+--
+
+
+boolToClass : Bool -> MechClass
+boolToClass bool =
+    if bool then
+        Heli
+    else
+        Plane
+
+
+mechClassGenerator : Random.Generator MechClass
+mechClassGenerator =
+    Random.map boolToClass Random.bool
+
+
+{-| TODO move this to Game.elm?
+-}
+generateRandom : Random.Generator a -> Game -> ( a, Game )
+generateRandom generator game =
+    let
+        ( value, seed ) =
+            Random.step generator game.seed
+    in
+    ( value, { game | seed = seed } )
+
+
+
 -- Think
 
 
@@ -85,9 +114,15 @@ addSetupPhaseMech inputSourceKey =
             let
                 startingPosition =
                     vec2 0 0
+
+                classGenerator =
+                    Random.map boolToClass Random.bool
+
+                ( class, seed ) =
+                    Random.step classGenerator g.seed
             in
-            g
-                |> Game.addMech Plane inputSourceKey Nothing startingPosition
+            { g | seed = seed }
+                |> Game.addMech class inputSourceKey Nothing startingPosition
                 |> Tuple.first
 
 
@@ -171,8 +206,8 @@ updateAllMechsTeam game =
 -- Exit Setup Phase ?
 
 
-addMechsForTeam : Team -> Game -> Game
-addMechsForTeam team game =
+addMechsForTeam : Dict String MechClass -> Team -> Game -> Game
+addMechsForTeam mechClassByInputKey team game =
     case Base.teamMainBase game (Just team.id) of
         Nothing ->
             game
@@ -181,16 +216,25 @@ addMechsForTeam team game =
             let
                 addPlayPhaseMech : String -> Game -> Game
                 addPlayPhaseMech inputKey g =
-                    Game.addMech Plane inputKey (Just team.id) base.position g |> Tuple.first
+                    let
+                        ( class, newGame ) =
+                            case Dict.get inputKey mechClassByInputKey of
+                                Nothing ->
+                                    generateRandom mechClassGenerator game
+
+                                Just class ->
+                                    ( class, game )
+                    in
+                    Game.addMech class inputKey (Just team.id) base.position newGame |> Tuple.first
             in
             List.foldl addPlayPhaseMech game team.players
 
 
-addMechForEveryPlayer : Game -> Game
-addMechForEveryPlayer game =
+addMechForEveryPlayer : Dict String MechClass -> Game -> Game
+addMechForEveryPlayer classByKey game =
     game
-        |> addMechsForTeam game.leftTeam
-        |> addMechsForTeam game.rightTeam
+        |> addMechsForTeam classByKey game.leftTeam
+        |> addMechsForTeam classByKey game.rightTeam
 
 
 initMarkerPosition : Team -> Game -> Game
@@ -216,6 +260,13 @@ setupToPlayPhase game =
     let
         walls =
             Init.walls
+
+        mechClassByInputKey =
+            game.unitById
+                |> Dict.values
+                |> List.filterMap Unit.toMech
+                |> List.map (\( unit, mech ) -> ( mech.inputKey, mech.class ))
+                |> Dict.fromList
     in
     { game
         | unitById = Dict.empty
@@ -231,7 +282,7 @@ setupToPlayPhase game =
         |> initMarkerPosition game.leftTeam
         |> initMarkerPosition game.rightTeam
         |> Init.kickstartPathing
-        |> addMechForEveryPlayer
+        |> addMechForEveryPlayer mechClassByInputKey
 
 
 addBots : Int -> List String -> Team -> Team
