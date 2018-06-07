@@ -87,7 +87,7 @@ addSetupPhaseMech inputSourceKey =
                     vec2 0 0
             in
             g
-                |> Game.addMech inputSourceKey Nothing startingPosition
+                |> Game.addMech Plane inputSourceKey Nothing startingPosition
                 |> Tuple.first
 
 
@@ -181,7 +181,7 @@ addMechsForTeam team game =
             let
                 addPlayPhaseMech : String -> Game -> Game
                 addPlayPhaseMech inputKey g =
-                    Game.addMech inputKey (Just team.id) base.position g |> Tuple.first
+                    Game.addMech Plane inputKey (Just team.id) base.position g |> Tuple.first
             in
             List.foldl addPlayPhaseMech game team.players
 

@@ -297,7 +297,7 @@ render cosmetic =
                     [ transform [ translate headPosition ]
                     , opacity (1 - t * t)
                     ]
-                    [ View.Mech.head 0 colorPattern.dark colorPattern.bright angle
+                    [ View.Mech.head Plane 0 colorPattern.dark colorPattern.bright angle
                     , View.Mech.headOverlay (0.3 + 0.3 * sin (cosmetic.age * 30)) angle
                     ]
                 ]

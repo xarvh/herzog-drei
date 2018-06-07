@@ -72,5 +72,5 @@ respawnMech game unit mech =
         Just mainBase ->
             deltaList
                 [ View.Gfx.deltaAddFlyingHead unit.position mainBase.position (teamColorPattern game unit.maybeTeamId)
-                , deltaBase mainBase.id (Base.updateOccupied <| \o -> { o | mechBuildCompletions = ( mech.inputKey, 0 ) :: o.mechBuildCompletions })
+                , deltaBase mainBase.id (Base.updateOccupied <| \o -> { o | mechBuildCompletions = ( mech, 0 ) :: o.mechBuildCompletions })
                 ]

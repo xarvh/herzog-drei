@@ -1,6 +1,6 @@
 module View.Mech exposing (..)
 
-import Game exposing (Angle)
+import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import View exposing (..)
@@ -376,24 +376,22 @@ headOverlay op angle =
 
 
 
--- Main
+-- main
 
 
-head =
-    heliHead
+mech class =
+    case class of
+        Plane ->
+            plane
+
+        Heli ->
+            heli
 
 
-mech =
-    heli
+head class =
+    case class of
+        Plane ->
+            planeHead
 
-
-
-{-
-   head type_ =
-       case type_ of
-           Heli ->
-               heliHead
-
-           Plane ->
-               planeHead
--}
+        Heli ->
+            heliHead

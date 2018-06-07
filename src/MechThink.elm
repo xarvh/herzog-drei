@@ -83,24 +83,41 @@ mechThink input dt game unit mech =
                 |> Game.updateMech
                 |> deltaUnit unit.id
 
-        moveTarget =
+        rally =
             if input.rally then
-                case unit.maybeTeamId of
-                    Nothing ->
-                        deltaNone
+                case game.phase of
+                    PhaseSetup ->
+                        (\mech ->
+                            { mech
+                                | class =
+                                    case mech.class of
+                                        Plane ->
+                                            Heli
 
-                    Just teamId ->
-                        deltaTeam teamId
-                            (\g t ->
-                                if g.time - t.markerTime < 1 then
-                                    t
-                                else
-                                    { t
-                                        | markerPosition = unit.position
-                                        , markerTime = g.time
-                                        , pathing = Pathfinding.makePaths g (vec2Tile unit.position)
-                                    }
-                            )
+                                        Heli ->
+                                            Plane
+                            }
+                        )
+                            |> Game.updateMech
+                            |> deltaUnit unit.id
+
+                    PhasePlay ->
+                        case unit.maybeTeamId of
+                            Nothing ->
+                                deltaNone
+
+                            Just teamId ->
+                                deltaTeam teamId
+                                    (\g t ->
+                                        if g.time - t.markerTime < 1 then
+                                            t
+                                        else
+                                            { t
+                                                | markerPosition = unit.position
+                                                , markerTime = g.time
+                                                , pathing = Pathfinding.makePaths g (vec2Tile unit.position)
+                                            }
+                                    )
             else
                 deltaNone
 
@@ -172,7 +189,7 @@ mechThink input dt game unit mech =
                 deltaNone
     in
     deltaList
-        [ moveTarget
+        [ rally
         , moveMech
         , reload
         , aimDelta

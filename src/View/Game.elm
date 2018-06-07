@@ -95,12 +95,13 @@ viewBase game base =
         ( buildTarget, completion ) =
             case base.maybeOccupied of
                 Nothing ->
-                    ( "sub", 0 )
+                    ( Nothing, 0 )
 
                 Just occupied ->
                     occupied.mechBuildCompletions
                         |> List.Extra.maximumBy Tuple.second
-                        |> Maybe.withDefault ( "sub", occupied.subBuildCompletion )
+                        |> Maybe.map (Tuple.mapFirst Just)
+                        |> Maybe.withDefault ( Nothing, occupied.subBuildCompletion )
     in
     Svg.g
         [ transform [ translate base.position ] ]
@@ -110,24 +111,26 @@ viewBase game base =
 
             Game.BaseMain ->
                 View.Base.main_ completion colorPattern.bright colorPattern.dark
-        , if buildTarget == "sub" then
-            Svg.text ""
-          else
-            Svg.g
-                [ 0.9
-                    * completion
-                    + 0.1
-                    * sin (pi * completion * 10)
-                    |> opacity
-                ]
-                [ View.Mech.mech
-                    { transformState = 1
-                    , lookAngle = 0
-                    , fireAngle = 0
-                    , fill = neutral.dark
-                    , stroke = colorPattern.dark
-                    }
-                ]
+        , case buildTarget of
+            Nothing ->
+                text ""
+
+            Just mech ->
+                g
+                    [ 0.9
+                        * completion
+                        + 0.1
+                        * sin (pi * completion * 10)
+                        |> opacity
+                    ]
+                    [ View.Mech.mech mech.class
+                        { transformState = 1
+                        , lookAngle = 0
+                        , fireAngle = 0
+                        , fill = neutral.dark
+                        , stroke = colorPattern.dark
+                        }
+                    ]
         ]
 
 
@@ -139,14 +142,17 @@ viewMech game ( unit, mech ) =
     in
     Svg.g
         [ transform [ translate unit.position ] ]
-        [ View.Mech.mech
+        [ View.Mech.mech mech.class
             { transformState = mech.transformState
             , lookAngle = unit.lookAngle
             , fireAngle = unit.fireAngle
             , fill = colorPattern.bright
             , stroke = colorPattern.dark
             }
-        , View.Propeller.propeller (2.4 * mech.transformState) game.time
+        , if mech.class == Heli then
+            View.Propeller.propeller (2.4 * mech.transformState) game.time
+          else
+            text ""
 
         --, View.Mech.collider mechRecord.transformState unit.fireAngle (vec2 0 0) |> View.renderCollider
         ]
