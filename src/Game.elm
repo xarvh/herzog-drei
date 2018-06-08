@@ -198,13 +198,19 @@ type UnitMode
 
 type TransformMode
     = ToMech
-    | ToPlane
+    | ToFlyer
+
+
+type MechClass
+    = Plane
+    | Heli
 
 
 type alias MechComponent =
     { transformState : Float
     , transformingTo : TransformMode
     , inputKey : String
+    , class : MechClass
     }
 
 
@@ -304,8 +310,8 @@ addSub maybeTeamId position game =
     addUnit subComponent maybeTeamId position startAngle game
 
 
-addMech : String -> Maybe TeamId -> Vec2 -> Game -> ( Game, Unit )
-addMech inputKey maybeTeamId position game =
+addMech : MechClass -> String -> Maybe TeamId -> Vec2 -> Game -> ( Game, Unit )
+addMech class inputKey maybeTeamId position game =
     let
         startAngle =
             0
@@ -313,8 +319,9 @@ addMech inputKey maybeTeamId position game =
         mechComponent =
             UnitMech
                 { transformState = 1
-                , transformingTo = ToPlane
+                , transformingTo = ToFlyer
                 , inputKey = inputKey
+                , class = class
                 }
     in
     addUnit mechComponent maybeTeamId position startAngle game
@@ -359,7 +366,7 @@ type alias BaseOccupied =
     , unitIds : Set Id
     , isActive : Bool
     , subBuildCompletion : Float
-    , mechBuildCompletions : List ( String, Float )
+    , mechBuildCompletions : List ( MechComponent, Float )
     }
 
 

@@ -12,8 +12,8 @@ import View.Sub
 -- Think
 
 
-think : Float -> Dict String InputState -> Game -> Unit -> Delta
-think dt inpuStateByKey game unit =
+think : Float -> Dict String (InputState, InputState) -> Game -> Unit -> Delta
+think dt pairedInputStates game unit =
     if unit.integrity <= 0 then
         deltaList
             [ deltaGame (Game.removeUnit unit.id)
@@ -35,8 +35,8 @@ think dt inpuStateByKey game unit =
                 UnitMech mech ->
                     let
                         input =
-                            Dict.get mech.inputKey inpuStateByKey
-                                |> Maybe.withDefault inputStateNeutral
+                            Dict.get mech.inputKey pairedInputStates
+                                |> Maybe.withDefault (inputStateNeutral, inputStateNeutral)
                     in
                     MechThink.mechThink input dt game unit mech
             ]
@@ -72,5 +72,5 @@ respawnMech game unit mech =
         Just mainBase ->
             deltaList
                 [ View.Gfx.deltaAddFlyingHead unit.position mainBase.position (teamColorPattern game unit.maybeTeamId)
-                , deltaBase mainBase.id (Base.updateOccupied <| \o -> { o | mechBuildCompletions = ( mech.inputKey, 0 ) :: o.mechBuildCompletions })
+                , deltaBase mainBase.id (Base.updateOccupied <| \o -> { o | mechBuildCompletions = ( mech, 0 ) :: o.mechBuildCompletions })
                 ]

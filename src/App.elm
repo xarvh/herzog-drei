@@ -56,6 +56,7 @@ type alias Model =
     , maybeMenu : Maybe Menu.Model
     , config : Config
     , flags : Flags
+    , previousInputStatesByKey : Dict String InputState
     }
 
 
@@ -91,6 +92,7 @@ init params flags =
       , maybeMenu = maybeMenu
       , config = config
       , flags = flags
+      , previousInputStatesByKey = Dict.empty
       }
     , Window.size |> Task.perform OnWindowResizes
     )
@@ -264,6 +266,20 @@ updateOnGamepad ( timeInMilliseconds, gamepadBlob ) model =
                 |> Dict.union gamepadsInputByKey
                 |> Dict.union keyAndMouse
 
+        pairInputStateWithPrevious : String -> InputState -> (InputState, InputState)
+        pairInputStateWithPrevious inputKey currentInputState =
+          case Dict.get inputKey model.previousInputStatesByKey of
+            Just previousInputState ->
+              (previousInputState, currentInputState)
+            Nothing ->
+              -- Assume that state did not change
+              (currentInputState, currentInputState)
+
+        pairedInputStates =
+          Dict.map pairInputStateWithPrevious inputStatesByKey
+
+
+
         -- All times in the game are in seconds
         time =
             timeInMilliseconds / 1000
@@ -273,7 +289,7 @@ updateOnGamepad ( timeInMilliseconds, gamepadBlob ) model =
 
         game =
             if model.maybeMenu == Nothing then
-                Update.update time inputStatesByKey model.game
+                Update.update time pairedInputStates model.game
             else
                 model.game
     in
@@ -281,6 +297,7 @@ updateOnGamepad ( timeInMilliseconds, gamepadBlob ) model =
         | game = game
         , botStatesByKey = botStatesByKey
         , fps = (1 / dt) :: List.take 20 model.fps
+        , previousInputStatesByKey = inputStatesByKey
     }
         |> addMissingBots
         |> noCmd

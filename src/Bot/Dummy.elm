@@ -161,7 +161,7 @@ moveToTargetBase playerUnit playerMech state game base =
     in
     if vectorDistance playerUnit.position base.position > safeDistance then
         ( state
-        , { transform = playerMech.transformingTo /= ToPlane
+        , { transform = playerMech.transformingTo /= ToFlyer
           , rally = False
           , move = Vec2.sub base.position playerUnit.position |> Vec2.normalize
           }

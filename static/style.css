@@ -73,7 +73,7 @@ body, button {
 }
 
 .game-area {
-  cursor: url(crosshair.png) 64 64, crosshair;
+  cursor: url(crosshair.svg) 28 30, url(crosshair.png) 64 64, crosshair;
 }
 
 

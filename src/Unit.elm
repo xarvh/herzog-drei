@@ -35,7 +35,7 @@ mechReloadTime mech =
         ToMech ->
             0.1
 
-        ToPlane ->
+        ToFlyer ->
             0.15
 
 
@@ -50,11 +50,11 @@ transformMode mech =
             if mech.transformState < 1 then
                 ToMech
             else
-                ToPlane
+                ToFlyer
 
-        ToPlane ->
+        ToFlyer ->
             if mech.transformState > 0 then
-                ToPlane
+                ToFlyer
             else
                 ToMech
 

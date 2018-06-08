@@ -100,8 +100,8 @@ deltaBuildAllMechs dt game base occupied =
         |> deltaList
 
 
-deltaBuildMech : Float -> Base -> BaseOccupied -> ( String, Float ) -> Delta
-deltaBuildMech completionIncrease base occupied ( inputKey, completionAtThink ) =
+deltaBuildMech : Float -> Base -> BaseOccupied -> ( MechComponent, Float ) -> Delta
+deltaBuildMech completionIncrease base occupied ( mech, completionAtThink ) =
     case occupied.maybeTeamId of
         Nothing ->
             deltaNone
@@ -109,19 +109,19 @@ deltaBuildMech completionIncrease base occupied ( inputKey, completionAtThink ) 
         Just teamId ->
             if completionAtThink + completionIncrease < 1 then
                 let
-                    increaseCompletion ( key, completionAtUpdate ) =
-                        if key == inputKey then
-                            ( key, completionAtUpdate + completionIncrease )
+                    increaseCompletion ( m, completionAtUpdate ) =
+                        if m == mech then
+                            ( m, completionAtUpdate + completionIncrease )
                         else
-                            ( key, completionAtUpdate )
+                            ( m, completionAtUpdate )
                 in
                 (\o -> { o | mechBuildCompletions = List.map increaseCompletion o.mechBuildCompletions })
                     |> Base.updateOccupied
                     |> deltaBase base.id
             else
                 deltaList
-                    [ deltaGame (\g -> Game.addMech inputKey (Just teamId) base.position g |> Tuple.first)
-                    , (\o -> { o | mechBuildCompletions = List.filter (\( key, c ) -> key /= inputKey) o.mechBuildCompletions })
+                    [ deltaGame (\g -> Game.addMech mech.class mech.inputKey (Just teamId) base.position g |> Tuple.first)
+                    , (\o -> { o | mechBuildCompletions = List.filter (\( m, c ) -> m /= mech) o.mechBuildCompletions })
                         |> Base.updateOccupied
                         |> deltaBase base.id
                     ]

@@ -94,12 +94,13 @@ viewBase game base =
         ( buildTarget, completion ) =
             case base.maybeOccupied of
                 Nothing ->
-                    ( "sub", 0 )
+                    ( Nothing, 0 )
 
                 Just occupied ->
                     occupied.mechBuildCompletions
                         |> List.Extra.maximumBy Tuple.second
-                        |> Maybe.withDefault ( "sub", occupied.subBuildCompletion )
+                        |> Maybe.map (Tuple.mapFirst Just)
+                        |> Maybe.withDefault ( Nothing, occupied.subBuildCompletion )
     in
     Svg.g
         [ transform [ translate base.position ] ]
@@ -109,34 +110,46 @@ viewBase game base =
 
             Game.BaseMain ->
                 View.Base.main_ completion colorPattern.bright colorPattern.dark
-        , if buildTarget == "sub" then
-            Svg.text ""
-          else
-            Svg.g
-                [ 0.9
-                    * completion
-                    + 0.1
-                    * sin (pi * completion * 10)
-                    |> opacity
-                ]
-                [ View.Mech.mech 1 0 0 neutral.dark colorPattern.dark ]
+        , case buildTarget of
+            Nothing ->
+                text ""
+
+            Just mech ->
+                g
+                    [ 0.9
+                        * completion
+                        + 0.1
+                        * sin (pi * completion * 10)
+                        |> opacity
+                    ]
+                    [ View.Mech.mech mech.class
+                        { transformState = 1
+                        , lookAngle = 0
+                        , fireAngle = 0
+                        , fill = neutral.dark
+                        , stroke = colorPattern.dark
+                        , time = game.time
+                        }
+                    ]
         ]
 
 
 viewMech : Game -> ( Unit, MechComponent ) -> Svg a
-viewMech game ( unit, mechRecord ) =
+viewMech game ( unit, mech ) =
     let
         colorPattern =
             Game.teamColorPattern game unit.maybeTeamId
     in
     Svg.g
         [ transform [ translate unit.position ] ]
-        [ View.Mech.mech
-            mechRecord.transformState
-            unit.lookAngle
-            unit.fireAngle
-            colorPattern.bright
-            colorPattern.dark
+        [ View.Mech.mech mech.class
+            { transformState = mech.transformState
+            , lookAngle = unit.lookAngle
+            , fireAngle = unit.fireAngle
+            , fill = colorPattern.bright
+            , stroke = colorPattern.dark
+            , time = game.time
+            }
 
         --, View.Mech.collider mechRecord.transformState unit.fireAngle (vec2 0 0) |> View.renderCollider
         ]
