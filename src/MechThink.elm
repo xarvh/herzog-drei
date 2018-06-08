@@ -29,8 +29,8 @@ aimControlThreshold =
 --
 
 
-mechThink : InputState -> Seconds -> Game -> Unit -> MechComponent -> Delta
-mechThink input dt game unit mech =
+mechThink : ( InputState, InputState ) -> Seconds -> Game -> Unit -> MechComponent -> Delta
+mechThink ( previousInput, currentInput ) dt game unit mech =
     let
         speed =
             case Unit.transformMode mech of
@@ -41,7 +41,7 @@ mechThink input dt game unit mech =
                     12.0
 
         dx =
-            input.move
+            currentInput.move
                 |> clampToRadius 1
                 |> Vec2.scale (speed * dt)
 
@@ -49,7 +49,7 @@ mechThink input dt game unit mech =
             Set.member (vec2Tile u.position) game.staticObstacles |> not
 
         transformingTo =
-            if input.transform && hasFreeGround unit then
+            if currentInput.transform && hasFreeGround unit then
                 case mech.transformingTo of
                     ToFlyer ->
                         if mech.transformState == 1 then
@@ -83,21 +83,19 @@ mechThink input dt game unit mech =
                 |> Game.updateMech
                 |> deltaUnit unit.id
 
+        nextClass class =
+            case class of
+                Plane ->
+                    Heli
+
+                Heli ->
+                    Plane
+
         rally =
-            if input.rally then
+            if currentInput.rally && not previousInput.rally then
                 case game.phase of
                     PhaseSetup ->
-                        (\mech ->
-                            { mech
-                                | class =
-                                    case mech.class of
-                                        Plane ->
-                                            Heli
-
-                                        Heli ->
-                                            Plane
-                            }
-                        )
+                        (\mech -> { mech | class = nextClass mech.class })
                             |> Game.updateMech
                             |> deltaUnit unit.id
 
@@ -109,7 +107,7 @@ mechThink input dt game unit mech =
                             Just teamId ->
                                 deltaTeam teamId
                                     (\g t ->
-                                        if g.time - t.markerTime < 1 then
+                                        if g.time - t.markerTime < 0.2 then
                                             t
                                         else
                                             { t
@@ -142,7 +140,7 @@ mechThink input dt game unit mech =
                 deltaNone
 
         aimDirection =
-            case input.aim of
+            case currentInput.aim of
                 AimAbsolute direction ->
                     direction
 
@@ -152,8 +150,8 @@ mechThink input dt game unit mech =
         aimAngle =
             if Vec2.length aimDirection > aimControlThreshold then
                 vecToAngle aimDirection
-            else if Vec2.length input.move > aimControlThreshold then
-                vecToAngle input.move
+            else if Vec2.length currentInput.move > aimControlThreshold then
+                vecToAngle currentInput.move
             else
                 -- Keep old value
                 unit.fireAngle
@@ -177,7 +175,7 @@ mechThink input dt game unit mech =
             Game.deltaAddProjectile { maybeTeamId = unit.maybeTeamId, position = origin, angle = aimAngle }
 
         fire =
-            if input.fire && unit.timeToReload == 0 then
+            if currentInput.fire && unit.timeToReload == 0 then
                 deltaList
                     [ deltaUnit unit.id (\g u -> { u | timeToReload = Unit.mechReloadTime mech })
                     , deltaFire leftOrigin
