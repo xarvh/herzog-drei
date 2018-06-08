@@ -271,57 +271,52 @@ plane args =
         step =
             View.step args.transformState 0
 
-        rectPlate strokeColor fillColor xx yy ww hh aa =
-            rect
-                [ transform [ translate2 xx yy, rotateDeg aa ]
-                , fill fillColor
-                , stroke strokeColor
-                , strokeWidth 0.02
-                , width ww
-                , height hh
-                , x (-ww / 2)
-                , y (-hh / 2)
-                ]
-                []
+        rectangle =
+            rectangleColor args.fill args.stroke
 
-        plates xx yy ww hh aa =
-            g []
-                [ rectPlate args.fill args.stroke -xx yy ww hh -aa
-                , rectPlate args.fill args.stroke xx yy ww hh aa
-                ]
+        mirrorRectangles =
+            mirrorRectanglesColor args.fill args.stroke
+
+        ellipse =
+            ellipseColor args.fill args.stroke
     in
     g []
         [ g
-            [ transform [ scale 3, rotateRad args.fireAngle ] ]
+            [ transform [ rotateRad args.fireAngle ] ]
             -- guns
-            [ rectPlate "#666" "#808080" -(smooth 0.14 0.1) (smooth 0.21 0.26) (smooth 0.08 0.05) 0.26 0
-            , rectPlate "#666" "#808080" (smooth 0.14 0.1) (smooth 0.21 0.26) (smooth 0.08 0.05) 0.26 0
+            [ guns
+                { x = 3 * smooth 0.14 0.1
+                , y = 3 * smooth 0.21 0.26
+                , w = 3 * smooth 0.08 0.05
+                , h = 3 * 0.26
+                }
 
             -- arms / front wings
-            , plates
-                (smooth 0.18 0.25)
-                (smooth 0.1 0.03)
-                (smooth 0.1 0.4)
-                (smooth 0.23 0.15)
-                (smooth 0 15)
+            , mirrorRectangles
+                { x = 3 * smooth 0.18 0.25
+                , y = 3 * smooth 0.1 0.03
+                , w = 3 * smooth 0.1 0.4
+                , h = 3 * smooth 0.23 0.15
+                , a = smooth 0 15
+                }
 
             -- mid beam
-            , rectPlate
-                args.fill
-                args.stroke
-                0
-                (smooth -0.04 0.04)
-                (smooth 0.45 0.3)
-                (smooth 0.17 0.12)
-                0
+            , rectangle
+                { x = 0
+                , y = 3 * smooth -0.04 0.04
+                , w = 3 * smooth 0.45 0.3
+                , h = 3 * smooth 0.17 0.12
+                , a = 0
+                }
 
             -- shoulders / rear wings
-            , plates
-                (smooth 0.21 0.12)
-                (smooth -0.04 -0.25)
-                (smooth 0.15 0.15)
-                (smooth 0.23 0.25)
-                (smooth 10 -45)
+            , mirrorRectangles
+                { x = 3 * smooth 0.21 0.12
+                , y = 3 * smooth -0.04 -0.25
+                , w = 3 * smooth 0.15 0.15
+                , h = 3 * smooth 0.23 0.25
+                , a = smooth 10 -45
+                }
             ]
         , planeHead args.transformState args.fill args.stroke (step args.lookAngle args.fireAngle)
         ]
@@ -332,34 +327,21 @@ planeHead t fillColor strokeColor angle =
     let
         smooth =
             View.smooth t
-
-        eye xx yy aa =
-            ellipse
-                [ transform [ translate2 xx yy, rotateDeg aa ]
-                , fill "#f80000"
-                , stroke "#990000"
-                , strokeWidth 0.01
-                , ry 0.027
-                , rx 0.018
-                ]
-                []
     in
     g
-        [ transform [ scale 3, rotateRad angle ] ]
-        [ ellipse
-            [ cx 0
-            , cy -0.01
-            , rx 0.08
-            , ry <| smooth 0.17 0.34
-            , fill fillColor
-            , stroke strokeColor
-            , strokeWidth 0.02
-            ]
-            []
-        , eye 0.03 (smooth 0.1 0.22) 14
-        , eye -0.03 (smooth 0.1 0.22) -14
-        , eye 0.05 (smooth 0.03 0.15) 6
-        , eye -0.05 (smooth 0.03 0.15) -6
+        [ transform [ rotateRad angle ] ]
+        [ ellipseColor
+            fillColor
+            strokeColor
+            { x = 0
+            , y = -0.03
+            , w = 0.48
+            , h = 6 * smooth 0.17 0.34
+            }
+        , eye { x = 0.09, y = smooth 0.3 0.66, a = 14 }
+        , eye { x = -0.09, y = smooth 0.3 0.66, a = -14 }
+        , eye { x = 0.15, y = smooth 0.09 0.45, a = 6 }
+        , eye { x = -0.15, y = smooth 0.09 0.45, a = -6 }
         ]
 
 
