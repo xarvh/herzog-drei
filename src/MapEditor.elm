@@ -47,6 +47,12 @@ type WallEditMode
     | WallRemove
 
 
+type EditMode
+    = EditWalls (Maybe WallEditMode)
+    | EditMainBase
+    | EditSmallBases
+
+
 
 -- Msg
 
@@ -57,7 +63,8 @@ type Msg
     | OnMapClick
     | OnMouseMoves Mouse.Position
     | OnMouseButton Bool
-    | OnClickSymmetry Symmetry
+    | OnSwitchSymmetry Symmetry
+    | OnSwitchMode EditMode
     | OnChangeSize (Int -> Game -> Game) String
 
 
@@ -69,7 +76,7 @@ type alias Model =
     { game : Game
     , windowSize : Window.Size
     , mouseTile : Tile2
-    , maybeWallEditMode : Maybe WallEditMode
+    , editMode : EditMode
     , symmetry : Symmetry
     }
 
@@ -86,7 +93,7 @@ init =
     ( { game = game
       , windowSize = { width = 1, height = 1 + toolbarHeightInPixels }
       , mouseTile = ( 0, 0 )
-      , maybeWallEditMode = Nothing
+      , editMode = EditWalls Nothing
       , symmetry = SymmetryCentral
       }
     , Window.size |> Task.perform OnWindowResizes
@@ -215,11 +222,8 @@ noCmd model =
 
 updateWallAtMouseTile : Model -> Model
 updateWallAtMouseTile model =
-    case model.maybeWallEditMode of
-        Nothing ->
-            model
-
-        Just mode ->
+    case model.editMode of
+        EditWalls (Just mode) ->
             let
                 game =
                     model.game
@@ -251,6 +255,9 @@ updateWallAtMouseTile model =
                     }
             }
 
+        _ ->
+            model
+
 
 updateOnSymmetry : Symmetry -> Model -> Model
 updateOnSymmetry sym model =
@@ -278,6 +285,11 @@ updateOnMouseMove mousePositionInPixels model =
     updateWallAtMouseTile { model | mouseTile = mousePositionInTiles }
 
 
+addOrRemoveBase : BaseType -> Model -> Model
+addOrRemoveBase type_ model =
+    model
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -294,20 +306,30 @@ update msg model =
             updateOnMouseMove mousePosition model |> noCmd
 
         OnMouseButton isPressed ->
-            if not isPressed then
-                noCmd { model | maybeWallEditMode = Nothing }
-            else
-                { model
-                    | maybeWallEditMode =
-                        if Set.member model.mouseTile model.game.wallTiles then
-                            Just WallRemove
-                        else
-                            Just WallPlace
-                }
-                    |> updateWallAtMouseTile
-                    |> noCmd
+            case model.editMode of
+                EditMainBase ->
+                    addOrRemoveBase BaseMain model |> noCmd
 
-        OnClickSymmetry symmetry ->
+                EditSmallBases ->
+                    addOrRemoveBase BaseSmall model |> noCmd
+
+                EditWalls _ ->
+                    if not isPressed then
+                        noCmd { model | editMode = EditWalls Nothing }
+                    else
+                        { model
+                            | editMode =
+                                EditWalls
+                                    (if Set.member model.mouseTile model.game.wallTiles then
+                                        Just WallRemove
+                                     else
+                                        Just WallPlace
+                                    )
+                        }
+                            |> updateWallAtMouseTile
+                            |> noCmd
+
+        OnSwitchSymmetry symmetry ->
             updateOnSymmetry symmetry model |> noCmd
 
         OnChangeSize setter dimensionAsString ->
@@ -317,6 +339,9 @@ update msg model =
 
                 Ok n ->
                     noCmd { model | game = setter (clamp minSize maxSize n) model.game }
+
+        OnSwitchMode mode ->
+            noCmd { model | editMode = mode }
 
 
 
@@ -355,8 +380,22 @@ symmetryRadio model ( name, symmetry ) =
         [ class "flex" ]
         [ input
             [ type_ "radio"
-            , onClick (OnClickSymmetry symmetry)
+            , onClick (OnSwitchSymmetry symmetry)
             , checked (model.symmetry == symmetry)
+            ]
+            []
+        , label [ class "mr1" ] [ text name ]
+        ]
+
+
+modeRadio : Model -> ( String, EditMode ) -> Html Msg
+modeRadio model ( name, mode ) =
+    div
+        [ class "flex" ]
+        [ input
+            [ type_ "radio"
+            , onClick (OnSwitchMode mode)
+            , checked (model.editMode == mode)
             ]
             []
         , label [ class "mr1" ] [ text name ]
@@ -412,8 +451,18 @@ view model =
                     |> List.map (symmetryRadio model)
                     |> div []
                 ]
+            , div
+                []
+                [ text "Edit mode"
+                , [ ( "Walls", EditWalls Nothing )
+                  , ( "Main Base", EditMainBase )
+                  , ( "Small Bases", EditSmallBases )
+                  ]
+                    |> List.map (modeRadio model)
+                    |> div []
+                ]
             , div [] [ text (toString model.mouseTile) ]
-            , div [] [ text (toString model.maybeWallEditMode) ]
+            , div [] [ text (toString model.editMode) ]
             ]
         ]
 
