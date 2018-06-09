@@ -3,8 +3,8 @@ module MapEditor exposing (..)
 import Dict exposing (Dict)
 import Game exposing (..)
 import Html exposing (..)
-import Html.Attributes exposing (class, style)
-import Html.Events
+import Html.Attributes as SA exposing (..)
+import Html.Events exposing (onClick, onInput)
 import List.Extra
 import Mouse
 import Random
@@ -19,6 +19,20 @@ import Window
 toolbarHeightInPixels : Int
 toolbarHeightInPixels =
     100
+
+
+minSize : Int
+minSize =
+    8
+
+
+maxSize : Int
+maxSize =
+    30
+
+
+
+--
 
 
 type Symmetry
@@ -43,6 +57,8 @@ type Msg
     | OnMapClick
     | OnMouseMoves Mouse.Position
     | OnMouseButton Bool
+    | OnClickSymmetry Symmetry
+    | OnChangeSize (Int -> Game -> Game) String
 
 
 
@@ -78,7 +94,7 @@ init =
 
 
 
--- Viewport
+-- Helpers
 
 
 viewport : Model -> Viewport
@@ -92,6 +108,35 @@ viewport model =
     SplitScreen.makeViewports size 1
         |> List.head
         |> Maybe.withDefault SplitScreen.defaultViewport
+
+
+isWithinMap : Game -> Tile2 -> Bool
+isWithinMap game ( x, y ) =
+    True
+        && (x >= -game.halfWidth)
+        && (x < game.halfWidth)
+        && (y >= -game.halfHeight)
+        && (y < game.halfHeight)
+
+
+mirror : Symmetry -> Tile2 -> Tile2
+mirror symmetry ( x, y ) =
+    let
+        invert v =
+            -v - 1
+    in
+    case symmetry of
+        SymmetryCentral ->
+            ( invert x, invert y )
+
+        SymmetryVertical ->
+            ( invert x, y )
+
+        SymmetryHorizontal ->
+            ( x, invert y )
+
+        SymmetryNone ->
+            ( x, y )
 
 
 
@@ -194,25 +239,23 @@ updateWallAtMouseTile model =
                     one
 
                 two =
-                    case model.symmetry of
-                        SymmetryCentral ->
-                            ( -x, -y )
+                    mirror model.symmetry one
 
-                        SymmetryVertical ->
-                            ( x, -y )
-
-                        SymmetryHorizontal ->
-                            ( -x, y )
-
-                        SymmetryNone ->
-                            one
+                tiles =
+                    [ one, two ] |> List.filter (isWithinMap game)
             in
             { model
                 | game =
                     { game
-                        | wallTiles = List.foldl operation game.wallTiles [ one, two ]
+                        | wallTiles = List.foldl operation game.wallTiles tiles
                     }
             }
+
+
+updateOnSymmetry : Symmetry -> Model -> Model
+updateOnSymmetry sym model =
+    -- TODO
+    { model | symmetry = sym }
 
 
 updateOnMouseMove : Mouse.Position -> Model -> Model
@@ -264,6 +307,17 @@ update msg model =
                     |> updateWallAtMouseTile
                     |> noCmd
 
+        OnClickSymmetry symmetry ->
+            updateOnSymmetry symmetry model |> noCmd
+
+        OnChangeSize setter dimensionAsString ->
+            case String.toInt dimensionAsString of
+                Err _ ->
+                    noCmd model
+
+                Ok n ->
+                    noCmd { model | game = setter (clamp minSize maxSize n) model.game }
+
 
 
 -- View
@@ -295,6 +349,36 @@ terrain { game } =
     ]
 
 
+symmetryRadio : Model -> ( String, Symmetry ) -> Html Msg
+symmetryRadio model ( name, symmetry ) =
+    div
+        [ class "flex" ]
+        [ input
+            [ type_ "radio"
+            , onClick (OnClickSymmetry symmetry)
+            , checked (model.symmetry == symmetry)
+            ]
+            []
+        , label [ class "mr1" ] [ text name ]
+        ]
+
+
+sizeInput : Model -> ( String, Game -> Int, Int -> Game -> Game ) -> Html Msg
+sizeInput model ( name, get, set ) =
+    div
+        [ class "flex" ]
+        [ input
+            [ type_ "number"
+            , model.game |> get |> toString |> value
+            , SA.min (toString minSize)
+            , SA.max (toString maxSize)
+            , onInput (OnChangeSize set)
+            ]
+            []
+        , label [ class "mr1" ] [ text name ]
+        ]
+
+
 view : Model -> Html Msg
 view model =
     div
@@ -306,9 +390,29 @@ view model =
             ]
         , div
             [ style [ ( "height", toString toolbarHeightInPixels ++ "px" ) ]
-            , class "map-editor-sidebar"
+            , class "map-editor-toolbar flex alignCenter"
             ]
-            [ div [] [ text (toString model.mouseTile) ]
+            [ div
+                []
+                [ text "Size"
+                , [ ( "Width", .halfWidth, \w g -> { g | halfWidth = w } )
+                  , ( "Height", .halfHeight, \h g -> { g | halfHeight = h } )
+                  ]
+                    |> List.map (sizeInput model)
+                    |> div []
+                ]
+            , div
+                []
+                [ text "Symmetry:"
+                , [ ( "Central", SymmetryCentral )
+                  , ( "Vertical", SymmetryVertical )
+                  , ( "Horizontal", SymmetryHorizontal )
+                  , ( "None", SymmetryNone )
+                  ]
+                    |> List.map (symmetryRadio model)
+                    |> div []
+                ]
+            , div [] [ text (toString model.mouseTile) ]
             , div [] [ text (toString model.maybeWallEditMode) ]
             ]
         ]

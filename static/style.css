@@ -28,6 +28,7 @@
 
 .flex { display: flex; }
 .flex1 { flex: 1; }
+.flexColumn { flex-direction: column; }
 .alignCenter { align-items: center; }
 .alignEnd { align-items: flex-end; }
 .justifyCenter { justify-content: center; }
@@ -126,10 +127,20 @@ body, button {
 
 /* Map Editor */
 
-.map-editor-sidebar {
+.map-editor-toolbar {
   position: absolute;
   bottom: 0;
   width: 100%;
   overflow: hidden;
+
   background-color: #ddd;
+
+  padding-left: 1rem;
+  padding-right: 1rem;
+  box-sizing: border-box;
 }
+
+.map-editor-toolbar > * + * {
+  margin-left: 1rem;
+}
+
