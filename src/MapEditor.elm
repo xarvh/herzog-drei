@@ -8,6 +8,7 @@ import Html.Attributes as SA exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Keyboard
 import List.Extra
+import Map
 import Mouse
 import Random
 import Set exposing (Set)
@@ -23,14 +24,12 @@ toolbarHeightInPixels =
     100
 
 
-minSize : Int
 minSize =
-    8
+    Map.minSize
 
 
-maxSize : Int
 maxSize =
-    30
+    Map.maxSize
 
 
 
@@ -227,71 +226,6 @@ addBase symmetry targetTile game =
             |> Tuple.first
     else
         game
-
-
-
--- Map to/from String
-
-
-ifPositive : Int -> String
-ifPositive n =
-    if n < 0 then
-        ""
-    else
-        "+"
-
-
-tileToString : Tile2 -> String
-tileToString ( x, y ) =
-    ifPositive x ++ toString x ++ ifPositive y ++ toString y
-
-
-tileListToString : List Tile2 -> String
-tileListToString tiles =
-    tiles |> List.map tileToString |> String.join ""
-
-
-symmetryToString : Symmetry -> String
-symmetryToString s =
-    case s of
-        SymmetryCentral ->
-            "C"
-
-        SymmetryVertical ->
-            "V"
-
-        SymmetryHorizontal ->
-            "H"
-
-        SymmetryNone ->
-            "0"
-
-
-mapToString : Model -> String
-mapToString { game, symmetry } =
-    let
-        mainBaseTile =
-            game.baseById
-                |> Dict.values
-                |> List.Extra.find (\b -> b.type_ == BaseMain)
-                |> Maybe.map .tile
-                |> Maybe.withDefault ( 10, 0 )
-
-        smallBasesTiles =
-            game.baseById
-                |> Dict.values
-                |> List.filter (\b -> b.type_ == BaseSmall)
-                |> List.map .tile
-    in
-    [ symmetryToString symmetry
-    , tileToString ( game.halfWidth, game.halfHeight )
-    , tileToString mainBaseTile
-    , "b"
-    , tileListToString smallBasesTiles
-    , "w"
-    , tileListToString (Set.toList game.wallTiles)
-    ]
-        |> String.join ""
 
 
 
@@ -582,6 +516,15 @@ view model =
                     |> div []
                 ]
             , div [] [ text (toString model.mouseTile) ]
+            , div []
+                [ input
+                    [ model.game
+                        |> Map.fromGame "" ""
+                        |> Map.toString
+                        |> value
+                    ]
+                    []
+                ]
             ]
         ]
 
