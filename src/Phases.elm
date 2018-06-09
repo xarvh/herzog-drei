@@ -447,4 +447,14 @@ viewSetup rects game =
             , textNotSelectable
             ]
             [ text "Move to a color" ]
+        , text_
+            [ transform [ scale2 1 -1 ]
+            , y (-2 + toFloat game.halfHeight)
+            , SA.textAnchor "middle"
+            , SA.fontSize "0.7"
+            , SA.fontFamily "'NewAcademy', sans-serif"
+            , SA.fontWeight "700"
+            , textNotSelectable
+            ]
+            [ text "Press Q or Rally to change mech" ]
         ]
