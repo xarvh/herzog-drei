@@ -16,8 +16,8 @@ import View.Game
 import Window
 
 
-sidebarWidthInPixels : Int
-sidebarWidthInPixels =
+toolbarHeightInPixels : Int
+toolbarHeightInPixels =
     100
 
 
@@ -67,7 +67,7 @@ init =
             { newGame | phase = PhasePlay }
     in
     ( { game = game
-      , windowSize = { width = sidebarWidthInPixels + 1, height = 1 }
+      , windowSize = { width = 1, height = 1 + toolbarHeightInPixels }
       , mouseTile = ( 0, 0 )
       , maybeWallEditMode = Nothing
       }
@@ -83,8 +83,8 @@ viewport : Model -> Viewport
 viewport model =
     let
         size =
-            { width = model.windowSize.width - sidebarWidthInPixels
-            , height = model.windowSize.height
+            { width = model.windowSize.width
+            , height = model.windowSize.height - toolbarHeightInPixels
             }
     in
     SplitScreen.makeViewports size 1
@@ -228,15 +228,15 @@ update msg model =
             if not isPressed then
                 noCmd { model | maybeWallEditMode = Nothing }
             else
-                    { model
-                        | maybeWallEditMode =
-                            if Set.member model.mouseTile model.game.wallTiles then
-                                Just WallRemove
-                            else
-                                Just WallPlace
-                    }
-                      |> updateWallAtMouseTile
-                      |> noCmd
+                { model
+                    | maybeWallEditMode =
+                        if Set.member model.mouseTile model.game.wallTiles then
+                            Just WallRemove
+                        else
+                            Just WallPlace
+                }
+                    |> updateWallAtMouseTile
+                    |> noCmd
 
 
 
@@ -279,7 +279,7 @@ view model =
                 [ View.Game.view (terrain model) (viewport model) model.game ]
             ]
         , div
-            [ style [ ( "width", toString sidebarWidthInPixels ++ "px" ) ]
+            [ style [ ( "height", toString toolbarHeightInPixels ++ "px" ) ]
             , class "map-editor-sidebar"
             ]
             [ div [] [ text (toString model.mouseTile) ]

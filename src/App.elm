@@ -358,9 +358,9 @@ update msg model =
 
         OnGamepad timeAndGamepadBlob ->
             if model.maybeMapEditor == Nothing then
-                noCmd model
-            else
                 updateOnGamepad timeAndGamepadBlob model
+            else
+                noCmd model
 
         OnMapEditorMsg subMsg ->
             case model.maybeMapEditor of
@@ -434,8 +434,7 @@ subscriptions model =
         , Mouse.ups (\_ -> OnMouseButton False)
         , Mouse.moves OnMouseMoves
         , Sub.map OnKeyboardMsg Keyboard.Extra.subscriptions
-
-        --, Window.resizes OnWindowResizes
+        , Window.resizes OnWindowResizes
         , Keyboard.ups OnKeyPress
         , case model.maybeMenu of
             Nothing ->

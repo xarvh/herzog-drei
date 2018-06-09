@@ -128,8 +128,8 @@ body, button {
 
 .map-editor-sidebar {
   position: absolute;
-  right: 0;
+  bottom: 0;
+  width: 100%;
   overflow: hidden;
-  height: 100%;
   background-color: #ddd;
 }
