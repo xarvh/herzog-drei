@@ -54,6 +54,7 @@ type alias Model =
     , windowSize : Window.Size
     , mouseTile : Tile2
     , maybeWallEditMode : Maybe WallEditMode
+    , symmetry : Symmetry
     }
 
 
@@ -70,6 +71,7 @@ init =
       , windowSize = { width = 1, height = 1 + toolbarHeightInPixels }
       , mouseTile = ( 0, 0 )
       , maybeWallEditMode = Nothing
+      , symmetry = SymmetryCentral
       }
     , Window.size |> Task.perform OnWindowResizes
     )
@@ -130,8 +132,8 @@ symmetryToString s =
             "0"
 
 
-mapToString : Game -> String
-mapToString game =
+mapToString : Model -> String
+mapToString { game, symmetry } =
     let
         mainBaseTile =
             game.baseById
@@ -146,7 +148,7 @@ mapToString game =
                 |> List.filter (\b -> b.type_ == BaseSmall)
                 |> List.map .tile
     in
-    [ symmetryToString SymmetryNone
+    [ symmetryToString symmetry
     , tileToString ( game.halfWidth, game.halfHeight )
     , tileToString mainBaseTile
     , "b"
@@ -168,25 +170,49 @@ noCmd model =
 
 updateWallAtMouseTile : Model -> Model
 updateWallAtMouseTile model =
-    let
-        game =
-            model.game
+    case model.maybeWallEditMode of
+        Nothing ->
+            model
 
-        updateWallTiles =
-            case model.maybeWallEditMode of
-                Nothing ->
-                    identity
+        Just mode ->
+            let
+                game =
+                    model.game
 
-                Just WallRemove ->
-                    Set.remove model.mouseTile
+                operation =
+                    case mode of
+                        WallRemove ->
+                            Set.remove
 
-                Just WallPlace ->
-                    Set.insert model.mouseTile
+                        WallPlace ->
+                            Set.insert
 
-        newGame =
-            { game | wallTiles = updateWallTiles game.wallTiles }
-    in
-    { model | game = newGame }
+                one =
+                    model.mouseTile
+
+                ( x, y ) =
+                    one
+
+                two =
+                    case model.symmetry of
+                        SymmetryCentral ->
+                            ( -x, -y )
+
+                        SymmetryVertical ->
+                            ( x, -y )
+
+                        SymmetryHorizontal ->
+                            ( -x, y )
+
+                        SymmetryNone ->
+                            one
+            in
+            { model
+                | game =
+                    { game
+                        | wallTiles = List.foldl operation game.wallTiles [ one, two ]
+                    }
+            }
 
 
 updateOnMouseMove : Mouse.Position -> Model -> Model
