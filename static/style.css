@@ -37,6 +37,7 @@
 .fullWindow { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 .invisible { visibility: hidden; }
 
+
 /* padding */
 .p2 { padding: 2em; }
 .pt2 { padding-top: 2em; }
@@ -120,4 +121,15 @@ body, button {
   to {
     stroke-dashoffset: 1000;
   }
+}
+
+
+/* Map Editor */
+
+.map-editor-sidebar {
+  position: absolute;
+  right: 0;
+  overflow: hidden;
+  height: 100%;
+  background-color: #ddd;
 }

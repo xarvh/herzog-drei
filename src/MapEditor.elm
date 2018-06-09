@@ -4,7 +4,9 @@ import Game exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (class, style)
 import Html.Events
+import Mouse
 import Random
+import Set exposing (Set)
 import SplitScreen exposing (Viewport)
 import Task
 import View.Background
@@ -37,6 +39,8 @@ viewport model =
 type Msg
     = Noop
     | OnWindowResizes Window.Size
+    | OnMapClick
+    | OnMouseMoves Mouse.Position
 
 
 
@@ -46,6 +50,8 @@ type Msg
 type alias Model =
     { game : Game
     , windowSize : Window.Size
+    , mousePosition : { x : Int, y : Int }
+    , lastClick : { x : Int, y : Int }
     }
 
 
@@ -60,6 +66,8 @@ init =
     in
     ( { game = game
       , windowSize = { width = sidebarWidthInPixels + 1, height = 1 }
+      , lastClick = { x = 0, y = 0 }
+      , mousePosition = { x = 0, y = 0 }
       }
     , Window.size |> Task.perform OnWindowResizes
     )
@@ -74,6 +82,38 @@ noCmd model =
     ( model, Cmd.none )
 
 
+updateOnMouseMove : Mouse.Position -> Model -> Model
+updateOnMouseMove position model =
+    let
+        vp =
+            viewport model
+
+        scale =
+            SplitScreen.fitWidthAndHeight (toFloat game.halfWidth * 2) (toFloat game.halfHeight * 2) vp
+
+        toTile v =
+            v * scale |> floor
+
+        ( x, y ) =
+            SplitScreen.mouseScreenToViewport position vp
+                |> Tuple.mapFirst toTile
+                |> Tuple.mapSecond toTile
+
+        wallTiles =
+            Set.singleton ( x, y )
+
+        game =
+            model.game
+
+        newGame =
+            { game | wallTiles = wallTiles }
+    in
+    { model
+        | mousePosition = { x = x, y = y }
+        , game = newGame
+    }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -82,6 +122,12 @@ update msg model =
 
         OnWindowResizes windowSize ->
             noCmd { model | windowSize = windowSize }
+
+        OnMapClick ->
+            noCmd { model | lastClick = model.mousePosition }
+
+        OnMouseMoves position ->
+            updateOnMouseMove position model |> noCmd
 
 
 
@@ -117,12 +163,17 @@ terrain { game } =
 view : Model -> Html Msg
 view model =
     div
-        [ class "flex" ]
-        [ SplitScreen.viewportsWrapper
-            [ View.Game.view (terrain model) (viewport model) model.game ]
+        [ class "flex relative" ]
+        [ div
+            [ Html.Events.onClick OnMapClick ]
+            [ SplitScreen.viewportsWrapper
+                [ View.Game.view (terrain model) (viewport model) model.game ]
+            ]
         , div
-            [ style [ ( "width", toString sidebarWidthInPixels ++ "px" ) ] ]
-            [ text "LOOOOL"
+            [ style [ ( "width", toString sidebarWidthInPixels ++ "px" ) ]
+            , class "map-editor-sidebar"
+            ]
+            [ text (toString model.mousePosition)
             ]
         ]
 
@@ -133,4 +184,7 @@ view model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Window.resizes OnWindowResizes
+    Sub.batch
+        [ Window.resizes OnWindowResizes
+        , Mouse.moves OnMouseMoves
+        ]
