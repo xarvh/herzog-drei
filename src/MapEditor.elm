@@ -1,9 +1,11 @@
 module MapEditor exposing (..)
 
+import Dict exposing (Dict)
 import Game exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (class, style)
 import Html.Events
+import List.Extra
 import Mouse
 import Random
 import Set exposing (Set)
@@ -17,6 +19,64 @@ import Window
 sidebarWidthInPixels : Int
 sidebarWidthInPixels =
     100
+
+
+type Symmetry
+    = SymmetryCentral
+    | SymmetryVertical
+    | SymmetryHorizontal
+    | SymmetryNone
+
+
+type WallEditMode
+    = WallPlace
+    | WallRemove
+
+
+
+-- Msg
+
+
+type Msg
+    = Noop
+    | OnWindowResizes Window.Size
+    | OnMapClick
+    | OnMouseMoves Mouse.Position
+    | OnMouseButton Bool
+
+
+
+-- Model
+
+
+type alias Model =
+    { game : Game
+    , windowSize : Window.Size
+    , mouseTile : Tile2
+    , maybeWallEditMode : Maybe WallEditMode
+    }
+
+
+init : ( Model, Cmd Msg )
+init =
+    let
+        newGame =
+            Game.new { halfWidth = 20, halfHeight = 10 } (Random.initialSeed 0)
+
+        game =
+            { newGame | phase = PhasePlay }
+    in
+    ( { game = game
+      , windowSize = { width = sidebarWidthInPixels + 1, height = 1 }
+      , mouseTile = ( 0, 0 )
+      , maybeWallEditMode = Nothing
+      }
+    , Window.size |> Task.perform OnWindowResizes
+    )
+
+
+
+-- Viewport
 
 
 viewport : Model -> Viewport
@@ -33,44 +93,68 @@ viewport model =
 
 
 
--- Msg
+-- Map to/from String
 
 
-type Msg
-    = Noop
-    | OnWindowResizes Window.Size
-    | OnMapClick
-    | OnMouseMoves Mouse.Position
+ifPositive : Int -> String
+ifPositive n =
+    if n < 0 then
+        ""
+    else
+        "+"
 
 
-
--- Model
-
-
-type alias Model =
-    { game : Game
-    , windowSize : Window.Size
-    , mousePosition : { x : Int, y : Int }
-    , lastClick : { x : Int, y : Int }
-    }
+tileToString : Tile2 -> String
+tileToString ( x, y ) =
+    ifPositive x ++ toString x ++ ifPositive y ++ toString y
 
 
-init : ( Model, Cmd Msg )
-init =
+tileListToString : List Tile2 -> String
+tileListToString tiles =
+    tiles |> List.map tileToString |> String.join ""
+
+
+symmetryToString : Symmetry -> String
+symmetryToString s =
+    case s of
+        SymmetryCentral ->
+            "C"
+
+        SymmetryVertical ->
+            "V"
+
+        SymmetryHorizontal ->
+            "H"
+
+        SymmetryNone ->
+            "0"
+
+
+mapToString : Game -> String
+mapToString game =
     let
-        newGame =
-            Game.new { halfWidth = 20, halfHeight = 10 } (Random.initialSeed 0)
+        mainBaseTile =
+            game.baseById
+                |> Dict.values
+                |> List.Extra.find (\b -> b.type_ == BaseMain)
+                |> Maybe.map .tile
+                |> Maybe.withDefault ( 10, 0 )
 
-        game =
-            { newGame | phase = PhasePlay }
+        smallBasesTiles =
+            game.baseById
+                |> Dict.values
+                |> List.filter (\b -> b.type_ == BaseSmall)
+                |> List.map .tile
     in
-    ( { game = game
-      , windowSize = { width = sidebarWidthInPixels + 1, height = 1 }
-      , lastClick = { x = 0, y = 0 }
-      , mousePosition = { x = 0, y = 0 }
-      }
-    , Window.size |> Task.perform OnWindowResizes
-    )
+    [ symmetryToString SymmetryNone
+    , tileToString ( game.halfWidth, game.halfHeight )
+    , tileToString mainBaseTile
+    , "b"
+    , tileListToString smallBasesTiles
+    , "w"
+    , tileListToString (Set.toList game.wallTiles)
+    ]
+        |> String.join ""
 
 
 
@@ -82,36 +166,47 @@ noCmd model =
     ( model, Cmd.none )
 
 
+updateWallAtMouseTile : Model -> Model
+updateWallAtMouseTile model =
+    let
+        game =
+            model.game
+
+        updateWallTiles =
+            case model.maybeWallEditMode of
+                Nothing ->
+                    identity
+
+                Just WallRemove ->
+                    Set.remove model.mouseTile
+
+                Just WallPlace ->
+                    Set.insert model.mouseTile
+
+        newGame =
+            { game | wallTiles = updateWallTiles game.wallTiles }
+    in
+    { model | game = newGame }
+
+
 updateOnMouseMove : Mouse.Position -> Model -> Model
-updateOnMouseMove position model =
+updateOnMouseMove mousePositionInPixels model =
     let
         vp =
             viewport model
 
         scale =
-            SplitScreen.fitWidthAndHeight (toFloat game.halfWidth * 2) (toFloat game.halfHeight * 2) vp
+            SplitScreen.fitWidthAndHeight (toFloat model.game.halfWidth * 2) (toFloat model.game.halfHeight * 2) vp
 
         toTile v =
             v * scale |> floor
 
-        ( x, y ) =
-            SplitScreen.mouseScreenToViewport position vp
+        mousePositionInTiles =
+            SplitScreen.mouseScreenToViewport mousePositionInPixels vp
                 |> Tuple.mapFirst toTile
                 |> Tuple.mapSecond toTile
-
-        wallTiles =
-            Set.singleton ( x, y )
-
-        game =
-            model.game
-
-        newGame =
-            { game | wallTiles = wallTiles }
     in
-    { model
-        | mousePosition = { x = x, y = y }
-        , game = newGame
-    }
+    updateWallAtMouseTile { model | mouseTile = mousePositionInTiles }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -124,10 +219,24 @@ update msg model =
             noCmd { model | windowSize = windowSize }
 
         OnMapClick ->
-            noCmd { model | lastClick = model.mousePosition }
+            noCmd model
 
-        OnMouseMoves position ->
-            updateOnMouseMove position model |> noCmd
+        OnMouseMoves mousePosition ->
+            updateOnMouseMove mousePosition model |> noCmd
+
+        OnMouseButton isPressed ->
+            if not isPressed then
+                noCmd { model | maybeWallEditMode = Nothing }
+            else
+                    { model
+                        | maybeWallEditMode =
+                            if Set.member model.mouseTile model.game.wallTiles then
+                                Just WallRemove
+                            else
+                                Just WallPlace
+                    }
+                      |> updateWallAtMouseTile
+                      |> noCmd
 
 
 
@@ -173,7 +282,8 @@ view model =
             [ style [ ( "width", toString sidebarWidthInPixels ++ "px" ) ]
             , class "map-editor-sidebar"
             ]
-            [ text (toString model.mousePosition)
+            [ div [] [ text (toString model.mouseTile) ]
+            , div [] [ text (toString model.maybeWallEditMode) ]
             ]
         ]
 
@@ -187,4 +297,6 @@ subscriptions model =
     Sub.batch
         [ Window.resizes OnWindowResizes
         , Mouse.moves OnMouseMoves
+        , Mouse.downs (\_ -> OnMouseButton True)
+        , Mouse.ups (\_ -> OnMouseButton False)
         ]
