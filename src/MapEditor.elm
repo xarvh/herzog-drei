@@ -6,6 +6,7 @@ import Game exposing (..)
 import Html exposing (..)
 import Html.Attributes as SA exposing (..)
 import Html.Events exposing (onClick, onInput)
+import Keyboard
 import List.Extra
 import Mouse
 import Random
@@ -78,6 +79,7 @@ type Msg
     | OnSwitchSymmetry Symmetry
     | OnSwitchMode EditMode
     | OnChangeSize (Int -> Game -> Game) String
+    | OnKeyPress Keyboard.KeyCode
 
 
 
@@ -441,6 +443,26 @@ update msg model =
         OnSwitchMode mode ->
             noCmd { model | editMode = mode }
 
+        OnKeyPress keyCode ->
+            case keyCode of
+                32 ->
+                    noCmd
+                        { model
+                            | editMode =
+                                case model.editMode of
+                                    EditWalls _ ->
+                                        EditMainBase
+
+                                    EditMainBase ->
+                                        EditSmallBases
+
+                                    EditSmallBases ->
+                                        EditWalls Nothing
+                        }
+
+                _ ->
+                    noCmd model
+
 
 
 -- View
@@ -576,4 +598,5 @@ subscriptions model =
         , Mouse.downs (\_ -> OnMouseButton True)
         , Mouse.ups (\_ -> OnMouseButton False)
         , Mouse.clicks (\_ -> OnMouseClick)
+        , Keyboard.ups OnKeyPress
         ]
