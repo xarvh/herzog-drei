@@ -399,7 +399,7 @@ thinkMovement dt game unit sub =
                                 3.0
 
                             baseDistance base =
-                                vectorDistance base.position unit.position - toFloat (Base.size base // 2)
+                                vectorDistance base.position unit.position - toFloat (Base.size base.type_ // 2)
 
                             baseIsConquerable base =
                                 (baseDistance base < conquerBaseDistanceThreshold) && Base.unitCanEnter unit base

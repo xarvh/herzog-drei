@@ -408,7 +408,7 @@ view model =
             -- "Fps"
             , if Dict.member "fps" model.params then
                 div
-                    [ style [ ( "position", "absolute" ), ( "top", "0" ) ] ]
+                    [ class "fps nonSelectable" ]
                     [ text ("FPS " ++ toString fps) ]
               else
                 text ""

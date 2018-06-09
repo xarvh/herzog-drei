@@ -38,6 +38,11 @@
 .fullWindow { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 .invisible { visibility: hidden; }
 
+.nonSelectable {
+  user-select: none;
+  -moz-user-select: none;
+}
+
 
 /* padding */
 .p2 { padding: 2em; }
@@ -76,6 +81,11 @@ body, button {
 
 .game-area {
   cursor: url(crosshair.svg) 28 30, url(crosshair.png) 64 64, crosshair;
+}
+
+.fps {
+  position: absolute;
+  top: 0;
 }
 
 

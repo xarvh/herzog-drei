@@ -1,5 +1,6 @@
 module MapEditor exposing (..)
 
+import Base
 import Dict exposing (Dict)
 import Game exposing (..)
 import Html exposing (..)
@@ -53,6 +54,16 @@ type EditMode
     | EditSmallBases
 
 
+isEditWalls : EditMode -> Bool
+isEditWalls editMode =
+    case editMode of
+        EditWalls _ ->
+            True
+
+        _ ->
+            False
+
+
 
 -- Msg
 
@@ -63,6 +74,7 @@ type Msg
     | OnMapClick
     | OnMouseMoves Mouse.Position
     | OnMouseButton Bool
+    | OnMouseClick
     | OnSwitchSymmetry Symmetry
     | OnSwitchMode EditMode
     | OnChangeSize (Int -> Game -> Game) String
@@ -101,7 +113,7 @@ init =
 
 
 
--- Helpers
+-- Coordinate shenanigans
 
 
 viewport : Model -> Viewport
@@ -126,8 +138,8 @@ isWithinMap game ( x, y ) =
         && (y < game.halfHeight)
 
 
-mirror : Symmetry -> Tile2 -> Tile2
-mirror symmetry ( x, y ) =
+mirrorTile : Symmetry -> Tile2 -> Tile2
+mirrorTile symmetry ( x, y ) =
     let
         invert v =
             -v - 1
@@ -144,6 +156,75 @@ mirror symmetry ( x, y ) =
 
         SymmetryNone ->
             ( x, y )
+
+
+shiftForward : Int -> Int
+shiftForward v =
+    if v >= 0 then
+        v + 1
+    else
+        v
+
+
+shiftTile : Symmetry -> Tile2 -> Tile2
+shiftTile symmetry ( x, y ) =
+    ( if symmetry == SymmetryCentral || symmetry == SymmetryVertical then
+        shiftForward x
+      else
+        x
+    , if symmetry == SymmetryCentral || symmetry == SymmetryHorizontal then
+        shiftForward y
+      else
+        y
+    )
+
+
+
+-- Base shenanigans
+
+
+baseTiles : Base -> List Tile2
+baseTiles base =
+    Base.tiles base.type_ base.tile
+
+
+removeBase : Base -> Game -> Game
+removeBase base game =
+    { game | baseById = Dict.remove base.id game.baseById }
+
+
+findBaseAt : Game -> Tile2 -> Maybe Base
+findBaseAt game tile =
+    game.baseById
+        |> Dict.values
+        |> List.Extra.find (\b -> List.member tile (baseTiles b))
+
+
+removeBaseAt : Tile2 -> Game -> Game
+removeBaseAt tile game =
+    case findBaseAt game tile of
+        Just base ->
+            removeBase base game
+
+        Nothing ->
+            game
+
+
+addBase : Symmetry -> Tile2 -> Game -> Game
+addBase symmetry targetTile game =
+    let
+        shiftedTile =
+            shiftTile symmetry targetTile
+
+        tiles =
+            Base.tiles BaseSmall shiftedTile
+    in
+    if List.all (isWithinMap game) tiles then
+        List.foldl removeBaseAt game tiles
+            |> Base.add BaseSmall shiftedTile
+            |> Tuple.first
+    else
+        game
 
 
 
@@ -243,7 +324,7 @@ updateWallAtMouseTile model =
                     one
 
                 two =
-                    mirror model.symmetry one
+                    mirrorTile model.symmetry one
 
                 tiles =
                     [ one, two ] |> List.filter (isWithinMap game)
@@ -261,7 +342,6 @@ updateWallAtMouseTile model =
 
 updateOnSymmetry : Symmetry -> Model -> Model
 updateOnSymmetry sym model =
-    -- TODO
     { model | symmetry = sym }
 
 
@@ -285,9 +365,21 @@ updateOnMouseMove mousePositionInPixels model =
     updateWallAtMouseTile { model | mouseTile = mousePositionInTiles }
 
 
-addOrRemoveBase : BaseType -> Model -> Model
-addOrRemoveBase type_ model =
-    model
+updateSmallBase : Model -> Model
+updateSmallBase model =
+    { model
+        | game =
+            case findBaseAt model.game model.mouseTile of
+                Nothing ->
+                    model.game
+                        |> addBase model.symmetry (mirrorTile model.symmetry model.mouseTile)
+                        |> addBase model.symmetry model.mouseTile
+
+                Just base ->
+                    model.game
+                        |> removeBaseAt base.tile
+                        |> removeBaseAt (mirrorTile model.symmetry base.tile)
+    }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -305,29 +397,35 @@ update msg model =
         OnMouseMoves mousePosition ->
             updateOnMouseMove mousePosition model |> noCmd
 
-        OnMouseButton isPressed ->
+        OnMouseClick ->
             case model.editMode of
+                EditWalls _ ->
+                    noCmd model
+
                 EditMainBase ->
-                    addOrRemoveBase BaseMain model |> noCmd
+                    -- TODO
+                    noCmd model
 
                 EditSmallBases ->
-                    addOrRemoveBase BaseSmall model |> noCmd
+                    updateSmallBase model |> noCmd
 
-                EditWalls _ ->
-                    if not isPressed then
-                        noCmd { model | editMode = EditWalls Nothing }
-                    else
-                        { model
-                            | editMode =
-                                EditWalls
-                                    (if Set.member model.mouseTile model.game.wallTiles then
-                                        Just WallRemove
-                                     else
-                                        Just WallPlace
-                                    )
-                        }
-                            |> updateWallAtMouseTile
-                            |> noCmd
+        OnMouseButton isPressed ->
+            if not (isEditWalls model.editMode) then
+                noCmd model
+            else if not isPressed then
+                noCmd { model | editMode = EditWalls Nothing }
+            else
+                { model
+                    | editMode =
+                        EditWalls
+                            (if Set.member model.mouseTile model.game.wallTiles then
+                                Just WallRemove
+                             else
+                                Just WallPlace
+                            )
+                }
+                    |> updateWallAtMouseTile
+                    |> noCmd
 
         OnSwitchSymmetry symmetry ->
             updateOnSymmetry symmetry model |> noCmd
@@ -429,7 +527,7 @@ view model =
             ]
         , div
             [ style [ ( "height", toString toolbarHeightInPixels ++ "px" ) ]
-            , class "map-editor-toolbar flex alignCenter"
+            , class "map-editor-toolbar flex alignCenter nonSelectable"
             ]
             [ div
                 []
@@ -462,7 +560,6 @@ view model =
                     |> div []
                 ]
             , div [] [ text (toString model.mouseTile) ]
-            , div [] [ text (toString model.editMode) ]
             ]
         ]
 
@@ -478,4 +575,5 @@ subscriptions model =
         , Mouse.moves OnMouseMoves
         , Mouse.downs (\_ -> OnMouseButton True)
         , Mouse.ups (\_ -> OnMouseButton False)
+        , Mouse.clicks (\_ -> OnMouseClick)
         ]
