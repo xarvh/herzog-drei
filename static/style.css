@@ -43,6 +43,10 @@
   -moz-user-select: none;
 }
 
+.red {
+  color: red;
+}
+
 
 /* padding */
 .p2 { padding: 2em; }

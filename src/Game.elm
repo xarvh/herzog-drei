@@ -30,6 +30,20 @@ type alias Tile2 =
 
 
 
+-- Validated Map
+
+
+type alias ValidatedMap =
+    { halfWidth : Int
+    , halfHeight : Int
+    , leftBase : Tile2
+    , rightBase : Tile2
+    , smallBases : Set Tile2
+    , wallTiles : Set Tile2
+    }
+
+
+
 -- Team
 
 

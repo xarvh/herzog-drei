@@ -574,15 +574,28 @@ view model =
                     |> List.map (modeRadio model)
                     |> div []
                 ]
-            , div
+            , let
+                map =
+                    model.game |> Map.fromGame model.name model.author
+              in
+              div
                 [ class "flex1" ]
                 [ div [] [ text (toString model.mouseTile) ]
                 , stringInput model
                     FieldMapJson
-                    (model.game |> Map.fromGame model.name model.author |> Map.toString)
+                    (Map.toString map)
                 , div
                     []
                     [ model.error |> String.left 50 |> text ]
+                , div
+                    []
+                    [ case Map.validate map of
+                        Err error ->
+                            span [ class "red" ] [ text error ]
+
+                        Ok vm ->
+                            text "Validation Ok!"
+                    ]
                 ]
             ]
         ]
