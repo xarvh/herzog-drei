@@ -5,7 +5,7 @@ import Dict exposing (Dict)
 import Game exposing (..)
 import Html exposing (..)
 import Html.Attributes as SA exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onBlur, onClick, onFocus, onInput)
 import Keyboard
 import List.Extra
 import Map
@@ -64,6 +64,10 @@ isEditWalls editMode =
             False
 
 
+type TextInputField
+    = FieldMapJson
+
+
 
 -- Msg
 
@@ -79,6 +83,8 @@ type Msg
     | OnSwitchMode EditMode
     | OnChangeSize (Int -> Game -> Game) String
     | OnKeyPress Keyboard.KeyCode
+    | OnTextInput TextInputField String
+    | OnTextBlur
 
 
 
@@ -93,6 +99,8 @@ type alias Model =
     , symmetry : Symmetry
     , name : String
     , author : String
+    , error : String
+    , maybeFocus : Maybe ( String, TextInputField )
     }
 
 
@@ -112,6 +120,8 @@ init =
       , symmetry = SymmetryCentral
       , name = ""
       , author = ""
+      , error = ""
+      , maybeFocus = Nothing
       }
     , Window.size |> Task.perform OnWindowResizes
     )
@@ -322,6 +332,18 @@ updateBase baseType model =
     }
 
 
+updateOnTextInput : TextInputField -> String -> Model -> Model
+updateOnTextInput inputField string model =
+    case inputField of
+        FieldMapJson ->
+            case Map.fromString string of
+                Err message ->
+                    { model | error = message }
+
+                Ok map ->
+                    { model | error = "", game = Map.toGame map model.game }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -353,7 +375,7 @@ update msg model =
                 noCmd model
             else if not isPressed then
                 noCmd { model | editMode = EditWalls Nothing }
-            else
+            else if isWithinMap model.game model.mouseTile then
                 { model
                     | editMode =
                         EditWalls
@@ -365,6 +387,8 @@ update msg model =
                 }
                     |> updateWallAtMouseTile
                     |> noCmd
+            else
+                noCmd model
 
         OnSwitchSymmetry symmetry ->
             updateOnSymmetry symmetry model |> noCmd
@@ -399,6 +423,12 @@ update msg model =
 
                 _ ->
                     noCmd model
+
+        OnTextInput inputField string ->
+            updateOnTextInput inputField string { model | maybeFocus = Just ( string, inputField ) } |> noCmd
+
+        OnTextBlur ->
+            noCmd { model | maybeFocus = Nothing }
 
 
 
@@ -475,6 +505,32 @@ sizeInput model ( name, get, set ) =
         ]
 
 
+stringInput : Model -> TextInputField -> String -> Html Msg
+stringInput model inputField currentValue =
+    let
+        maybeUserIsTyping =
+            case model.maybeFocus of
+                Nothing ->
+                    Nothing
+
+                Just ( string, currentFocus ) ->
+                    if inputField == currentFocus then
+                        Just string
+                    else
+                        Nothing
+
+        content =
+            maybeUserIsTyping |> Maybe.withDefault currentValue
+    in
+    input
+        [ onInput (OnTextInput inputField)
+        , onBlur OnTextBlur
+        , value content
+        , style [ ( "width", "100%" ) ]
+        ]
+        []
+
+
 view : Model -> Html Msg
 view model =
     div
@@ -518,15 +574,15 @@ view model =
                     |> List.map (modeRadio model)
                     |> div []
                 ]
-            , div [] [ text (toString model.mouseTile) ]
-            , div []
-                [ input
-                    [ model.game
-                        |> Map.fromGame model.name model.author
-                        |> Map.toString
-                        |> value
-                    ]
+            , div
+                [ class "flex1" ]
+                [ div [] [ text (toString model.mouseTile) ]
+                , stringInput model
+                    FieldMapJson
+                    (model.game |> Map.fromGame model.name model.author |> Map.toString)
+                , div
                     []
+                    [ model.error |> String.left 50 |> text ]
                 ]
             ]
         ]

@@ -1,5 +1,6 @@
 module Map exposing (..)
 
+import Base
 import Dict exposing (Dict)
 import Game exposing (..)
 import Json.Decode as Decode exposing (Decoder, field)
@@ -51,10 +52,20 @@ fromGame name author game =
     }
 
 
+addBases : BaseType -> List Tile2 -> Game -> Game
+addBases baseType tiles game =
+    List.foldl (\tile g -> Base.add baseType tile g |> Tuple.first) game tiles
+
+
 toGame : Map -> Game -> Game
 toGame map game =
-    -- TODO
-    game
+    { game
+        | halfWidth = map.halfWidth
+        , halfHeight = map.halfHeight
+        , wallTiles = Set.fromList map.wallTiles
+    }
+        |> addBases BaseMain map.mainBases
+        |> addBases BaseSmall map.smallBases
 
 
 
@@ -63,7 +74,7 @@ toGame map game =
 
 tileEncoder : Tile2 -> Value
 tileEncoder ( x, y ) =
-    Encode.list [ Encode.int x, Encode.int x ]
+    Encode.list [ Encode.int x, Encode.int y ]
 
 
 tileDecoder : Decoder Tile2
@@ -94,7 +105,7 @@ mapEncoder : Map -> Value
 mapEncoder map =
     Encode.object
         [ ( "name", Encode.string map.name )
-        , ( "auhtor", Encode.string map.author )
+        , ( "author", Encode.string map.author )
         , ( "halfWidth", Encode.int map.halfWidth )
         , ( "halfHeight", Encode.int map.halfHeight )
         , ( "mainBases", listOfTilesEncoder map.mainBases )
@@ -134,8 +145,8 @@ mapDecoder =
                                                                                         Decode.succeed
                                                                                             { name = name
                                                                                             , author = author
-                                                                                            , halfHeight = halfWidth
-                                                                                            , halfWidth = halfHeight
+                                                                                            , halfWidth = halfWidth
+                                                                                            , halfHeight = halfHeight
                                                                                             , mainBases = mainBases
                                                                                             , smallBases = smallBases
                                                                                             , wallTiles = wallTiles
@@ -147,3 +158,8 @@ mapDecoder =
                                     )
                         )
             )
+
+
+fromString : String -> Result String Map
+fromString json =
+    Decode.decodeString mapDecoder json
