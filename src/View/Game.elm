@@ -8,6 +8,7 @@ import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Phases
 import Set exposing (Set)
+import SetupPhase
 import SplitScreen exposing (Viewport)
 import String.Extra
 import Svg exposing (..)
@@ -369,7 +370,7 @@ view terrain viewport game =
             [ Svg.Lazy.lazy View.Background.terrain terrain
             , g maybeOpacity
                 [ if game.phase == PhaseSetup then
-                    Phases.viewSetup terrain game
+                    SetupPhase.view terrain game
                   else
                     text ""
                 , subs

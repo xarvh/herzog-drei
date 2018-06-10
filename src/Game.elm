@@ -564,6 +564,15 @@ deltaEntity getter setter entityId updateEntity =
 -- Game manipulation helpers
 
 
+generateRandom : Random.Generator a -> Game -> ( a, Game )
+generateRandom generator game =
+    let
+        ( value, seed ) =
+            Random.step generator game.seed
+    in
+    ( value, { game | seed = seed } )
+
+
 updateBase : Base -> Game -> Game
 updateBase base game =
     { game | baseById = Dict.insert base.id base game.baseById }
