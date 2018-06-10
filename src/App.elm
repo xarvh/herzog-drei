@@ -348,10 +348,25 @@ update msg model =
                         ( menu, Nothing ) ->
                             noCmd { model | maybeMenu = Just menu }
 
-                        ( menu, Just config ) ->
+                        ( menu, Just (Menu.OutcomeConfig config) ) ->
                             ( { model | maybeMenu = Just menu, config = config }
                             , saveConfig model config
                             )
+
+                        ( menu, Just (Menu.OutcomeMap map) ) ->
+                            let
+                                game =
+                                    model.game
+
+                                newGame =
+                                    { game | validatedMap = map }
+                            in
+                            noCmd { model | maybeMenu = Just menu, game = newGame }
+
+                        ( menu, Just Menu.OutcomeOpenMapEditor ) ->
+                            MapEditor.init
+                                |> Tuple.mapFirst (\mapEditor -> { model | maybeMapEditor = Just mapEditor })
+                                |> Tuple.mapSecond (Cmd.map OnMapEditorMsg)
 
         OnKeyboardMsg keyboardMsg ->
             noCmd { model | pressedKeys = Keyboard.Extra.update keyboardMsg model.pressedKeys }
