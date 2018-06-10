@@ -111,18 +111,20 @@ setupToPlayPhase game =
                 |> List.filterMap Unit.toMech
                 |> List.map (\( unit, mech ) -> ( mech.inputKey, mech.class ))
                 |> Dict.fromList
+
+        map =
+            game.validatedMap
     in
     { game
         | unitById = Dict.empty
-        , wallTiles = Set.fromList walls
+        , wallTiles = map.wallTiles
         , phase = PhasePlay
         , maybeTransition = Just 0
     }
-        |> Game.addStaticObstacles walls
-        |> Init.addSmallBase ( -5, 2 )
-        |> Init.addSmallBase ( 5, -2 )
-        |> Init.addMainBase (Just game.leftTeam.id) ( -16, -6 )
-        |> Init.addMainBase (Just game.rightTeam.id) ( 16, 6 )
+        |> Game.addStaticObstacles (Set.toList map.wallTiles)
+        |> (\g -> Set.foldl Init.addSmallBase g map.smallBases)
+        |> Init.addMainBase (Just game.leftTeam.id) map.leftBase
+        |> Init.addMainBase (Just game.rightTeam.id) map.rightBase
         |> initMarkerPosition game.leftTeam
         |> initMarkerPosition game.rightTeam
         |> Init.kickstartPathing

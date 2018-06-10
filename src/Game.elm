@@ -461,6 +461,7 @@ type alias Game =
 
     -- random
     , seed : Random.Seed
+    , validatedMap : ValidatedMap
     }
 
 
@@ -502,6 +503,16 @@ new { halfWidth, halfHeight } seed =
 
     --
     , seed = seed
+
+    --
+    , validatedMap =
+        { halfWidth = 20
+        , halfHeight = 10
+        , leftBase = ( -14, 0 )
+        , rightBase = ( 14, 0 )
+        , smallBases = Set.fromList [ ( 0, 0 ) ]
+        , wallTiles = Set.empty
+        }
     }
 
 
