@@ -91,6 +91,8 @@ type alias Model =
     , mouseTile : Tile2
     , editMode : EditMode
     , symmetry : Symmetry
+    , name : String
+    , author : String
     }
 
 
@@ -108,6 +110,8 @@ init =
       , mouseTile = ( 0, 0 )
       , editMode = EditWalls Nothing
       , symmetry = SymmetryCentral
+      , name = ""
+      , author = ""
       }
     , Window.size |> Task.perform OnWindowResizes
     )
@@ -211,18 +215,18 @@ removeBaseAt tile game =
             game
 
 
-addBase : Symmetry -> Tile2 -> Game -> Game
-addBase symmetry targetTile game =
+addBase : Symmetry -> BaseType -> Tile2 -> Game -> Game
+addBase symmetry baseType targetTile game =
     let
         shiftedTile =
             shiftTile symmetry targetTile
 
         tiles =
-            Base.tiles BaseSmall shiftedTile
+            Base.tiles baseType shiftedTile
     in
     if List.all (isWithinMap game) tiles then
         List.foldl removeBaseAt game tiles
-            |> Base.add BaseSmall shiftedTile
+            |> Base.add baseType shiftedTile
             |> Tuple.first
     else
         game
@@ -301,15 +305,15 @@ updateOnMouseMove mousePositionInPixels model =
     updateWallAtMouseTile { model | mouseTile = mousePositionInTiles }
 
 
-updateSmallBase : Model -> Model
-updateSmallBase model =
+updateBase : BaseType -> Model -> Model
+updateBase baseType model =
     { model
         | game =
             case findBaseAt model.game model.mouseTile of
                 Nothing ->
                     model.game
-                        |> addBase model.symmetry (mirrorTile model.symmetry model.mouseTile)
-                        |> addBase model.symmetry model.mouseTile
+                        |> addBase model.symmetry baseType (mirrorTile model.symmetry model.mouseTile)
+                        |> addBase model.symmetry baseType model.mouseTile
 
                 Just base ->
                     model.game
@@ -339,11 +343,10 @@ update msg model =
                     noCmd model
 
                 EditMainBase ->
-                    -- TODO
-                    noCmd model
+                    updateBase BaseMain model |> noCmd
 
                 EditSmallBases ->
-                    updateSmallBase model |> noCmd
+                    updateBase BaseSmall model |> noCmd
 
         OnMouseButton isPressed ->
             if not (isEditWalls model.editMode) then
@@ -519,7 +522,7 @@ view model =
             , div []
                 [ input
                     [ model.game
-                        |> Map.fromGame "" ""
+                        |> Map.fromGame model.name model.author
                         |> Map.toString
                         |> value
                     ]
