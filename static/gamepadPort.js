@@ -29,8 +29,7 @@ function addGamepadPort(elmApp) {
     }
 
     elmApp.ports.gamepad.send([
-      //timestamp - previousTimestamp,
-      timestamp,
+      timestamp - previousTimestamp,
       serialisedGamepads,
     ]);
 

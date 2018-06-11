@@ -6,6 +6,7 @@ import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Random
+import Set exposing (Set)
 import Unit
 
 
@@ -46,27 +47,44 @@ init inputKey teamId hasHumanAlly randomInteger game =
     }
 
 
-update : Game -> State -> ( State, InputState )
-update game state =
-    let
-        pickTargetBase : List Id -> Maybe Base
-        pickTargetBase baseIds =
-            case baseIds of
-                [] ->
+unitsNotHealthy : Set Id -> Game -> Bool
+unitsNotHealthy ids game =
+    ids
+        |> Set.toList
+        |> List.filterMap (\id -> Dict.get id game.unitById)
+        |> List.any (\u -> u.integrity < 1)
+
+
+pickTargetBase : Game -> State -> List Id -> Maybe Base
+pickTargetBase game state baseIds =
+    case baseIds of
+        [] ->
+            Nothing
+
+        baseId :: bs ->
+            case Dict.get baseId game.baseById of
+                Nothing ->
                     Nothing
 
-                baseId :: bs ->
-                    case Dict.get baseId game.baseById of
+                Just base ->
+                    case base.maybeOccupied of
                         Nothing ->
-                            Nothing
+                            Just base
 
-                        Just base ->
-                            if Base.isOccupiedBy (Just state.teamId) base then
-                                pickTargetBase bs
-                            else
+                        Just occupied ->
+                            if occupied.maybeTeamId /= Just state.teamId then
                                 Just base
-    in
-    case pickTargetBase state.basesSortedByPriority of
+                            else if not occupied.isActive then
+                                Just base
+                            else if unitsNotHealthy occupied.unitIds game then
+                                Just base
+                            else
+                                pickTargetBase game state bs
+
+
+update : Game -> State -> ( State, InputState )
+update game state =
+    case pickTargetBase game state state.basesSortedByPriority of
         Nothing ->
             -- Bot owns all the bases!
             gloat game state

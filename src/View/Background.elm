@@ -68,14 +68,14 @@ rectGenerator x y =
         classGenerator
 
 
-initRects : Game -> List Rect
-initRects game =
+initRects : Random.Seed -> { a | halfWidth : Int, halfHeight : Int } -> List Rect
+initRects seed { halfWidth, halfHeight } =
     let
         generators =
-            List.range -game.halfWidth game.halfWidth
+            List.range -halfWidth halfWidth
                 |> List.map
                     (\x ->
-                        List.range -game.halfHeight game.halfHeight
+                        List.range -halfHeight halfHeight
                             |> List.map
                                 (\y ->
                                     rectGenerator x y
@@ -87,7 +87,7 @@ initRects game =
                 |> List.concat
                 |> Random.Extra.combine
     in
-    Random.step generator game.seed
+    Random.step generator seed
         |> Tuple.first
 
 

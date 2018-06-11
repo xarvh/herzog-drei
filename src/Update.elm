@@ -3,9 +3,9 @@ module Update exposing (..)
 import BaseThink
 import Dict exposing (Dict)
 import Game exposing (..)
+import Init
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
-import Phases
 import ProjectileThink
 import Set exposing (Set)
 import SetupPhase
@@ -17,45 +17,77 @@ import View.Gfx
 -- Main update function
 
 
-update : Seconds -> Dict String ( InputState, InputState ) -> Game -> Game
-update time pairedInputStatesByKey game =
+update : Seconds -> Dict String ( InputState, InputState ) -> Game -> ( Game, List Outcome )
+update uncappedDt pairedInputStatesByKey oldGame =
     let
         -- Cap dt to 0.1 secs to avoid time integration problems
         dt =
-            time - game.time |> min 0.1
+            min 0.1 uncappedDt
 
         units =
-            Dict.values game.unitById
+            Dict.values oldGame.unitById
 
-        updatedDynamicObstacles =
-            units
-                |> List.map (.position >> vec2Tile)
-                |> Set.fromList
-
-        oldGameWithUpdatedDynamicObstacles =
-            { game | dynamicObstacles = updatedDynamicObstacles }
+        tempGame =
+            { oldGame
+                | time = oldGame.time + dt
+                , dynamicObstacles =
+                    units
+                        |> List.map (.position >> vec2Tile)
+                        |> Set.fromList
+            }
+                -- TODO: this should become a lot nicer once all GFX are using game time
+                |> updateGfxs dt
     in
-    [ units
-        |> List.map (UnitThink.think dt pairedInputStatesByKey oldGameWithUpdatedDynamicObstacles)
-    , [ case game.phase of
-            PhaseSetup ->
-                SetupPhase.think (Dict.keys pairedInputStatesByKey) game
+    [ units |> List.map (UnitThink.think dt pairedInputStatesByKey tempGame)
+    , [ case tempGame.mode of
+            GameModeTeamSelection _ ->
+                SetupPhase.think (Dict.keys pairedInputStatesByKey) tempGame
 
-            PhasePlay ->
-                VictoryThink.think dt game
+            GameModeVersus ->
+                VictoryThink.think dt tempGame
       ]
-    , game.baseById
+    , [ transitionThink tempGame ]
+    , tempGame.baseById
         |> Dict.values
-        |> List.map (BaseThink.think dt oldGameWithUpdatedDynamicObstacles)
-    , game.projectileById
+        |> List.map (BaseThink.think dt tempGame)
+    , tempGame.projectileById
         |> Dict.values
-        |> List.map (ProjectileThink.think dt oldGameWithUpdatedDynamicObstacles)
+        |> List.map (ProjectileThink.think dt tempGame)
     ]
         |> List.map deltaList
-        |> applyGameDeltas oldGameWithUpdatedDynamicObstacles
-        |> updateGfxs dt
-        |> Phases.transitionUpdate dt
-        |> (\game -> { game | time = time })
+        |> applyGameDeltas tempGame
+
+
+
+-- Stage Transition
+
+
+transitionDuration : Float
+transitionDuration =
+    1.0
+
+
+transitionThink : Game -> Delta
+transitionThink game =
+    case game.maybeTransitionStart of
+        Nothing ->
+            deltaNone
+
+        Just transitionStart ->
+            if game.time - transitionStart < transitionDuration then
+                deltaNone
+            else
+                case game.mode of
+                    GameModeTeamSelection map ->
+                        -- Switch to Versus mode
+                        deltaList
+                            [ deltaGame (Init.asVersusFromTeamSelection map)
+                            , DeltaOutcome OutcomeCanInitBots
+                            ]
+
+                    GameModeVersus ->
+                        -- transitions complete
+                        deltaGame (\g -> { g | maybeTransitionStart = Nothing })
 
 
 
@@ -71,19 +103,22 @@ updateGfxs dt game =
 -- Folder
 
 
-applyDelta : Delta -> Game -> Game
-applyDelta delta game =
+applyDelta : Delta -> ( Game, List Outcome ) -> ( Game, List Outcome )
+applyDelta delta gameAndOutcome =
     case delta of
         DeltaNone ->
-            game
+            gameAndOutcome
 
         DeltaList list ->
-            List.foldl applyDelta game list
+            List.foldl applyDelta gameAndOutcome list
 
         DeltaGame f ->
-            f game
+            Tuple.mapFirst f gameAndOutcome
+
+        DeltaOutcome o ->
+            Tuple.mapSecond ((::) o) gameAndOutcome
 
 
-applyGameDeltas : Game -> List Delta -> Game
+applyGameDeltas : Game -> List Delta -> ( Game, List Outcome )
 applyGameDeltas game deltas =
-    List.foldl applyDelta game deltas
+    List.foldl applyDelta ( game, [] ) deltas

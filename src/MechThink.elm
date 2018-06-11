@@ -45,44 +45,6 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
                 |> clampToRadius 1
                 |> Vec2.scale (speed * dt)
 
-        hasFreeGround u =
-            Set.member (vec2Tile u.position) game.staticObstacles |> not
-
-        transformingTo =
-            if currentInput.transform && hasFreeGround unit then
-                case mech.transformingTo of
-                    ToFlyer ->
-                        if mech.transformState == 1 then
-                            ToMech
-                        else
-                            mech.transformingTo
-
-                    ToMech ->
-                        if mech.transformState == 0 then
-                            ToFlyer
-                        else
-                            mech.transformingTo
-            else
-                mech.transformingTo
-
-        transformDirection =
-            case transformingTo of
-                ToMech ->
-                    (-)
-
-                ToFlyer ->
-                    (+)
-
-        transform =
-            (\mech ->
-                { mech
-                    | transformingTo = transformingTo
-                    , transformState = clamp 0 1 (transformDirection mech.transformState (dt / transformTime))
-                }
-            )
-                |> Game.updateMech
-                |> deltaUnit unit.id
-
         nextClass class =
             case class of
                 Plane ->
@@ -93,13 +55,13 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
 
         rally =
             if currentInput.rally && not previousInput.rally then
-                case game.phase of
-                    PhaseSetup ->
+                case game.mode of
+                    GameModeTeamSelection _ ->
                         (\mech -> { mech | class = nextClass mech.class })
                             |> Game.updateMech
                             |> deltaUnit unit.id
 
-                    PhasePlay ->
+                    GameModeVersus ->
                         case unit.maybeTeamId of
                             Nothing ->
                                 deltaNone
@@ -132,6 +94,44 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
 
         moveMech =
             deltaUnit unit.id (\g u -> { u | position = newPosition })
+
+        hasFreeGround u =
+            Set.member (vec2Tile newPosition) game.staticObstacles |> not
+
+        transformingTo =
+            if currentInput.transform then
+                case mech.transformingTo of
+                    ToFlyer ->
+                        if mech.transformState == 1 && hasFreeGround unit then
+                            ToMech
+                        else
+                            mech.transformingTo
+
+                    ToMech ->
+                        if mech.transformState == 0 then
+                            ToFlyer
+                        else
+                            mech.transformingTo
+            else
+                mech.transformingTo
+
+        transformDirection =
+            case transformingTo of
+                ToMech ->
+                    (-)
+
+                ToFlyer ->
+                    (+)
+
+        transform =
+            (\mech ->
+                { mech
+                    | transformingTo = transformingTo
+                    , transformState = clamp 0 1 (transformDirection mech.transformState (dt / transformTime))
+                }
+            )
+                |> Game.updateMech
+                |> deltaUnit unit.id
 
         reload =
             if unit.timeToReload > 0 then

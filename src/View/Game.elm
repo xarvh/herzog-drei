@@ -5,8 +5,8 @@ import ColorPattern exposing (ColorPattern, neutral)
 import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
+import Map exposing (Map)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
-import Phases
 import Set exposing (Set)
 import SetupPhase
 import SplitScreen exposing (Viewport)
@@ -14,6 +14,7 @@ import String.Extra
 import Svg exposing (..)
 import Svg.Attributes
 import Svg.Lazy
+import Update
 import View exposing (..)
 import View.Background
 import View.Base
@@ -132,6 +133,23 @@ viewBase game base =
                         , time = game.time
                         }
                     ]
+        ]
+
+
+viewMapEditorBase : ( Tile2, BaseType ) -> Svg a
+viewMapEditorBase ( tile, baseType ) =
+    let
+        colorPattern =
+            ColorPattern.neutral
+    in
+    Svg.g
+        [ transform [ translate (tile2Vec tile) ] ]
+        [ case baseType of
+            Game.BaseSmall ->
+                View.Base.small 0 colorPattern.bright colorPattern.dark
+
+            Game.BaseMain ->
+                View.Base.main_ 0 colorPattern.bright colorPattern.dark
         ]
 
 
@@ -340,9 +358,30 @@ viewVictory game =
 -- Main
 
 
-tilesToViewport : Game -> Viewport -> Float
-tilesToViewport game viewport =
-    SplitScreen.fitWidthAndHeight (toFloat game.halfWidth * 2) (toFloat game.halfHeight * 2) viewport
+tilesToViewport : { a | halfWidth : Int, halfHeight : Int } -> Viewport -> Float
+tilesToViewport { halfWidth, halfHeight } viewport =
+    SplitScreen.fitWidthAndHeight (toFloat halfWidth * 2) (toFloat halfHeight * 2) viewport
+
+
+maybeOpacity game =
+    case game.maybeTransitionStart of
+        Nothing ->
+            []
+
+        Just transitionStart ->
+            let
+                t =
+                    (game.time - transitionStart) / Update.transitionDuration
+
+                o =
+                    case game.mode of
+                        GameModeTeamSelection _ ->
+                            1 - t
+
+                        GameModeVersus ->
+                            t
+            in
+            [ opacity o ]
 
 
 view : List View.Background.Rect -> Viewport -> Game -> Svg a
@@ -353,14 +392,6 @@ view terrain viewport game =
 
         ( mechs, subs ) =
             mechVsUnit units
-
-        maybeOpacity =
-            case game.maybeTransition of
-                Nothing ->
-                    []
-
-                Just transition ->
-                    [ opacity transition ]
     in
     Svg.svg
         (SplitScreen.viewportToSvgAttributes viewport)
@@ -368,11 +399,13 @@ view terrain viewport game =
             [ transform [ "scale(1 -1)", scale (1 / tilesToViewport game viewport) ]
             ]
             [ Svg.Lazy.lazy View.Background.terrain terrain
-            , g maybeOpacity
-                [ if game.phase == PhaseSetup then
-                    SetupPhase.view terrain game
-                  else
-                    text ""
+            , g (maybeOpacity game)
+                [ case game.mode of
+                    GameModeTeamSelection _ ->
+                        SetupPhase.view terrain game
+
+                    _ ->
+                        text ""
                 , subs
                     |> List.filter (\( u, s ) -> s.mode == UnitModeFree)
                     |> List.map (viewSub game)
@@ -392,7 +425,7 @@ view terrain viewport game =
                 , mechs
                     |> List.map (viewMech game)
                     |> g []
-                , if game.phase /= PhasePlay then
+                , if game.mode /= GameModeVersus then
                     text ""
                   else
                     [ game.leftTeam, game.rightTeam ]
@@ -411,4 +444,30 @@ view terrain viewport game =
                 ]
             ]
         , viewVictory game
+        ]
+
+
+
+-- Map editor
+
+
+viewMap : List View.Background.Rect -> Viewport -> Map -> Svg a
+viewMap terrain viewport map =
+    Svg.svg
+        (SplitScreen.viewportToSvgAttributes viewport)
+        [ Svg.g
+            [ transform [ "scale(1 -1)", scale (1 / tilesToViewport map viewport) ]
+            ]
+            [ Svg.Lazy.lazy View.Background.terrain terrain
+            , g []
+                [ map.wallTiles
+                    |> Set.toList
+                    |> List.map wall
+                    |> g []
+                , map.bases
+                    |> Dict.toList
+                    |> List.map viewMapEditorBase
+                    |> g []
+                ]
+            ]
         ]

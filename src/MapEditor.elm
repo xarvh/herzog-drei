@@ -8,10 +8,11 @@ import Html.Attributes as SA exposing (..)
 import Html.Events exposing (onBlur, onClick, onFocus, onInput)
 import Keyboard
 import List.Extra
-import Map
+import Map exposing (Map)
 import Mouse
 import Random
 import Set exposing (Set)
+import Shell exposing (Shell)
 import SplitScreen exposing (Viewport)
 import Task
 import View.Background
@@ -81,7 +82,7 @@ type Msg
     | OnMouseClick
     | OnSwitchSymmetry Symmetry
     | OnSwitchMode EditMode
-    | OnChangeSize (Int -> Game -> Game) String
+    | OnChangeSize (Int -> Map -> Map) String
     | OnKeyPress Keyboard.KeyCode
     | OnTextInput TextInputField String
     | OnTextBlur
@@ -92,46 +93,43 @@ type Msg
 
 
 type alias Model =
-    { game : Game
+    { map : Map
     , windowSize : Window.Size
     , mouseTile : Tile2
     , editMode : EditMode
     , symmetry : Symmetry
-    , name : String
-    , author : String
     , error : String
     , maybeFocus : Maybe ( String, TextInputField )
     }
 
 
-init : ( Model, Cmd Msg )
+init : Model
 init =
     let
-        newGame =
-            Game.new { halfWidth = 20, halfHeight = 10 } (Random.initialSeed 0)
-
-        game =
-            { newGame | phase = PhasePlay }
+        map =
+            { name = ""
+            , author = ""
+            , halfWidth = 20
+            , halfHeight = 10
+            , bases = Dict.empty
+            , wallTiles = Set.empty
+            }
     in
-    ( { game = game
-      , windowSize = { width = 1, height = 1 + toolbarHeightInPixels }
-      , mouseTile = ( 0, 0 )
-      , editMode = EditWalls Nothing
-      , symmetry = SymmetryCentral
-      , name = ""
-      , author = ""
-      , error = ""
-      , maybeFocus = Nothing
-      }
-    , Window.size |> Task.perform OnWindowResizes
-    )
+    { map = map
+    , windowSize = { width = 1, height = 1 + toolbarHeightInPixels }
+    , mouseTile = ( 0, 0 )
+    , editMode = EditWalls Nothing
+    , symmetry = SymmetryCentral
+    , error = ""
+    , maybeFocus = Nothing
+    }
 
 
 
 -- Coordinate shenanigans
 
 
-viewport : Model -> Viewport
+viewport : Shell -> Viewport
 viewport model =
     let
         size =
@@ -144,13 +142,13 @@ viewport model =
         |> Maybe.withDefault SplitScreen.defaultViewport
 
 
-isWithinMap : Game -> Tile2 -> Bool
-isWithinMap game ( x, y ) =
+isWithinMap : Map -> Tile2 -> Bool
+isWithinMap map ( x, y ) =
     True
-        && (x >= -game.halfWidth)
-        && (x < game.halfWidth)
-        && (y >= -game.halfHeight)
-        && (y < game.halfHeight)
+        && (x >= -map.halfWidth)
+        && (x < map.halfWidth)
+        && (y >= -map.halfHeight)
+        && (y < map.halfHeight)
 
 
 mirrorTile : Symmetry -> Tile2 -> Tile2
@@ -203,30 +201,8 @@ baseTiles base =
     Base.tiles base.type_ base.tile
 
 
-removeBase : Base -> Game -> Game
-removeBase base game =
-    { game | baseById = Dict.remove base.id game.baseById }
-
-
-findBaseAt : Game -> Tile2 -> Maybe Base
-findBaseAt game tile =
-    game.baseById
-        |> Dict.values
-        |> List.Extra.find (\b -> List.member tile (baseTiles b))
-
-
-removeBaseAt : Tile2 -> Game -> Game
-removeBaseAt tile game =
-    case findBaseAt game tile of
-        Just base ->
-            removeBase base game
-
-        Nothing ->
-            game
-
-
-addBase : Symmetry -> BaseType -> Tile2 -> Game -> Game
-addBase symmetry baseType targetTile game =
+addBase : Symmetry -> BaseType -> Tile2 -> Map -> Map
+addBase symmetry baseType targetTile map =
     let
         shiftedTile =
             shiftTile symmetry targetTile
@@ -234,12 +210,14 @@ addBase symmetry baseType targetTile game =
         tiles =
             Base.tiles baseType shiftedTile
     in
-    if List.all (isWithinMap game) tiles then
-        List.foldl removeBaseAt game tiles
-            |> Base.add baseType shiftedTile
-            |> Tuple.first
+    if List.all (isWithinMap map) tiles then
+        tiles
+            |> List.map (findBasesAt map)
+            |> List.concat
+            |> List.foldl removeBase map
+            |> (\map -> { map | bases = Dict.insert shiftedTile baseType map.bases })
     else
-        game
+        map
 
 
 
@@ -251,101 +229,8 @@ noCmd model =
     ( model, Cmd.none )
 
 
-updateWallAtMouseTile : Model -> Model
-updateWallAtMouseTile model =
-    case model.editMode of
-        EditWalls (Just mode) ->
-            let
-                game =
-                    model.game
-
-                operation =
-                    case mode of
-                        WallRemove ->
-                            Set.remove
-
-                        WallPlace ->
-                            Set.insert
-
-                one =
-                    model.mouseTile
-
-                ( x, y ) =
-                    one
-
-                two =
-                    mirrorTile model.symmetry one
-
-                tiles =
-                    [ one, two ] |> List.filter (isWithinMap game)
-            in
-            { model
-                | game =
-                    { game
-                        | wallTiles = List.foldl operation game.wallTiles tiles
-                    }
-            }
-
-        _ ->
-            model
-
-
-updateOnSymmetry : Symmetry -> Model -> Model
-updateOnSymmetry sym model =
-    { model | symmetry = sym }
-
-
-updateOnMouseMove : Mouse.Position -> Model -> Model
-updateOnMouseMove mousePositionInPixels model =
-    let
-        vp =
-            viewport model
-
-        scale =
-            SplitScreen.fitWidthAndHeight (toFloat model.game.halfWidth * 2) (toFloat model.game.halfHeight * 2) vp
-
-        toTile v =
-            v * scale |> floor
-
-        mousePositionInTiles =
-            SplitScreen.mouseScreenToViewport mousePositionInPixels vp
-                |> Tuple.mapFirst toTile
-                |> Tuple.mapSecond toTile
-    in
-    updateWallAtMouseTile { model | mouseTile = mousePositionInTiles }
-
-
-updateBase : BaseType -> Model -> Model
-updateBase baseType model =
-    { model
-        | game =
-            case findBaseAt model.game model.mouseTile of
-                Nothing ->
-                    model.game
-                        |> addBase model.symmetry baseType (mirrorTile model.symmetry model.mouseTile)
-                        |> addBase model.symmetry baseType model.mouseTile
-
-                Just base ->
-                    model.game
-                        |> removeBaseAt base.tile
-                        |> removeBaseAt (mirrorTile model.symmetry base.tile)
-    }
-
-
-updateOnTextInput : TextInputField -> String -> Model -> Model
-updateOnTextInput inputField string model =
-    case inputField of
-        FieldMapJson ->
-            case Map.fromString string of
-                Err message ->
-                    { model | error = message }
-
-                Ok map ->
-                    { model | error = "", game = Map.toGame map model.game }
-
-
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : Msg -> Shell -> Model -> ( Model, Cmd Msg )
+update msg shell model =
     case msg of
         Noop ->
             noCmd model
@@ -357,7 +242,7 @@ update msg model =
             noCmd model
 
         OnMouseMoves mousePosition ->
-            updateOnMouseMove mousePosition model |> noCmd
+            updateOnMouseMove mousePosition shell model |> noCmd
 
         OnMouseClick ->
             case model.editMode of
@@ -375,11 +260,11 @@ update msg model =
                 noCmd model
             else if not isPressed then
                 noCmd { model | editMode = EditWalls Nothing }
-            else if isWithinMap model.game model.mouseTile then
+            else if isWithinMap model.map model.mouseTile then
                 { model
                     | editMode =
                         EditWalls
-                            (if Set.member model.mouseTile model.game.wallTiles then
+                            (if Set.member model.mouseTile model.map.wallTiles then
                                 Just WallRemove
                              else
                                 Just WallPlace
@@ -399,7 +284,7 @@ update msg model =
                     noCmd model
 
                 Ok n ->
-                    noCmd { model | game = setter (clamp minSize maxSize n) model.game }
+                    noCmd { model | map = setter (clamp minSize maxSize n) model.map }
 
         OnSwitchMode mode ->
             noCmd { model | editMode = mode }
@@ -431,18 +316,125 @@ update msg model =
             noCmd { model | maybeFocus = Nothing }
 
 
+updateWallAtMouseTile : Model -> Model
+updateWallAtMouseTile model =
+    case model.editMode of
+        EditWalls (Just mode) ->
+            let
+                map =
+                    model.map
+
+                operation =
+                    case mode of
+                        WallRemove ->
+                            Set.remove
+
+                        WallPlace ->
+                            Set.insert
+
+                one =
+                    model.mouseTile
+
+                ( x, y ) =
+                    one
+
+                two =
+                    mirrorTile model.symmetry one
+
+                tiles =
+                    [ one, two ] |> List.filter (isWithinMap map)
+            in
+            { model
+                | map =
+                    { map
+                        | wallTiles = List.foldl operation map.wallTiles tiles
+                    }
+            }
+
+        _ ->
+            model
+
+
+updateOnSymmetry : Symmetry -> Model -> Model
+updateOnSymmetry sym model =
+    { model | symmetry = sym }
+
+
+updateOnMouseMove : Mouse.Position -> Shell -> Model -> Model
+updateOnMouseMove mousePositionInPixels shell model =
+    let
+        vp =
+            viewport shell
+
+        scale =
+            SplitScreen.fitWidthAndHeight (toFloat model.map.halfWidth * 2) (toFloat model.map.halfHeight * 2) vp
+
+        toTile v =
+            v * scale |> floor
+
+        mousePositionInTiles =
+            SplitScreen.mouseScreenToViewport mousePositionInPixels vp
+                |> Tuple.mapFirst toTile
+                |> Tuple.mapSecond toTile
+    in
+    updateWallAtMouseTile { model | mouseTile = mousePositionInTiles }
+
+
+findBasesAt : Map -> Tile2 -> List Tile2
+findBasesAt map tile =
+    let
+        onTile base baseType =
+            List.member tile (Base.tiles baseType base)
+    in
+    Dict.filter onTile map.bases |> Dict.keys
+
+
+removeBase : Tile2 -> Map -> Map
+removeBase base map =
+    { map | bases = Dict.remove base map.bases }
+
+
+updateBase : BaseType -> Model -> Model
+updateBase baseType model =
+    { model
+        | map =
+            case findBasesAt model.map model.mouseTile of
+                [] ->
+                    model.map
+                        |> addBase model.symmetry baseType (mirrorTile model.symmetry model.mouseTile)
+                        |> addBase model.symmetry baseType model.mouseTile
+
+                base :: _ ->
+                    model.map
+                        |> removeBase base
+                        |> removeBase (mirrorTile model.symmetry base)
+    }
+
+
+updateOnTextInput : TextInputField -> String -> Model -> Model
+updateOnTextInput inputField string model =
+    case inputField of
+        FieldMapJson ->
+            case Map.fromString string of
+                Err message ->
+                    { model | error = message }
+
+                Ok map ->
+                    { model | error = "" }
+
+
 
 -- View
 
 
 terrain : Model -> List View.Background.Rect
-terrain { game } =
+terrain { map } =
     let
         hW =
-            toFloat game.halfWidth
+            toFloat map.halfWidth
 
         hH =
-            toFloat game.halfHeight
+            toFloat map.halfHeight
     in
     [ { x = -hW
       , y = -hH
@@ -489,13 +481,13 @@ modeRadio model ( name, mode ) =
         ]
 
 
-sizeInput : Model -> ( String, Game -> Int, Int -> Game -> Game ) -> Html Msg
+sizeInput : Model -> ( String, Map -> Int, Int -> Map -> Map ) -> Html Msg
 sizeInput model ( name, get, set ) =
     div
         [ class "flex" ]
         [ input
             [ type_ "number"
-            , model.game |> get |> toString |> value
+            , model.map |> get |> toString |> value
             , SA.min (toString minSize)
             , SA.max (toString maxSize)
             , onInput (OnChangeSize set)
@@ -531,14 +523,13 @@ stringInput model inputField currentValue =
         []
 
 
-view : Model -> Html Msg
-view model =
+view : Shell -> Model -> Html Msg
+view shell model =
     div
         [ class "flex relative" ]
         [ div
             [ Html.Events.onClick OnMapClick ]
-            [ SplitScreen.viewportsWrapper
-                [ View.Game.view (terrain model) (viewport model) model.game ]
+            [ SplitScreen.viewportsWrapper [ View.Game.viewMap (terrain model) (viewport shell) model.map ]
             ]
         , div
             [ style [ ( "height", toString toolbarHeightInPixels ++ "px" ) ]
@@ -574,22 +565,18 @@ view model =
                     |> List.map (modeRadio model)
                     |> div []
                 ]
-            , let
-                map =
-                    model.game |> Map.fromGame model.name model.author
-              in
-              div
+            , div
                 [ class "flex1" ]
                 [ div [] [ text (toString model.mouseTile) ]
                 , stringInput model
                     FieldMapJson
-                    (Map.toString map)
+                    (Map.toString model.map)
                 , div
                     []
                     [ model.error |> String.left 50 |> text ]
                 , div
                     []
-                    [ case Map.validate map of
+                    [ case Map.validate model.map of
                         Err error ->
                             span [ class "red" ] [ text error ]
 

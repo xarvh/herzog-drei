@@ -1,5 +1,8 @@
 module ColorPattern exposing (..)
 
+import Random
+import Random.List
+
 
 type alias ColorPattern =
     { bright : String
@@ -24,3 +27,18 @@ patterns =
 neutral : ColorPattern
 neutral =
     { bright = "#bbb", dark = "#999", key = "grey" }
+
+
+twoDifferent : Random.Generator ( ColorPattern, ColorPattern )
+twoDifferent =
+    let
+        takeTwo : List ColorPattern -> ( ColorPattern, ColorPattern )
+        takeTwo list =
+            case list of
+                a :: b :: _ ->
+                    ( a, b )
+
+                _ ->
+                    ( neutral, neutral )
+    in
+    Random.List.shuffle patterns |> Random.map takeTwo
