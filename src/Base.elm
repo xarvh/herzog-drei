@@ -32,7 +32,7 @@ corners base =
             Vec2.toTuple base.position
 
         r =
-            toFloat (size base // 2) - 0.2
+            toFloat (size base.type_ // 2) - 0.2
     in
     [ vec2 (x + r) (y + r)
     , vec2 (x - r) (y + r)
@@ -45,9 +45,9 @@ corners base =
 -- rules
 
 
-size : Base -> Int
-size base =
-    case base.type_ of
+size : BaseType -> Int
+size baseType =
+    case baseType of
         BaseSmall ->
             2
 
@@ -55,9 +55,9 @@ size base =
             4
 
 
-tiles : Base -> List Tile2
-tiles base =
-    squareArea (size base) base.tile
+tiles : BaseType -> Tile2 -> List Tile2
+tiles baseType tile =
+    squareArea (size baseType) tile
 
 
 unitCanEnter : Unit -> Base -> Bool
@@ -92,7 +92,7 @@ add type_ tile game =
         | lastId = id
         , baseById = Dict.insert id base game.baseById
       }
-        |> addStaticObstacles (tiles base)
+        |> addStaticObstacles (tiles type_ tile)
     , base
     )
 

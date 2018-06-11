@@ -30,6 +30,20 @@ type alias Tile2 =
 
 
 
+-- Validated Map
+
+
+type alias ValidatedMap =
+    { halfWidth : Int
+    , halfHeight : Int
+    , leftBase : Tile2
+    , rightBase : Tile2
+    , smallBases : Set Tile2
+    , wallTiles : Set Tile2
+    }
+
+
+
 -- Team
 
 
@@ -447,6 +461,7 @@ type alias Game =
 
     -- random
     , seed : Random.Seed
+    , validatedMap : ValidatedMap
     }
 
 
@@ -488,6 +503,16 @@ new { halfWidth, halfHeight } seed =
 
     --
     , seed = seed
+
+    --
+    , validatedMap =
+        { halfWidth = 20
+        , halfHeight = 10
+        , leftBase = ( -14, 0 )
+        , rightBase = ( 14, 0 )
+        , smallBases = Set.fromList [ ( 0, 0 ) ]
+        , wallTiles = Set.empty
+        }
     }
 
 
@@ -562,6 +587,15 @@ deltaEntity getter setter entityId updateEntity =
 
 
 -- Game manipulation helpers
+
+
+generateRandom : Random.Generator a -> Game -> ( a, Game )
+generateRandom generator game =
+    let
+        ( value, seed ) =
+            Random.step generator game.seed
+    in
+    ( value, { game | seed = seed } )
 
 
 updateBase : Base -> Game -> Game

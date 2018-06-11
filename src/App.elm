@@ -12,6 +12,7 @@ import Init
 import Keyboard
 import Keyboard.Extra
 import LocalStoragePort
+import MapEditor
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Menu
 import Mouse
@@ -40,6 +41,7 @@ type Msg
     | OnWindowResizes Window.Size
     | OnMenuMsg Menu.Msg
     | OnKeyPress Keyboard.KeyCode
+    | OnMapEditorMsg MapEditor.Msg
 
 
 type alias Model =
@@ -57,6 +59,7 @@ type alias Model =
     , config : Config
     , flags : Flags
     , previousInputStatesByKey : Dict String InputState
+    , maybeMapEditor : Maybe MapEditor.Model
     }
 
 
@@ -78,6 +81,13 @@ init params flags =
                 Nothing
             else
                 Just Menu.init
+
+        ( maybeMapEditor, mapEditorCmd ) =
+            if Dict.member "mapEditor" params then
+                MapEditor.init
+                    |> Tuple.mapFirst Just
+            else
+                ( Nothing, Cmd.none )
     in
     ( { game = game
       , botStatesByKey = Dict.empty
@@ -93,8 +103,12 @@ init params flags =
       , config = config
       , flags = flags
       , previousInputStatesByKey = Dict.empty
+      , maybeMapEditor = maybeMapEditor
       }
-    , Window.size |> Task.perform OnWindowResizes
+    , Cmd.batch
+        [ Window.size |> Task.perform OnWindowResizes
+        , mapEditorCmd |> Cmd.map OnMapEditorMsg
+        ]
     )
 
 
@@ -266,19 +280,18 @@ updateOnGamepad ( timeInMilliseconds, gamepadBlob ) model =
                 |> Dict.union gamepadsInputByKey
                 |> Dict.union keyAndMouse
 
-        pairInputStateWithPrevious : String -> InputState -> (InputState, InputState)
+        pairInputStateWithPrevious : String -> InputState -> ( InputState, InputState )
         pairInputStateWithPrevious inputKey currentInputState =
-          case Dict.get inputKey model.previousInputStatesByKey of
-            Just previousInputState ->
-              (previousInputState, currentInputState)
-            Nothing ->
-              -- Assume that state did not change
-              (currentInputState, currentInputState)
+            case Dict.get inputKey model.previousInputStatesByKey of
+                Just previousInputState ->
+                    ( previousInputState, currentInputState )
+
+                Nothing ->
+                    -- Assume that state did not change
+                    ( currentInputState, currentInputState )
 
         pairedInputStates =
-          Dict.map pairInputStateWithPrevious inputStatesByKey
-
-
+            Dict.map pairInputStateWithPrevious inputStatesByKey
 
         -- All times in the game are in seconds
         time =
@@ -335,16 +348,44 @@ update msg model =
                         ( menu, Nothing ) ->
                             noCmd { model | maybeMenu = Just menu }
 
-                        ( menu, Just config ) ->
+                        ( menu, Just (Menu.OutcomeConfig config) ) ->
                             ( { model | maybeMenu = Just menu, config = config }
                             , saveConfig model config
                             )
+
+                        ( menu, Just (Menu.OutcomeMap map) ) ->
+                            let
+                                game =
+                                    model.game
+
+                                newGame =
+                                    { game | validatedMap = map }
+                            in
+                            noCmd { model | maybeMenu = Just menu, game = newGame }
+
+                        ( menu, Just Menu.OutcomeOpenMapEditor ) ->
+                            MapEditor.init
+                                |> Tuple.mapFirst (\mapEditor -> { model | maybeMapEditor = Just mapEditor })
+                                |> Tuple.mapSecond (Cmd.map OnMapEditorMsg)
 
         OnKeyboardMsg keyboardMsg ->
             noCmd { model | pressedKeys = Keyboard.Extra.update keyboardMsg model.pressedKeys }
 
         OnGamepad timeAndGamepadBlob ->
-            updateOnGamepad timeAndGamepadBlob model
+            if model.maybeMapEditor == Nothing then
+                updateOnGamepad timeAndGamepadBlob model
+            else
+                noCmd model
+
+        OnMapEditorMsg subMsg ->
+            case model.maybeMapEditor of
+                Nothing ->
+                    noCmd model
+
+                Just mapEditor ->
+                    MapEditor.update subMsg mapEditor
+                        |> Tuple.mapSecond (Cmd.map OnMapEditorMsg)
+                        |> Tuple.mapFirst (\newMapEditor -> { model | maybeMapEditor = Just newMapEditor })
 
         OnKeyPress keyCode ->
             case keyCode of
@@ -367,19 +408,22 @@ view model =
     let
         fps =
             List.sum model.fps / toFloat (List.length model.fps) |> round
-
-        viewport =
-            SplitScreen.makeViewports model.windowSize 1
     in
     div
         [ class "relative" ]
         [ div
             [ class "game-area" ]
-            [ [ View.Game.view model.terrain model.viewport model.game ]
-                |> SplitScreen.viewportsWrapper
+            [ case model.maybeMapEditor of
+                Just mapEditor ->
+                    MapEditor.view mapEditor |> Html.map OnMapEditorMsg
+
+                Nothing ->
+                    SplitScreen.viewportsWrapper [ View.Game.view model.terrain model.viewport model.game ]
+
+            -- "Fps"
             , if Dict.member "fps" model.params then
                 div
-                    [ style [ ( "position", "absolute" ), ( "top", "0" ) ] ]
+                    [ class "fps nonSelectable" ]
                     [ text ("FPS " ++ toString fps) ]
               else
                 text ""
@@ -413,4 +457,10 @@ subscriptions model =
 
             Just menu ->
                 Menu.subscriptions menu |> Sub.map OnMenuMsg
+        , case model.maybeMapEditor of
+            Nothing ->
+                Sub.none
+
+            Just mapEditor ->
+                MapEditor.subscriptions mapEditor |> Sub.map OnMapEditorMsg
         ]

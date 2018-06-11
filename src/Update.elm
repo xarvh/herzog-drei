@@ -8,6 +8,7 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Phases
 import ProjectileThink
 import Set exposing (Set)
+import SetupPhase
 import UnitThink
 import VictoryThink
 import View.Gfx
@@ -38,7 +39,7 @@ update time pairedInputStatesByKey game =
         |> List.map (UnitThink.think dt pairedInputStatesByKey oldGameWithUpdatedDynamicObstacles)
     , [ case game.phase of
             PhaseSetup ->
-                Phases.setupThink (Dict.keys pairedInputStatesByKey) game
+                SetupPhase.think (Dict.keys pairedInputStatesByKey) game
 
             PhasePlay ->
                 VictoryThink.think dt game

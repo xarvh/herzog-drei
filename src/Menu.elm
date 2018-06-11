@@ -2,11 +2,13 @@ module Menu exposing (..)
 
 import Config exposing (Config)
 import Dict exposing (Dict)
+import Game exposing (ValidatedMap)
 import Gamepad exposing (Gamepad)
 import GamepadPort
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, onInput)
+import Map
 import Remap
 import Set exposing (Set)
 
@@ -42,6 +44,8 @@ type Msg
     = Noop
     | OnToggleKeyboardAndMouse
     | OnRemapMsg Remap.Msg
+    | OnMapString String
+    | OnOpenMapEditor
 
 
 
@@ -50,12 +54,16 @@ type Msg
 
 type alias Model =
     { remap : Remap.Model
+    , mapString : String
+    , errorMessage : String
     }
 
 
 init : Model
 init =
     { remap = Remap.init gamepadButtonMap
+    , mapString = ""
+    , errorMessage = ""
     }
 
 
@@ -63,24 +71,41 @@ init =
 -- Update
 
 
-noCmd : Model -> ( Model, Maybe Config )
+noCmd : Model -> ( Model, Maybe Outcome )
 noCmd model =
     ( model, Nothing )
 
 
-update : Msg -> Config -> Model -> ( Model, Maybe Config )
+type Outcome
+    = OutcomeConfig Config
+    | OutcomeMap ValidatedMap
+    | OutcomeOpenMapEditor
+
+
+update : Msg -> Config -> Model -> ( Model, Maybe Outcome )
 update msg config model =
     case msg of
         Noop ->
             noCmd model
 
         OnToggleKeyboardAndMouse ->
-            ( model, Just { config | useKeyboardAndMouse = not config.useKeyboardAndMouse } )
+            ( model, Just <| OutcomeConfig { config | useKeyboardAndMouse = not config.useKeyboardAndMouse } )
 
         OnRemapMsg remapMsg ->
             Remap.update remapMsg model.remap
                 |> Tuple.mapFirst (\newRemap -> { model | remap = newRemap })
-                |> Tuple.mapSecond (Maybe.map <| \updateDb -> { config | gamepadDatabase = updateDb config.gamepadDatabase })
+                |> Tuple.mapSecond (Maybe.map <| \updateDb -> OutcomeConfig { config | gamepadDatabase = updateDb config.gamepadDatabase })
+
+        OnMapString string ->
+            case Map.fromString string |> Result.andThen Map.validate of
+                Err message ->
+                    noCmd { model | errorMessage = message }
+
+                Ok validatedMap ->
+                    ( { model | mapString = "", errorMessage = "Map loaded!" }, Just (OutcomeMap validatedMap) )
+
+        OnOpenMapEditor ->
+            ( model, Just OutcomeOpenMapEditor )
 
 
 
@@ -137,7 +162,7 @@ view config model =
             [ div
                 []
                 [ section
-                    [ class "highlight-animation"]
+                    [ class "highlight-animation" ]
                     [ text "Press Esc to toggle the Menu" ]
                 , if not <| Remap.isRemapping model.remap then
                     viewConfig config model
@@ -146,6 +171,17 @@ view config model =
                 , section
                     []
                     [ Remap.view config.gamepadDatabase model.remap |> Html.map OnRemapMsg
+                    ]
+                , section
+                    []
+                    [ div [] [ text "Load map from JSON" ]
+                    , input
+                        [ value model.mapString
+                        , onInput OnMapString
+                        ]
+                        []
+                    , div [] [ text model.errorMessage ]
+                    , button [ onClick OnOpenMapEditor ] [ text "Open Map editor" ]
                     ]
                 ]
             ]
