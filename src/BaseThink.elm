@@ -25,10 +25,20 @@ mechBuildSpeed =
 -- Think
 
 
+unitDoesCountTowardsCap : Unit -> Bool
+unitDoesCountTowardsCap unit =
+    case unit.component of
+        UnitMech _ ->
+            False
+
+        UnitSub sub ->
+            sub.mode == UnitModeFree
+
+
 teamHasReachedUnitCap : Game -> TeamId -> Bool
 teamHasReachedUnitCap game teamId =
     game.unitById
-        |> Dict.filter (\id u -> Unit.isSub u && u.maybeTeamId == Just teamId)
+        |> Dict.filter (\id u -> u.maybeTeamId == Just teamId && unitDoesCountTowardsCap u)
         |> Dict.size
         |> (\unitsCount -> unitsCount >= maxSubsPerTeam)
 
