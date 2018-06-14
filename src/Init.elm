@@ -18,12 +18,15 @@ import SubThink
 asTeamSelection : Random.Seed -> ValidatedMap -> Game
 asTeamSelection seed map =
     let
+        time =
+            0
+
         ( leftTeamColor, rightTeamColor ) =
             Random.step ColorPattern.twoDifferent seed |> Tuple.first
     in
     { mode = GameModeTeamSelection map
-    , maybeTransitionStart = Nothing
-    , time = 0
+    , maybeTransition = Just { start = time, fade = GameFadeIn }
+    , time = time
     , leftTeam = newTeam TeamLeft leftTeamColor Dict.empty
     , rightTeam = newTeam TeamRight rightTeamColor Dict.empty
     , maybeWinnerTeamId = Nothing
@@ -63,7 +66,7 @@ asVersus randomSeed time leftTeam rightTeam map =
             newTeam id teamSeed.colorPattern teamSeed.mechClassByInputKey
     in
     { mode = GameModeVersus
-    , maybeTransitionStart = Just time
+    , maybeTransition = Just { start = time, fade = GameFadeIn }
     , time = time
     , leftTeam = team TeamLeft leftTeam
     , rightTeam = team TeamRight rightTeam

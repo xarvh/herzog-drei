@@ -110,6 +110,16 @@ deltaBuildAllMechs dt game base occupied =
         |> deltaList
 
 
+addFreshlyBuiltMech : MechComponent -> TeamId -> Vec2 -> Game -> Game
+addFreshlyBuiltMech mech teamId position game =
+    Game.addMech mech.class mech.inputKey (Just teamId) position game |> Tuple.first
+
+
+markMechProductionComplete : MechComponent -> BaseOccupied -> BaseOccupied
+markMechProductionComplete mech occupied =
+    { occupied | mechBuildCompletions = List.filter (\( m, completion ) -> m /= mech) occupied.mechBuildCompletions }
+
+
 deltaBuildMech : Float -> Base -> BaseOccupied -> ( MechComponent, Float ) -> Delta
 deltaBuildMech completionIncrease base occupied ( mech, completionAtThink ) =
     case occupied.maybeTeamId of
@@ -130,8 +140,6 @@ deltaBuildMech completionIncrease base occupied ( mech, completionAtThink ) =
                     |> deltaBase base.id
             else
                 deltaList
-                    [ deltaGame (\g -> Game.addMech mech.class mech.inputKey (Just teamId) base.position g |> Tuple.first)
-                    , (\o -> { o | mechBuildCompletions = List.filter (\( m, c ) -> m /= mech) o.mechBuildCompletions })
-                        |> Base.updateOccupied
-                        |> deltaBase base.id
+                    [ deltaGame (addFreshlyBuiltMech mech teamId base.position)
+                    , deltaBase base.id (Base.updateOccupied (markMechProductionComplete mech))
                     ]

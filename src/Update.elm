@@ -69,25 +69,30 @@ transitionDuration =
 
 transitionThink : Game -> Delta
 transitionThink game =
-    case game.maybeTransitionStart of
+    case game.maybeTransition of
         Nothing ->
             deltaNone
 
-        Just transitionStart ->
-            if game.time - transitionStart < transitionDuration then
+        Just { start, fade } ->
+            if game.time - start < transitionDuration then
                 deltaNone
             else
-                case game.mode of
-                    GameModeTeamSelection map ->
-                        -- Switch to Versus mode
-                        deltaList
-                            [ deltaGame (Init.asVersusFromTeamSelection map)
-                            , DeltaOutcome OutcomeCanInitBots
-                            ]
-
-                    GameModeVersus ->
+                case fade of
+                    GameFadeIn ->
                         -- transitions complete
-                        deltaGame (\g -> { g | maybeTransitionStart = Nothing })
+                        deltaGame (\g -> { g | maybeTransition = Nothing })
+
+                    GameFadeOut ->
+                        case game.mode of
+                            GameModeTeamSelection map ->
+                                -- Switch to Versus mode
+                                deltaList
+                                    [ deltaGame (Init.asVersusFromTeamSelection map)
+                                    , DeltaOutcome OutcomeCanInitBots
+                                    ]
+
+                            GameModeVersus ->
+                                Debug.crash "GameModeVersus does not really have a fade out"
 
 
 

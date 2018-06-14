@@ -26,11 +26,13 @@ think : List String -> Game -> Delta
 think inputSources game =
     deltaList
         [ addAndRemoveMechs inputSources game
-        , updateAllMechsTeam game
-        , if game.maybeTransitionStart == Nothing then
-            maybeExitSetupPhase game
-          else
+        , if game.maybeTransition /= Nothing then
             deltaNone
+          else
+            deltaList
+                [ updateAllMechsTeam game
+                , maybeExitSetupPhase game
+                ]
         ]
 
 
@@ -122,14 +124,11 @@ updateMechTeam game ( unit, mech ) =
 
 updateAllMechsTeam : Game -> Delta
 updateAllMechsTeam game =
-    if game.maybeTransitionStart /= Nothing then
-        deltaNone
-    else
-        game.unitById
-            |> Dict.values
-            |> List.filterMap Unit.toMech
-            |> List.map (updateMechTeam game)
-            |> deltaList
+    game.unitById
+        |> Dict.values
+        |> List.filterMap Unit.toMech
+        |> List.map (updateMechTeam game)
+        |> deltaList
 
 
 isReady : ( Unit, MechComponent ) -> Bool
@@ -185,7 +184,7 @@ startTransition game =
         addPlayers team =
             { team | mechClassByInputKey = mechClassByInputKey team.id }
     in
-    { game | maybeTransitionStart = Just game.time }
+    { game | maybeTransition = Just { start = game.time, fade = GameFadeOut } }
         |> updateTeam (addPlayers game.leftTeam)
         |> updateTeam (addPlayers game.rightTeam)
 

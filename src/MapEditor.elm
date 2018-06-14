@@ -82,10 +82,25 @@ type Msg
     | OnMouseClick
     | OnSwitchSymmetry Symmetry
     | OnSwitchMode EditMode
-    | OnChangeSize (Int -> Map -> Map) String
+    | OnChangeSize Dimension String
     | OnKeyPress Keyboard.KeyCode
     | OnTextInput TextInputField String
     | OnTextBlur
+
+
+type Dimension
+    = DimensionWidth
+    | DimensionHeight
+
+
+setDimension : Dimension -> Int -> Map -> Map
+setDimension dimension magnitude map =
+    case dimension of
+        DimensionWidth ->
+            { map | halfWidth = magnitude }
+
+        DimensionHeight ->
+            { map | halfHeight = magnitude }
 
 
 
@@ -278,13 +293,13 @@ update msg shell model =
         OnSwitchSymmetry symmetry ->
             updateOnSymmetry symmetry model |> noCmd
 
-        OnChangeSize setter dimensionAsString ->
-            case String.toInt dimensionAsString of
+        OnChangeSize dimension magnitudeAsString ->
+            case String.toInt magnitudeAsString of
                 Err _ ->
                     noCmd model
 
                 Ok n ->
-                    noCmd { model | map = setter (clamp minSize maxSize n) model.map }
+                    noCmd { model | map = setDimension dimension (clamp minSize maxSize n) model.map }
 
         OnSwitchMode mode ->
             noCmd { model | editMode = mode }
@@ -481,8 +496,8 @@ modeRadio model ( name, mode ) =
         ]
 
 
-sizeInput : Model -> ( String, Map -> Int, Int -> Map -> Map ) -> Html Msg
-sizeInput model ( name, get, set ) =
+sizeInput : Model -> ( String, Map -> Int, Dimension ) -> Html Msg
+sizeInput model ( name, get, dimension ) =
     div
         [ class "flex" ]
         [ input
@@ -490,7 +505,7 @@ sizeInput model ( name, get, set ) =
             , model.map |> get |> toString |> value
             , SA.min (toString minSize)
             , SA.max (toString maxSize)
-            , onInput (OnChangeSize set)
+            , onInput (OnChangeSize dimension)
             ]
             []
         , label [ class "mr1" ] [ text name ]
@@ -538,8 +553,8 @@ view shell model =
             [ div
                 []
                 [ text "Size"
-                , [ ( "Width", .halfWidth, \w g -> { g | halfWidth = w } )
-                  , ( "Height", .halfHeight, \h g -> { g | halfHeight = h } )
+                , [ ( "Width", .halfWidth, DimensionWidth )
+                  , ( "Height", .halfHeight, DimensionHeight )
                   ]
                     |> List.map (sizeInput model)
                     |> div []

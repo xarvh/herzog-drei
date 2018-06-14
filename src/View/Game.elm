@@ -364,22 +364,22 @@ tilesToViewport { halfWidth, halfHeight } viewport =
 
 
 maybeOpacity game =
-    case game.maybeTransitionStart of
+    case game.maybeTransition of
         Nothing ->
             []
 
-        Just transitionStart ->
+        Just { start, fade } ->
             let
                 t =
-                    (game.time - transitionStart) / Update.transitionDuration
+                    (game.time - start) / Update.transitionDuration
 
                 o =
-                    case game.mode of
-                        GameModeTeamSelection _ ->
-                            1 - t
-
-                        GameModeVersus ->
+                    case fade of
+                        GameFadeIn ->
                             t
+
+                        GameFadeOut ->
+                            1 - t
             in
             [ opacity o ]
 

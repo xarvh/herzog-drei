@@ -401,10 +401,13 @@ type GameMode
     = GameModeTeamSelection ValidatedMap
     | GameModeVersus
 
+type GameFade
+    = GameFadeIn
+    | GameFadeOut
 
 type alias Game =
     { mode : GameMode
-    , maybeTransitionStart : Maybe Seconds
+    , maybeTransition : Maybe { start : Seconds, fade : GameFade }
     , time : Seconds
     , leftTeam : Team
     , rightTeam : Team
