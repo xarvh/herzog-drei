@@ -144,13 +144,14 @@ shell model =
 
 type Msg
     = Noop
-      -- Menu navigation
+      -- Menu buttons
     | OnMenuNav Menu
     | OnMenuNavGamepads
     | OnOpenMapEditor
-    | OnStartGame ValidatedMap
     | OnMapEditorSave
     | OnMapEditorLoad
+    | OnMapEditorPlay
+    | OnStartGame ValidatedMap
     | OnQuit
       -- TEA children
     | OnMainSceneMsg MainScene.Msg
@@ -162,6 +163,8 @@ type Msg
     | OnMouseMoves Mouse.Position
     | OnKeyboardMsg Keyboard.Extra.Msg
     | OnKeyPress Keyboard.KeyCode
+      -- Config
+    | OnToggleKeyboardAndMouse
 
 
 noCmd : Model -> ( Model, Cmd Msg )
@@ -174,6 +177,20 @@ update msg model =
     case msg of
         Noop ->
             noCmd model
+
+        OnStartGame map ->
+            { model
+                | scene = SceneMain SubSceneGameplay <| MainScene.initTeamSelection model.seed map
+                , maybeMenu = Nothing
+            }
+                |> noCmd
+
+        OnQuit ->
+            let
+                ( scene, seed ) =
+                    demoScene model.seed
+            in
+            noCmd { model | scene = scene, seed = seed, maybeMenu = Nothing }
 
         -- Menu navigation
         OnMenuNav menu ->
@@ -188,13 +205,6 @@ update msg model =
                     | maybeMenu = Nothing
                     , scene = SceneMapEditor MapEditor.init
                 }
-
-        OnStartGame map ->
-            { model
-                | scene = SceneMain SubSceneGameplay <| MainScene.initTeamSelection model.seed map
-                , maybeMenu = Nothing
-            }
-                |> noCmd
 
         -- Env stuff
         OnMouseButton state ->
@@ -259,18 +269,19 @@ update msg model =
                 _ ->
                     noCmd model
 
+        -- Config
+        OnToggleKeyboardAndMouse ->
+            model |> updateConfig (\config -> { config | useKeyboardAndMouse = not config.useKeyboardAndMouse })
+
+        -- Map Editor
         OnMapEditorSave ->
             noCmd model
 
         OnMapEditorLoad ->
             noCmd model
 
-        OnQuit ->
-            let
-                ( scene, seed ) =
-                    demoScene model.seed
-            in
-            noCmd { model | scene = scene, seed = seed }
+        OnMapEditorPlay ->
+            noCmd model
 
 
 
@@ -331,8 +342,6 @@ updateConfig updater model =
 
 
 {-
-   OnToggleKeyboardAndMouse ->
-       ( model, Just <| OutcomeConfig { config | useKeyboardAndMouse = not config.useKeyboardAndMouse } )
 
    OnRemapMsg remapMsg ->
        Remap.update remapMsg model.remap
@@ -428,6 +437,7 @@ viewMenu menu model =
                         , when (isDemo model || isPlaying model) <| pageButton "Gamepads" OnMenuNavGamepads
                         , when (isMapEditor model) <| pageButton "Save" OnMapEditorSave
                         , when (isMapEditor model) <| pageButton "Load" OnMapEditorLoad
+                        , when (isMapEditor model) <| pageButton "Play here" OnMapEditorPlay
                         , when (isPlaying model || isMapEditor model) <| pageButton "Quit" OnQuit
                         ]
 
@@ -459,7 +469,7 @@ viewMenu menu model =
                     section
                         []
                         [ label [] [ text "Import a map from JSON" ]
-                        , div [] [ textarea [ defaultValue importString ] []]
+                        , div [] [ textarea [ defaultValue importString ] [] ]
                         , div [ class "red" ] [ text error ]
                         ]
 
@@ -491,9 +501,8 @@ viewMenu menu model =
                             [ input
                                 [ type_ "checkbox"
                                 , checked actuallyUseKeyboardAndMouse
-
-                                -- TODO , onClick OnToggleKeyboardAndMouse
                                 , disabled noGamepads
+                                , onClick OnToggleKeyboardAndMouse
                                 ]
                                 []
                             , div
