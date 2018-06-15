@@ -82,7 +82,7 @@ takeDamage rawDamage game unit =
                                     ( 40, 0 )
 
                                 UnitModeBase baseId ->
-                                    ( 70, 1 )
+                                    ( 70, 2 )
 
                 damage =
                     toFloat (rawDamage - armor) / healthPoints |> max 0
