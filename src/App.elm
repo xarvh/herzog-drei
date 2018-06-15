@@ -36,7 +36,8 @@ type alias Flags =
 
 type Menu
     = MenuMain
-    | MenuMapSelection String String
+    | MenuMapSelection
+    | MenuImportMap { importString : String, error : String }
     | MenuSettings
     | MenuGamepads Remap.Model
 
@@ -76,16 +77,11 @@ init params flags =
         config =
             Config.fromString flags.configAsString
 
-        mapGenerator : Random.Generator ValidatedMap
-        mapGenerator =
-            Random.List.choose OfficialMaps.maps
-                |> Random.map (Tuple.first >> Maybe.withDefault OfficialMaps.default)
-
-        ( map, seed ) =
-            Random.step mapGenerator (Random.initialSeed flags.dateNow)
+        ( scene, seed ) =
+            demoScene (Random.initialSeed flags.dateNow)
 
         model =
-            { scene = SceneMain SubSceneDemo (MainScene.initDemo seed map)
+            { scene = scene
             , maybeMenu = Just MenuMain
             , seed = seed
 
@@ -106,6 +102,20 @@ init params flags =
             Window.size |> Task.perform OnWindowResizes
     in
     ( model, cmd )
+
+
+demoScene : Random.Seed -> ( Scene, Random.Seed )
+demoScene oldSeed =
+    let
+        mapGenerator : Random.Generator ValidatedMap
+        mapGenerator =
+            Random.List.choose OfficialMaps.maps
+                |> Random.map (Tuple.first >> Maybe.withDefault OfficialMaps.default)
+
+        ( map, newSeed ) =
+            Random.step mapGenerator oldSeed
+    in
+    ( SceneMain SubSceneDemo (MainScene.initDemo newSeed map), newSeed )
 
 
 shell : Model -> Shell
@@ -139,6 +149,9 @@ type Msg
     | OnMenuNavGamepads
     | OnOpenMapEditor
     | OnStartGame ValidatedMap
+    | OnMapEditorSave
+    | OnMapEditorLoad
+    | OnQuit
       -- TEA children
     | OnMainSceneMsg MainScene.Msg
     | OnMapEditorMsg MapEditor.Msg
@@ -205,6 +218,9 @@ update msg model =
                 ( 27, Just MenuMain ) ->
                     noCmd { model | maybeMenu = Nothing }
 
+                ( 27, Just (MenuImportMap _) ) ->
+                    noCmd { model | maybeMenu = Just MenuMapSelection }
+
                 ( 27, _ ) ->
                     noCmd { model | maybeMenu = Just MenuMain }
 
@@ -226,8 +242,8 @@ update msg model =
                     noCmd model
 
         OnMapEditorMsg mapEditorMsg ->
-            case (model.scene, model.maybeMenu) of
-                (SceneMapEditor mapEditor, Nothing) ->
+            case ( model.scene, model.maybeMenu ) of
+                ( SceneMapEditor mapEditor, Nothing ) ->
                     MapEditor.update mapEditorMsg (shell model) mapEditor
                         |> Tuple.mapFirst (\newMapEditor -> { model | scene = SceneMapEditor newMapEditor })
                         |> Tuple.mapSecond (Cmd.map OnMapEditorMsg)
@@ -242,6 +258,19 @@ update msg model =
 
                 _ ->
                     noCmd model
+
+        OnMapEditorSave ->
+            noCmd model
+
+        OnMapEditorLoad ->
+            noCmd model
+
+        OnQuit ->
+            let
+                ( scene, seed ) =
+                    demoScene model.seed
+            in
+            noCmd { model | scene = scene, seed = seed }
 
 
 
@@ -343,8 +372,46 @@ view model =
         ]
 
 
+isDemo : Model -> Bool
+isDemo model =
+    case model.scene of
+        SceneMain SubSceneDemo _ ->
+            True
+
+        _ ->
+            False
+
+
+isPlaying : Model -> Bool
+isPlaying model =
+    case model.scene of
+        SceneMain SubSceneGameplay _ ->
+            True
+
+        _ ->
+            False
+
+
+isMapEditor : Model -> Bool
+isMapEditor model =
+    case model.scene of
+        SceneMapEditor _ ->
+            True
+
+        _ ->
+            False
+
+
 viewMenu : Menu -> Model -> Html Msg
 viewMenu menu model =
+    let
+        when : Bool -> Html a -> Html a
+        when condition stuff =
+            if condition then
+                stuff
+            else
+                text ""
+    in
     div
         [ class "fullWindow flex alignCenter justifyCenter"
         ]
@@ -354,13 +421,17 @@ viewMenu menu model =
                 MenuMain ->
                     div
                         []
-                        [ pageButton "Play" (OnMenuNav (MenuMapSelection "" ""))
-                        , pageButton "Map Editor" OnOpenMapEditor
-                        , pageButton "Settings" (OnMenuNav MenuSettings)
-                        , pageButton "Gamepads" OnMenuNavGamepads
+                        [ when (isDemo model) <| pageButton "Play" (OnMenuNav MenuMapSelection)
+                        , when (isDemo model) <| pageButton "Map Editor" OnOpenMapEditor
+                        , when (isDemo model) <| pageButton "Resume" (OnKeyPress 27)
+                        , when (isDemo model || isPlaying model) <| pageButton "Settings" (OnMenuNav MenuSettings)
+                        , when (isDemo model || isPlaying model) <| pageButton "Gamepads" OnMenuNavGamepads
+                        , when (isMapEditor model) <| pageButton "Save" OnMapEditorSave
+                        , when (isMapEditor model) <| pageButton "Load" OnMapEditorLoad
+                        , when (isPlaying model || isMapEditor model) <| pageButton "Quit" OnQuit
                         ]
 
-                MenuMapSelection mapString mapErrorMessage ->
+                MenuMapSelection ->
                     div
                         []
                         [ section
@@ -374,22 +445,28 @@ viewMenu menu model =
                             ]
                         , section
                             []
-                            [ label [] [ text "Load map from JSON" ]
-                            , input
-                                [ value mapString
-
-                                -- TODO, onInput OnMapString
+                            [ button
+                                [ { importString = "", error = "" }
+                                    |> MenuImportMap
+                                    |> OnMenuNav
+                                    |> onClick
                                 ]
-                                []
-                            , div [] [ text mapErrorMessage ]
+                                [ text "Import..." ]
                             ]
+                        ]
+
+                MenuImportMap { importString, error } ->
+                    section
+                        []
+                        [ label [] [ text "Import a map from JSON" ]
+                        , div [] [ textarea [ defaultValue importString ] []]
+                        , div [ class "red" ] [ text error ]
                         ]
 
                 MenuGamepads remap ->
                     section
                         []
-                        [ div [] [ text "LOOOL" ]
-                        , Remap.view model.config.gamepadDatabase remap |> Html.map OnRemapMsg
+                        [ Remap.view model.config.gamepadDatabase remap |> Html.map OnRemapMsg
                         ]
 
                 MenuSettings ->
