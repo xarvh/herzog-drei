@@ -37,7 +37,6 @@ type alias Flags =
 type Menu
     = MenuMain
     | MenuMapSelection String String
-    | MenuMapEditor
     | MenuSettings
     | MenuGamepads Remap.Model
 
@@ -323,46 +322,6 @@ updateConfig updater model =
        ( model, Just OutcomeOpenMapEditor )
 -}
 -- View
-{-
-   viewConfig : Config -> Model -> Html Msg
-   viewConfig config model =
-       let
-           noGamepads =
-               Remap.gamepadsCount model.remap == 0
-
-           actuallyUseKeyboardAndMouse =
-               noGamepads || config.useKeyboardAndMouse
-
-           keyboardInstructionsClass =
-               if actuallyUseKeyboardAndMouse then
-                   "gray"
-               else
-                   "invisible"
-       in
-       section
-           [ class "flex" ]
-           [ input
-               [ type_ "checkbox"
-               , checked actuallyUseKeyboardAndMouse
-               , onClick OnToggleKeyboardAndMouse
-               , disabled noGamepads
-               ]
-               []
-           , div
-               [ class "ml1" ]
-               [ div
-                   [ class "mb1" ]
-                   [ text "Use Keyboard & Mouse" ]
-               , [ "ASDW: Move"
-                 , "Q: Move units"
-                 , "E: Transform"
-                 , "Click: Fire"
-                 ]
-                   |> List.map (\t -> div [] [ text t ])
-                   |> div [ class keyboardInstructionsClass ]
-               ]
-           ]
--}
 
 
 view : Model -> Html Msg
@@ -433,8 +392,48 @@ viewMenu menu model =
                         , Remap.view model.config.gamepadDatabase remap |> Html.map OnRemapMsg
                         ]
 
-                _ ->
-                    text "TODO"
+                MenuSettings ->
+                    let
+                        noGamepads =
+                            False
+
+                        --TODO Remap.gamepadsCount model.remap == 0
+                        actuallyUseKeyboardAndMouse =
+                            noGamepads || model.config.useKeyboardAndMouse
+
+                        keyboardInstructionsClass =
+                            if actuallyUseKeyboardAndMouse then
+                                "gray"
+                            else
+                                "invisible"
+                    in
+                    div
+                        []
+                        [ section
+                            [ class "flex" ]
+                            [ input
+                                [ type_ "checkbox"
+                                , checked actuallyUseKeyboardAndMouse
+
+                                -- TODO , onClick OnToggleKeyboardAndMouse
+                                , disabled noGamepads
+                                ]
+                                []
+                            , div
+                                [ class "ml1" ]
+                                [ div
+                                    [ class "mb1" ]
+                                    [ text "Use Keyboard & Mouse" ]
+                                , [ "ASDW: Move"
+                                  , "Q: Move units"
+                                  , "E: Transform"
+                                  , "Click: Fire"
+                                  ]
+                                    |> List.map (\t -> div [] [ text t ])
+                                    |> div [ class keyboardInstructionsClass ]
+                                ]
+                            ]
+                        ]
             ]
         ]
 
@@ -454,44 +453,6 @@ viewMapItem map =
 
 
 
-{-
-
-   case model.maybeMapEditor of
-           Just mapEditor ->
-               [ MapEditor.view mapEditor |> Html.map OnMapEditorMsg ]
-
-           Nothing ->
-
-
-
-
--}
-{-
-               [ class "highlight-animation" ]
-               [ text "Press Esc to toggle the Menu" ]
-           , if not <| Remap.isRemapping model.remap then
-               viewConfig config model
-             else
-               text ""
-           , section
-               []
-               [ Remap.view config.gamepadDatabase model.remap |> Html.map OnRemapMsg
-               ]
-           , section
-               []
-               [ div [] [ text "Load map from JSON" ]
-               , input
-                   [ value model.mapString
-                   , onInput OnMapString
-                   ]
-                   []
-               , div [] [ text model.errorMessage ]
-               , button [ onClick OnOpenMapEditor ] [ text "Open Map editor" ]
-               ]
-           ]
-       ]
-   ]
--}
 -- Subscriptions
 
 
