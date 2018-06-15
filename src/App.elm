@@ -226,8 +226,8 @@ update msg model =
                     noCmd model
 
         OnMapEditorMsg mapEditorMsg ->
-            case model.scene of
-                SceneMapEditor mapEditor ->
+            case (model.scene, model.maybeMenu) of
+                (SceneMapEditor mapEditor, Nothing) ->
                     MapEditor.update mapEditorMsg (shell model) mapEditor
                         |> Tuple.mapFirst (\newMapEditor -> { model | scene = SceneMapEditor newMapEditor })
                         |> Tuple.mapSecond (Cmd.map OnMapEditorMsg)
