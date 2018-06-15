@@ -281,6 +281,7 @@ updateOnGamepad ( dtInMilliseconds, gamepadBlob ) shell model =
             botInputsByKey
                 |> Dict.union gamepadsInputByKey
                 |> Dict.union keyAndMouse
+                |> Dict.map sanitizeInputState
 
         pairInputStateWithPrevious : String -> InputState -> ( InputState, InputState )
         pairInputStateWithPrevious inputKey currentInputState =
@@ -315,6 +316,34 @@ updateOnGamepad ( dtInMilliseconds, gamepadBlob ) shell model =
     in
     List.foldl applyOutcome ( newModel, [] ) outcomes
         |> Tuple.mapSecond Cmd.batch
+
+
+sanitizeInputState : InputKey -> InputState -> InputState
+sanitizeInputState inputKey inputState =
+    let
+        vecNoNaN v =
+            let
+                ( x, y ) =
+                    Vec2.toTuple v
+            in
+            if isNaN x || isNaN y then
+                let
+                    unused =
+                        Debug.log "input is NaN" ( inputKey, inputState )
+                in
+                vec2 0 0
+            else
+                v
+
+        aim =
+            case inputState.aim of
+                AimAbsolute v ->
+                    v |> vecNoNaN |> AimAbsolute
+
+                AimRelative v ->
+                    v |> vecNoNaN |> AimRelative
+    in
+    { inputState | aim = aim, move = vecNoNaN inputState.move }
 
 
 applyOutcome : Outcome -> ( Model, List (Cmd Msg) ) -> ( Model, List (Cmd Msg) )
