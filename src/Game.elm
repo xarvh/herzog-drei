@@ -401,9 +401,11 @@ type GameMode
     = GameModeTeamSelection ValidatedMap
     | GameModeVersus
 
+
 type GameFade
     = GameFadeIn
     | GameFadeOut
+
 
 type alias Game =
     { mode : GameMode
@@ -712,12 +714,10 @@ vecToAngle v =
 
 normalizeAngle : Float -> Float
 normalizeAngle angle =
-    if angle < -pi then
-        normalizeAngle (angle + 2 * pi)
-    else if angle >= pi then
-        normalizeAngle (angle - 2 * pi)
-    else
-        angle
+    let
+        n = (angle + pi) / (2 * pi) |> floor |> toFloat
+    in
+    angle - n * 2 * pi
 
 
 turnTo : Float -> Float -> Float -> Float
