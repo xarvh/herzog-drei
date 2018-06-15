@@ -165,6 +165,15 @@ shootEnemies playerUnit game =
             ( Vec2.sub targetUnit.position playerUnit.position |> Vec2.normalize |> AimAbsolute, True )
 
 
+directionFromUnitToBase : Unit -> Base -> Vec2
+directionFromUnitToBase playerUnit base =
+    Vec2.normalize <|
+        if base.position == playerUnit.position then
+            Vec2.negate base.position
+        else
+            Vec2.sub base.position playerUnit.position
+
+
 moveToTargetBase : Unit -> MechComponent -> State -> Game -> Base -> ( State, { transform : Bool, rally : Bool, move : Vec2 } )
 moveToTargetBase playerUnit playerMech state game base =
     let
@@ -181,7 +190,7 @@ moveToTargetBase playerUnit playerMech state game base =
         ( state
         , { transform = playerMech.transformingTo /= ToFlyer
           , rally = False
-          , move = Vec2.sub base.position playerUnit.position |> Vec2.normalize
+          , move = directionFromUnitToBase playerUnit base
           }
         )
     else
@@ -205,6 +214,6 @@ moveToTargetBase playerUnit playerMech state game base =
           }
         , { transform = playerMech.transformingTo /= ToMech
           , rally = True
-          , move = Vec2.sub base.position playerUnit.position |> rotateVector (state.speedAroundBase * pi / 2) |> Vec2.normalize
+          , move = directionFromUnitToBase playerUnit base |> rotateVector (state.speedAroundBase * pi / 2)
           }
         )
