@@ -262,7 +262,7 @@ view db model =
                 ]
 
         ( Nothing, Nothing ) ->
-            text ""
+            text "Waiting for gamepad blob..."
 
         ( Nothing, Just blob ) ->
             case Gamepad.getAllGamepadsAsUnknown blob of

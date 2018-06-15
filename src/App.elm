@@ -3,7 +3,7 @@ module App exposing (..)
 import Config exposing (Config)
 import Dict exposing (Dict)
 import Game exposing (ValidatedMap)
-import Gamepad exposing (Gamepad)
+import Gamepad exposing (Database, Gamepad)
 import GamepadPort
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -143,6 +143,7 @@ type Msg
       -- TEA children
     | OnMainSceneMsg MainScene.Msg
     | OnMapEditorMsg MapEditor.Msg
+    | OnRemapMsg Remap.Msg
       -- Env stuff used by map editor and main scene
     | OnWindowResizes Window.Size
     | OnMouseButton Bool
@@ -235,6 +236,14 @@ update msg model =
                 _ ->
                     noCmd model
 
+        OnRemapMsg remapMsg ->
+            case model.maybeMenu of
+                Just (MenuGamepads remap) ->
+                    Remap.update remapMsg remap |> updateOnRemap model
+
+                _ ->
+                    noCmd model
+
 
 
 -- Gamepads
@@ -260,13 +269,36 @@ gamepadButtonMap =
     ]
 
 
+updateOnRemap : Model -> ( Remap.Model, Maybe (Database -> Database) ) -> ( Model, Cmd Msg )
+updateOnRemap model ( remap, maybeUpdateDb ) =
+    let
+        updateDb =
+            maybeUpdateDb |> Maybe.withDefault identity
+    in
+    { model | maybeMenu = Just (MenuGamepads remap) }
+        |> updateConfig (\config -> { config | gamepadDatabase = updateDb model.config.gamepadDatabase })
+
+
 
 -- Config
 
 
-saveConfig : Model -> Config -> Cmd a
-saveConfig model config =
-    LocalStoragePort.set model.flags.configKey (Config.toString config)
+updateConfig : (Config -> Config) -> Model -> ( Model, Cmd a )
+updateConfig updater model =
+    let
+        oldConfig =
+            model.config
+
+        newConfig =
+            updater oldConfig
+
+        cmd =
+            if newConfig == oldConfig then
+                Cmd.none
+            else
+                LocalStoragePort.set model.flags.configKey (Config.toString newConfig)
+    in
+    ( { model | config = newConfig }, cmd )
 
 
 
@@ -394,6 +426,13 @@ viewMenu menu model =
                             ]
                         ]
 
+                MenuGamepads remap ->
+                    section
+                        []
+                        [ div [] [ text "LOOOL" ]
+                        , Remap.view model.config.gamepadDatabase remap |> Html.map OnRemapMsg
+                        ]
+
                 _ ->
                     text "TODO"
             ]
@@ -465,6 +504,12 @@ subscriptions model =
         , Mouse.moves OnMouseMoves
         , Sub.map OnKeyboardMsg Keyboard.Extra.subscriptions
         , Window.resizes OnWindowResizes
+        , case model.maybeMenu of
+            Just (MenuGamepads remap) ->
+                Remap.subscriptions GamepadPort.gamepad |> Sub.map OnRemapMsg
+
+            _ ->
+                Sub.none
         , case model.scene of
             SceneMain subScene scene ->
                 MainScene.subscriptions scene |> Sub.map OnMainSceneMsg
