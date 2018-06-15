@@ -102,7 +102,9 @@ validate map =
 
             [ left, right ] ->
                 Ok
-                    { halfWidth = hw
+                    { name = map.name
+                    , author = map.author
+                    , halfWidth = hw
                     , halfHeight = hh
                     , leftBase = left
                     , rightBase = right
@@ -147,7 +149,7 @@ setOfTilesDecoder =
 encodeBases : BaseType -> Map -> Value
 encodeBases baseType map =
     map.bases
-        |> Dict.filter (\tile type_ -> type_ == BaseMain)
+        |> Dict.filter (\tile type_ -> type_ == baseType)
         |> Dict.keys
         |> List.map tileEncoder
         |> Encode.list

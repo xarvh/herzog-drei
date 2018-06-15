@@ -458,13 +458,6 @@ terrain { map } =
       , color = "red"
       , class = ""
       }
-    , { x = 2 - hW
-      , y = 2 - hH
-      , w = 2 * hW - 4
-      , h = 2 * hH - 4
-      , color = "green"
-      , class = ""
-      }
     ]
 
 

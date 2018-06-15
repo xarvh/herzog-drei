@@ -38,7 +38,9 @@ type alias Tile2 =
 
 
 type alias ValidatedMap =
-    { halfWidth : Int
+    { name : String
+    , author : String
+    , halfWidth : Int
     , halfHeight : Int
     , leftBase : Tile2
     , rightBase : Tile2
@@ -715,7 +717,8 @@ vecToAngle v =
 normalizeAngle : Float -> Float
 normalizeAngle angle =
     let
-        n = (angle + pi) / (2 * pi) |> floor |> toFloat
+        n =
+            (angle + pi) / (2 * pi) |> floor |> toFloat
     in
     angle - n * 2 * pi
 

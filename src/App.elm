@@ -15,7 +15,9 @@ import MainScene
 import Map
 import MapEditor
 import Mouse
+import OfficialMaps
 import Random
+import Random.List
 import Remap
 import Set exposing (Set)
 import Shell exposing (Shell)
@@ -28,26 +30,13 @@ type alias Flags =
     Shell.Flags
 
 
-{-| TODO actually load maps
--}
-someMap : ValidatedMap
-someMap =
-    { halfWidth = 20
-    , halfHeight = 10
-    , leftBase = ( -15, 0 )
-    , rightBase = ( 15, 0 )
-    , smallBases = Set.fromList [ ( 0, -7 ), ( 0, 7 ) ]
-    , wallTiles = Set.empty
-    }
-
-
 
 -- Model
 
 
 type Menu
     = MenuMain
-    | MenuMapSelection
+    | MenuMapSelection String String
     | MenuMapEditor
     | MenuSettings
     | MenuGamepads Remap.Model
@@ -88,11 +77,16 @@ init params flags =
         config =
             Config.fromString flags.configAsString
 
-        seed =
-            Random.initialSeed flags.dateNow
+        mapGenerator : Random.Generator ValidatedMap
+        mapGenerator =
+            Random.List.choose OfficialMaps.maps
+                |> Random.map (Tuple.first >> Maybe.withDefault OfficialMaps.default)
+
+        ( map, seed ) =
+            Random.step mapGenerator (Random.initialSeed flags.dateNow)
 
         model =
-            { scene = SceneMain SubSceneDemo (MainScene.initDemo seed someMap)
+            { scene = SceneMain SubSceneDemo (MainScene.initDemo seed map)
             , maybeMenu = Just MenuMain
             , seed = seed
 
@@ -145,7 +139,7 @@ type Msg
     | OnMenuNav Menu
     | OnMenuNavGamepads
     | OnOpenMapEditor
-    | OnStartGame
+    | OnStartGame ValidatedMap
       -- TEA children
     | OnMainSceneMsg MainScene.Msg
     | OnMapEditorMsg MapEditor.Msg
@@ -182,9 +176,9 @@ update msg model =
                     , scene = SceneMapEditor MapEditor.init
                 }
 
-        OnStartGame ->
+        OnStartGame map ->
             { model
-                | scene = SceneMain SubSceneGameplay <| MainScene.initTeamSelection model.seed someMap
+                | scene = SceneMain SubSceneGameplay <| MainScene.initTeamSelection model.seed map
                 , maybeMenu = Nothing
             }
                 |> noCmd
@@ -339,42 +333,6 @@ saveConfig model config =
 -}
 
 
-pageButton : String -> Msg -> Html Msg
-pageButton label msg =
-    button
-        [ onClick msg ]
-        [ text label ]
-
-
-viewMenu : Model -> Html Msg
-viewMenu model =
-    div
-        [ class "fullWindow flex alignCenter justifyCenter"
-        ]
-        [ div
-            [ class "menu p2" ]
-            [ case model.maybeMenu of
-                Just MenuMain ->
-                    div
-                        []
-                        [ pageButton "Play" OnStartGame --(OnMenuNav MenuMapSelection)
-                        , pageButton "Map Editor" OnOpenMapEditor
-                        , pageButton "Settings" (OnMenuNav MenuSettings)
-                        , pageButton "Gamepads" OnMenuNavGamepads
-                        ]
-
-                Just MenuMapSelection ->
-                    div
-                        []
-                        [ text "MapSelection!"
-                        ]
-
-                _ ->
-                    text "TODO"
-            ]
-        ]
-
-
 view : Model -> Html Msg
 view model =
     div
@@ -390,8 +348,70 @@ view model =
                 text ""
 
             Just menu ->
-                viewMenu model
+                viewMenu menu model
         ]
+
+
+viewMenu : Menu -> Model -> Html Msg
+viewMenu menu model =
+    div
+        [ class "fullWindow flex alignCenter justifyCenter"
+        ]
+        [ div
+            [ class "menu p2" ]
+            [ case menu of
+                MenuMain ->
+                    div
+                        []
+                        [ pageButton "Play" (OnMenuNav (MenuMapSelection "" ""))
+                        , pageButton "Map Editor" OnOpenMapEditor
+                        , pageButton "Settings" (OnMenuNav MenuSettings)
+                        , pageButton "Gamepads" OnMenuNavGamepads
+                        ]
+
+                MenuMapSelection mapString mapErrorMessage ->
+                    div
+                        []
+                        [ section
+                            []
+                            [ div [] [ text "Select map:" ]
+                            , div []
+                                [ OfficialMaps.maps
+                                    |> List.map viewMapItem
+                                    |> ul []
+                                ]
+                            ]
+                        , section
+                            []
+                            [ label [] [ text "Load map from JSON" ]
+                            , input
+                                [ value mapString
+
+                                -- TODO, onInput OnMapString
+                                ]
+                                []
+                            , div [] [ text mapErrorMessage ]
+                            ]
+                        ]
+
+                _ ->
+                    text "TODO"
+            ]
+        ]
+
+
+pageButton : String -> Msg -> Html Msg
+pageButton label msg =
+    button
+        [ onClick msg ]
+        [ text label ]
+
+
+viewMapItem : ValidatedMap -> Html Msg
+viewMapItem map =
+    li
+        [ onClick (OnStartGame map) ]
+        [ map.name ++ " by " ++ map.author |> text ]
 
 
 
