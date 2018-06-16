@@ -4,14 +4,19 @@ import Game exposing (..)
 import Random
 
 
-boolToClass : Bool -> MechClass
-boolToClass bool =
-    if bool then
-        Heli
-    else
-        Plane
+intToClass : Int -> MechClass
+intToClass n =
+    case n of
+        0 ->
+            Plane
+
+        1 ->
+            Heli
+
+        _ ->
+            Blimp
 
 
 classGenerator : Random.Generator MechClass
 classGenerator =
-    Random.map boolToClass Random.bool
+    Random.map intToClass (Random.int 0 2)

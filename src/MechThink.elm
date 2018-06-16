@@ -29,6 +29,19 @@ aimControlThreshold =
 --
 
 
+nextClass : MechClass -> MechClass
+nextClass class =
+    case class of
+        Plane ->
+            Heli
+
+        Heli ->
+            Blimp
+
+        Blimp ->
+            Plane
+
+
 mechThink : ( InputState, InputState ) -> Seconds -> Game -> Unit -> MechComponent -> Delta
 mechThink ( previousInput, currentInput ) dt game unit mech =
     let
@@ -44,14 +57,6 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
             currentInput.move
                 |> clampToRadius 1
                 |> Vec2.scale (speed * dt)
-
-        nextClass class =
-            case class of
-                Plane ->
-                    Heli
-
-                Heli ->
-                    Plane
 
         rally =
             if currentInput.rally && not previousInput.rally then

@@ -200,6 +200,7 @@ type TransformMode
 type MechClass
     = Plane
     | Heli
+    | Blimp
 
 
 type alias MechComponent =
