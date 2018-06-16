@@ -9,8 +9,9 @@ import Window
 
 
 type alias Flags =
-    { configAsString : String
-    , configKey : String
+    { config : String
+    , customMaps : String
+    , mapEditorCurrentMap : String
     , dateNow : Int
     }
 

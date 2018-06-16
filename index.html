@@ -16,11 +16,11 @@
     </head>
     <body>
         <script type="text/javascript">
-            var configKey = "config"
             var elmApp = Elm.Main.fullscreen({
                 dateNow: Date.now(),
-                configKey: configKey,
-                configAsString: localStorage[configKey] || "",
+                config: localStorage.config || "",
+                customMaps: localStorage.customMaps || "",
+                mapEditorCurrentMap: localStorage.mapEditorCurrentMap || "",
             });
             addGamepadPort(elmApp);
             addLocalStoragePort(elmApp);

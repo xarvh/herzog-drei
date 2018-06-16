@@ -75,7 +75,7 @@ init : Dict String String -> Flags -> ( Model, Cmd Msg )
 init params flags =
     let
         config =
-            Config.fromString flags.configAsString
+            Config.fromString flags.config
 
         ( scene, seed ) =
             demoScene (Random.initialSeed flags.dateNow)
@@ -148,9 +148,9 @@ type Msg
     | OnMenuNav Menu
     | OnMenuNavGamepads
     | OnOpenMapEditor
-    | OnMapEditorSave
-    | OnMapEditorLoad
-    | OnMapEditorPlay
+      --| OnMapEditorSave
+      --| OnMapEditorLoad
+      --| OnMapEditorPlay
     | OnStartGame ValidatedMap
     | OnQuit
       -- TEA children
@@ -273,18 +273,19 @@ update msg model =
         OnToggleKeyboardAndMouse ->
             model |> updateConfig (\config -> { config | useKeyboardAndMouse = not config.useKeyboardAndMouse })
 
-        -- Map Editor
-        OnMapEditorSave ->
-            noCmd model
-
-        OnMapEditorLoad ->
-            noCmd model
-
-        OnMapEditorPlay ->
-            noCmd model
 
 
+{-
 
+   OnMapString string ->
+       case Map.fromString string |> Result.andThen Map.validate of
+           Err message ->
+               noCmd { model | errorMessage = message }
+
+           Ok validatedMap ->
+               ( { model | mapString = "", errorMessage = "Map loaded!" }, Just (OutcomeMap validatedMap) )
+
+-}
 -- Gamepads
 
 
@@ -335,30 +336,12 @@ updateConfig updater model =
             if newConfig == oldConfig then
                 Cmd.none
             else
-                LocalStoragePort.set model.flags.configKey (Config.toString newConfig)
+                LocalStoragePort.set "config" (Config.toString newConfig)
     in
     ( { model | config = newConfig }, cmd )
 
 
 
-{-
-
-   OnRemapMsg remapMsg ->
-       Remap.update remapMsg model.remap
-           |> Tuple.mapFirst (\newRemap -> { model | remap = newRemap })
-           |> Tuple.mapSecond (Maybe.map <| \updateDb -> OutcomeConfig { config | gamepadDatabase = updateDb config.gamepadDatabase })
-
-   OnMapString string ->
-       case Map.fromString string |> Result.andThen Map.validate of
-           Err message ->
-               noCmd { model | errorMessage = message }
-
-           Ok validatedMap ->
-               ( { model | mapString = "", errorMessage = "Map loaded!" }, Just (OutcomeMap validatedMap) )
-
-   OnOpenMapEditor ->
-       ( model, Just OutcomeOpenMapEditor )
--}
 -- View
 
 
@@ -432,12 +415,13 @@ viewMenu menu model =
                         []
                         [ when (isDemo model) <| pageButton "Play" (OnMenuNav MenuMapSelection)
                         , when (isDemo model) <| pageButton "Map Editor" OnOpenMapEditor
-                        , when (isDemo model) <| pageButton "Resume" (OnKeyPress 27)
+                        , when (isPlaying model) <| pageButton "Resume" (OnKeyPress 27)
                         , when (isDemo model || isPlaying model) <| pageButton "Settings" (OnMenuNav MenuSettings)
                         , when (isDemo model || isPlaying model) <| pageButton "Gamepads" OnMenuNavGamepads
-                        , when (isMapEditor model) <| pageButton "Save" OnMapEditorSave
-                        , when (isMapEditor model) <| pageButton "Load" OnMapEditorLoad
-                        , when (isMapEditor model) <| pageButton "Play here" OnMapEditorPlay
+
+                        --, when (isMapEditor model) <| pageButton "Save" OnMapEditorSave
+                        --, when (isMapEditor model) <| pageButton "Load" OnMapEditorLoad
+                        --, when (isMapEditor model) <| pageButton "Play here" OnMapEditorPlay
                         , when (isPlaying model || isMapEditor model) <| pageButton "Quit" OnQuit
                         ]
 
