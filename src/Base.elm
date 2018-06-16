@@ -155,10 +155,10 @@ deltaRepairUnit dt baseId unitId =
                                         ( repairRate, productionToIntegrityRatio ) =
                                             case unit.component of
                                                 UnitMech _ ->
-                                                    ( 0.3, 1.0 )
+                                                    ( 0.3, 0.3 )
 
                                                 UnitSub _ ->
-                                                    ( 0.1, 3.0 )
+                                                    ( 0.2, 1.0 )
 
                                         -- Don't need to repair beyond integrity 1
                                         requirementLimit =

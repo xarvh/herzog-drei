@@ -1,250 +1,140 @@
 module App exposing (..)
 
-import Bot.Dummy
 import Config exposing (Config)
 import Dict exposing (Dict)
-import Game exposing (..)
-import Gamepad exposing (Gamepad)
+import Game exposing (ValidatedMap)
+import Gamepad exposing (Database, Gamepad)
 import GamepadPort
 import Html exposing (..)
-import Html.Attributes exposing (class, style)
-import Init
+import Html.Attributes exposing (..)
+import Html.Events exposing (onClick, onInput)
 import Keyboard
 import Keyboard.Extra
 import LocalStoragePort
+import MainScene
+import Map
 import MapEditor
-import Math.Vector2 as Vec2 exposing (Vec2, vec2)
-import Menu
 import Mouse
+import OfficialMaps
+import Random
+import Random.List
+import Remap
+import Set exposing (Set)
+import Shell exposing (Shell)
 import SplitScreen exposing (Viewport)
 import Task
-import Time exposing (Time)
-import Update
-import View.Background
-import View.Game
 import Window
 
 
 type alias Flags =
-    { configAsString : String
-    , configKey : String
-    , dateNow : Int
-    }
+    Shell.Flags
 
 
-type Msg
-    = Noop
-    | OnGamepad ( Time, Gamepad.Blob )
-    | OnMouseButton Bool
-    | OnMouseMoves Mouse.Position
-    | OnKeyboardMsg Keyboard.Extra.Msg
-    | OnWindowResizes Window.Size
-    | OnMenuMsg Menu.Msg
-    | OnKeyPress Keyboard.KeyCode
-    | OnMapEditorMsg MapEditor.Msg
+
+-- Model
+
+
+type Menu
+    = MenuMain
+    | MenuMapSelection
+    | MenuImportMap { importString : String, error : String }
+    | MenuSettings
+    | MenuGamepads Remap.Model
+
+
+type SubScene
+    = SubSceneDemo
+    | SubSceneGameplay
+
+
+type Scene
+    = SceneMain SubScene MainScene.Model
+    | SceneMapEditor MapEditor.Model
 
 
 type alias Model =
-    { game : Game
-    , botStatesByKey : Dict String Bot.Dummy.State
-    , mousePosition : Mouse.Position
-    , mouseIsPressed : Bool
+    { scene : Scene
+    , maybeMenu : Maybe Menu
+    , seed : Random.Seed
+
+    -- env stuff
+    , flags : Flags
+    , config : Config
+    , params : Dict String String
     , windowSize : Window.Size
     , viewport : Viewport
-    , fps : List Float
-    , terrain : List View.Background.Rect
-    , params : Dict String String
+
+    -- input stuff
+    , mousePosition : Mouse.Position
+    , mouseIsPressed : Bool
     , pressedKeys : List Keyboard.Extra.Key
-    , maybeMenu : Maybe Menu.Model
-    , config : Config
-    , flags : Flags
-    , previousInputStatesByKey : Dict String InputState
-    , maybeMapEditor : Maybe MapEditor.Model
     }
-
-
-
--- init
 
 
 init : Dict String String -> Flags -> ( Model, Cmd Msg )
 init params flags =
     let
-        game =
-            Init.setupPhase flags.dateNow { halfWidth = 20, halfHeight = 10 }
-
         config =
-            Config.fromString flags.configAsString
+            Config.fromString flags.config
 
-        maybeMenu =
-            if Dict.member "noMenu" params then
-                Nothing
-            else
-                Just Menu.init
+        ( scene, seed ) =
+            demoScene (Random.initialSeed flags.dateNow)
 
-        ( maybeMapEditor, mapEditorCmd ) =
-            if Dict.member "mapEditor" params then
-                MapEditor.init
-                    |> Tuple.mapFirst Just
-            else
-                ( Nothing, Cmd.none )
+        model =
+            { scene = scene
+            , maybeMenu = Just MenuMain
+            , seed = seed
+
+            -- env stuff
+            , flags = flags
+            , config = config
+            , params = params
+            , windowSize = { width = 1, height = 1 }
+            , viewport = SplitScreen.defaultViewport
+
+            -- input stuff
+            , mousePosition = { x = 0, y = 0 }
+            , mouseIsPressed = False
+            , pressedKeys = []
+            }
+
+        cmd =
+            Window.size |> Task.perform OnWindowResizes
     in
-    ( { game = game
-      , botStatesByKey = Dict.empty
-      , mousePosition = { x = 0, y = 0 }
-      , mouseIsPressed = False
-      , windowSize = { width = 1, height = 1 }
-      , viewport = SplitScreen.defaultViewport
-      , fps = []
-      , params = params
-      , terrain = View.Background.initRects game
-      , pressedKeys = []
-      , maybeMenu = maybeMenu
-      , config = config
-      , flags = flags
-      , previousInputStatesByKey = Dict.empty
-      , maybeMapEditor = maybeMapEditor
-      }
-    , Cmd.batch
-        [ Window.size |> Task.perform OnWindowResizes
-        , mapEditorCmd |> Cmd.map OnMapEditorMsg
-        ]
-    )
+    ( model, cmd )
 
 
-
--- input stuff
-
-
-inputKeyboardAndMouseKey : String
-inputKeyboardAndMouseKey =
-    "keyboard+mouse"
-
-
-inputGamepadKey : Int -> String
-inputGamepadKey index =
-    "gamepad " ++ toString index
-
-
-inputKeyIsHuman : String -> Bool
-inputKeyIsHuman key =
-    inputIsBot key |> not
-
-
-
--- gamepad database
-
-
-saveConfig : Model -> Config -> Cmd a
-saveConfig model config =
-    LocalStoragePort.set model.flags.configKey (Config.toString config)
-
-
-
--- Input: Bots
-
-
-addMissingBots : Model -> Model
-addMissingBots model =
-    if model.game.phase == PhaseSetup then
-        model
-    else
-        let
-            initBot : String -> Team -> Int -> Game -> Bot.Dummy.State
-            initBot inputKey team n game =
-                Bot.Dummy.init inputKey team.id (List.all inputIsBot team.players |> not) n game
-
-            addBot : Team -> String -> Dict String Bot.Dummy.State -> Dict String Bot.Dummy.State
-            addBot team inputKey botStatesByKey =
-                Dict.insert
-                    inputKey
-                    (initBot inputKey team (Dict.size botStatesByKey) model.game)
-                    botStatesByKey
-
-            addTeamBots : Team -> Dict String Bot.Dummy.State -> Dict String Bot.Dummy.State
-            addTeamBots team botStatesByKey =
-                team.players
-                    |> List.filter inputIsBot
-                    |> List.filter (\input -> Dict.member input botStatesByKey |> not)
-                    |> List.foldl (addBot team) botStatesByKey
-
-            botStates =
-                model.botStatesByKey
-                    |> addTeamBots model.game.leftTeam
-                    |> addTeamBots model.game.rightTeam
-        in
-        { model | botStatesByKey = botStates }
-
-
-
--- Input: Gamepads
-
-
-threshold : Vec2 -> Vec2
-threshold v =
-    if Vec2.length v > 0.1 then
-        v
-    else
-        vec2 0 0
-
-
-gamepadToInput : Gamepad -> ( String, InputState )
-gamepadToInput gamepad =
-    ( "gamepad " ++ toString (Gamepad.getIndex gamepad)
-    , { aim = vec2 (Gamepad.rightX gamepad) (Gamepad.rightY gamepad) |> threshold |> AimAbsolute
-      , fire =
-            Gamepad.rightBumperIsPressed gamepad
-                || Gamepad.rightTriggerIsPressed gamepad
-                || Gamepad.rightStickIsPressed gamepad
-      , transform = Gamepad.aIsPressed gamepad
-      , switchUnit = False
-      , rally = Gamepad.bIsPressed gamepad
-      , move = vec2 (Gamepad.leftX gamepad) (Gamepad.leftY gamepad) |> threshold
-      }
-    )
-
-
-allBotsThink : Model -> ( Dict String Bot.Dummy.State, Dict String InputState )
-allBotsThink model =
+demoScene : Random.Seed -> ( Scene, Random.Seed )
+demoScene oldSeed =
     let
-        foldBot : String -> Bot.Dummy.State -> ( Dict String Bot.Dummy.State, Dict String InputState ) -> ( Dict String Bot.Dummy.State, Dict String InputState )
-        foldBot inputSourceKey oldState ( statesByKey, inputsByKey ) =
-            let
-                ( newState, input ) =
-                    Bot.Dummy.update model.game oldState
-            in
-            ( Dict.insert inputSourceKey newState statesByKey, Dict.insert inputSourceKey input inputsByKey )
+        mapGenerator : Random.Generator ValidatedMap
+        mapGenerator =
+            Random.List.choose OfficialMaps.maps
+                |> Random.map (Tuple.first >> Maybe.withDefault OfficialMaps.default)
+
+        ( map, newSeed ) =
+            Random.step mapGenerator oldSeed
     in
-    Dict.foldl foldBot ( Dict.empty, Dict.empty ) model.botStatesByKey
+    ( SceneMain SubSceneDemo (MainScene.initDemo newSeed map), newSeed )
 
 
+shell : Model -> Shell
+shell model =
+    { mousePosition = model.mousePosition
+    , mouseIsPressed = model.mouseIsPressed
+    , windowSize = model.windowSize
+    , viewport = model.viewport
+    , params = model.params
+    , pressedKeys = model.pressedKeys
+    , config = model.config
+    , flags = model.flags
+    , gameIsPaused =
+        case model.scene of
+            SceneMain SubSceneDemo _ ->
+                False
 
--- Input: Keyboard & Mouse
-
-
-getKeyboardAndMouseInputState : Model -> InputState
-getKeyboardAndMouseInputState model =
-    let
-        { x, y } =
-            Keyboard.Extra.wasd model.pressedKeys
-
-        isPressed key =
-            List.member key model.pressedKeys
-
-        mouseAim =
-            SplitScreen.mouseScreenToViewport model.mousePosition model.viewport
-                |> Vec2.fromTuple
-                |> Vec2.scale (View.Game.tilesToViewport model.game model.viewport)
-                |> AimRelative
-    in
-    { aim = mouseAim
-    , fire = model.mouseIsPressed
-    , transform = isPressed Keyboard.Extra.CharE
-    , switchUnit = isPressed Keyboard.Extra.Space
-
-    -- TODO this should be right mouse button
-    , rally = isPressed Keyboard.Extra.CharQ
-    , move = vec2 (toFloat x) (toFloat y)
+            _ ->
+                model.maybeMenu /= Nothing
     }
 
 
@@ -252,68 +142,34 @@ getKeyboardAndMouseInputState model =
 -- Update
 
 
-noCmd : Model -> ( Model, Cmd a )
+type Msg
+    = Noop
+      -- Menu buttons
+    | OnMenuNav Menu
+    | OnMenuNavGamepads
+    | OnOpenMapEditor
+      --| OnMapEditorSave
+      --| OnMapEditorLoad
+      --| OnMapEditorPlay
+    | OnStartGame ValidatedMap
+    | OnQuit
+      -- TEA children
+    | OnMainSceneMsg MainScene.Msg
+    | OnMapEditorMsg MapEditor.Msg
+    | OnRemapMsg Remap.Msg
+      -- Env stuff used by map editor and main scene
+    | OnWindowResizes Window.Size
+    | OnMouseButton Bool
+    | OnMouseMoves Mouse.Position
+    | OnKeyboardMsg Keyboard.Extra.Msg
+    | OnKeyPress Keyboard.KeyCode
+      -- Config
+    | OnToggleKeyboardAndMouse
+
+
+noCmd : Model -> ( Model, Cmd Msg )
 noCmd model =
     ( model, Cmd.none )
-
-
-updateOnGamepad : ( Time, Gamepad.Blob ) -> Model -> ( Model, Cmd Msg )
-updateOnGamepad ( timeInMilliseconds, gamepadBlob ) model =
-    let
-        gamepadsInputByKey =
-            gamepadBlob
-                |> Gamepad.getGamepads model.config.gamepadDatabase
-                |> List.map gamepadToInput
-                |> Dict.fromList
-
-        keyAndMouse =
-            if model.config.useKeyboardAndMouse || Dict.size gamepadsInputByKey == 0 then
-                Dict.singleton inputKeyboardAndMouseKey (getKeyboardAndMouseInputState model)
-            else
-                Dict.empty
-
-        ( botStatesByKey, botInputsByKey ) =
-            allBotsThink model
-
-        inputStatesByKey =
-            botInputsByKey
-                |> Dict.union gamepadsInputByKey
-                |> Dict.union keyAndMouse
-
-        pairInputStateWithPrevious : String -> InputState -> ( InputState, InputState )
-        pairInputStateWithPrevious inputKey currentInputState =
-            case Dict.get inputKey model.previousInputStatesByKey of
-                Just previousInputState ->
-                    ( previousInputState, currentInputState )
-
-                Nothing ->
-                    -- Assume that state did not change
-                    ( currentInputState, currentInputState )
-
-        pairedInputStates =
-            Dict.map pairInputStateWithPrevious inputStatesByKey
-
-        -- All times in the game are in seconds
-        time =
-            timeInMilliseconds / 1000
-
-        dt =
-            time - model.game.time
-
-        game =
-            if model.maybeMenu == Nothing then
-                Update.update time pairedInputStates model.game
-            else
-                model.game
-    in
-    { model
-        | game = game
-        , botStatesByKey = botStatesByKey
-        , fps = (1 / dt) :: List.take 20 model.fps
-        , previousInputStatesByKey = inputStatesByKey
-    }
-        |> addMissingBots
-        |> noCmd
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -322,6 +178,35 @@ update msg model =
         Noop ->
             noCmd model
 
+        OnStartGame map ->
+            { model
+                | scene = SceneMain SubSceneGameplay <| MainScene.initTeamSelection model.seed map
+                , maybeMenu = Nothing
+            }
+                |> noCmd
+
+        OnQuit ->
+            let
+                ( scene, seed ) =
+                    demoScene model.seed
+            in
+            noCmd { model | scene = scene, seed = seed, maybeMenu = Nothing }
+
+        -- Menu navigation
+        OnMenuNav menu ->
+            noCmd { model | maybeMenu = Just menu }
+
+        OnMenuNavGamepads ->
+            noCmd { model | maybeMenu = Just <| MenuGamepads <| Remap.init <| gamepadButtonMap }
+
+        OnOpenMapEditor ->
+            noCmd
+                { model
+                    | maybeMenu = Nothing
+                    , scene = SceneMapEditor MapEditor.init
+                }
+
+        -- Env stuff
         OnMouseButton state ->
             noCmd { model | mouseIsPressed = state }
 
@@ -338,103 +223,303 @@ update msg model =
             }
                 |> noCmd
 
-        OnMenuMsg menuMsg ->
-            case model.maybeMenu of
-                Nothing ->
-                    noCmd model
-
-                Just menu ->
-                    case Menu.update menuMsg model.config menu of
-                        ( menu, Nothing ) ->
-                            noCmd { model | maybeMenu = Just menu }
-
-                        ( menu, Just (Menu.OutcomeConfig config) ) ->
-                            ( { model | maybeMenu = Just menu, config = config }
-                            , saveConfig model config
-                            )
-
-                        ( menu, Just (Menu.OutcomeMap map) ) ->
-                            let
-                                game =
-                                    model.game
-
-                                newGame =
-                                    { game | validatedMap = map }
-                            in
-                            noCmd { model | maybeMenu = Just menu, game = newGame }
-
-                        ( menu, Just Menu.OutcomeOpenMapEditor ) ->
-                            MapEditor.init
-                                |> Tuple.mapFirst (\mapEditor -> { model | maybeMapEditor = Just mapEditor })
-                                |> Tuple.mapSecond (Cmd.map OnMapEditorMsg)
-
-        OnKeyboardMsg keyboardMsg ->
-            noCmd { model | pressedKeys = Keyboard.Extra.update keyboardMsg model.pressedKeys }
-
-        OnGamepad timeAndGamepadBlob ->
-            if model.maybeMapEditor == Nothing then
-                updateOnGamepad timeAndGamepadBlob model
-            else
-                noCmd model
-
-        OnMapEditorMsg subMsg ->
-            case model.maybeMapEditor of
-                Nothing ->
-                    noCmd model
-
-                Just mapEditor ->
-                    MapEditor.update subMsg mapEditor
-                        |> Tuple.mapSecond (Cmd.map OnMapEditorMsg)
-                        |> Tuple.mapFirst (\newMapEditor -> { model | maybeMapEditor = Just newMapEditor })
-
         OnKeyPress keyCode ->
-            case keyCode of
-                27 ->
-                    noCmd
-                        { model
-                            | maybeMenu =
-                                if model.maybeMenu == Nothing then
-                                    Just Menu.init
-                                else
-                                    Nothing
-                        }
+            case ( keyCode, model.maybeMenu ) of
+                ( 27, Just MenuMain ) ->
+                    noCmd { model | maybeMenu = Nothing }
+
+                ( 27, Just (MenuImportMap _) ) ->
+                    noCmd { model | maybeMenu = Just MenuMapSelection }
+
+                ( 27, _ ) ->
+                    noCmd { model | maybeMenu = Just MenuMain }
 
                 _ ->
                     noCmd model
 
+        OnKeyboardMsg keyboardMsg ->
+            noCmd { model | pressedKeys = Keyboard.Extra.update keyboardMsg model.pressedKeys }
+
+        -- TEA children
+        OnMainSceneMsg sceneMsg ->
+            case model.scene of
+                SceneMain subScene scene ->
+                    MainScene.update sceneMsg (shell model) scene
+                        |> Tuple.mapFirst (\newScene -> { model | scene = SceneMain subScene newScene })
+                        |> Tuple.mapSecond (Cmd.map OnMainSceneMsg)
+
+                _ ->
+                    noCmd model
+
+        OnMapEditorMsg mapEditorMsg ->
+            case ( model.scene, model.maybeMenu ) of
+                ( SceneMapEditor mapEditor, Nothing ) ->
+                    MapEditor.update mapEditorMsg (shell model) mapEditor
+                        |> Tuple.mapFirst (\newMapEditor -> { model | scene = SceneMapEditor newMapEditor })
+                        |> Tuple.mapSecond (Cmd.map OnMapEditorMsg)
+
+                _ ->
+                    noCmd model
+
+        OnRemapMsg remapMsg ->
+            case model.maybeMenu of
+                Just (MenuGamepads remap) ->
+                    Remap.update remapMsg remap |> updateOnRemap model
+
+                _ ->
+                    noCmd model
+
+        -- Config
+        OnToggleKeyboardAndMouse ->
+            model |> updateConfig (\config -> { config | useKeyboardAndMouse = not config.useKeyboardAndMouse })
+
+
+
+{-
+
+   OnMapString string ->
+       case Map.fromString string |> Result.andThen Map.validate of
+           Err message ->
+               noCmd { model | errorMessage = message }
+
+           Ok validatedMap ->
+               ( { model | mapString = "", errorMessage = "Map loaded!" }, Just (OutcomeMap validatedMap) )
+
+-}
+-- Gamepads
+
+
+gamepadButtonMap =
+    [ ( Gamepad.LeftLeft, "Move LEFT" )
+    , ( Gamepad.LeftRight, "Move RIGHT" )
+    , ( Gamepad.LeftUp, "Move UP" )
+    , ( Gamepad.LeftDown, "Move DOWN" )
+
+    --
+    , ( Gamepad.RightLeft, "Aim LEFT" )
+    , ( Gamepad.RightRight, "Aim RIGHT" )
+    , ( Gamepad.RightUp, "Aim UP" )
+    , ( Gamepad.RightDown, "Aim DOWN" )
+
+    --
+    , ( Gamepad.RightTrigger, "FIRE" )
+    , ( Gamepad.RightBumper, "Alt FIRE" )
+    , ( Gamepad.A, "Transform" )
+    , ( Gamepad.B, "Rally" )
+    ]
+
+
+updateOnRemap : Model -> ( Remap.Model, Maybe (Database -> Database) ) -> ( Model, Cmd Msg )
+updateOnRemap model ( remap, maybeUpdateDb ) =
+    let
+        updateDb =
+            maybeUpdateDb |> Maybe.withDefault identity
+    in
+    { model | maybeMenu = Just (MenuGamepads remap) }
+        |> updateConfig (\config -> { config | gamepadDatabase = updateDb model.config.gamepadDatabase })
+
+
+
+-- Config
+
+
+updateConfig : (Config -> Config) -> Model -> ( Model, Cmd a )
+updateConfig updater model =
+    let
+        oldConfig =
+            model.config
+
+        newConfig =
+            updater oldConfig
+
+        cmd =
+            if newConfig == oldConfig then
+                Cmd.none
+            else
+                LocalStoragePort.set "config" (Config.toString newConfig)
+    in
+    ( { model | config = newConfig }, cmd )
+
+
+
+-- View
+
 
 view : Model -> Html Msg
 view model =
-    let
-        fps =
-            List.sum model.fps / toFloat (List.length model.fps) |> round
-    in
     div
         [ class "relative" ]
-        [ div
-            [ class "game-area" ]
-            [ case model.maybeMapEditor of
-                Just mapEditor ->
-                    MapEditor.view mapEditor |> Html.map OnMapEditorMsg
+        [ case model.scene of
+            SceneMain subScene scene ->
+                MainScene.view (shell model) scene |> div []
 
-                Nothing ->
-                    SplitScreen.viewportsWrapper [ View.Game.view model.terrain model.viewport model.game ]
-
-            -- "Fps"
-            , if Dict.member "fps" model.params then
-                div
-                    [ class "fps nonSelectable" ]
-                    [ text ("FPS " ++ toString fps) ]
-              else
-                text ""
-            ]
+            SceneMapEditor mapEditor ->
+                MapEditor.view (shell model) mapEditor |> Html.map OnMapEditorMsg
         , case model.maybeMenu of
-            Just menu ->
-                Menu.view model.config menu |> Html.map OnMenuMsg
-
             Nothing ->
                 text ""
+
+            Just menu ->
+                viewMenu menu model
         ]
+
+
+isDemo : Model -> Bool
+isDemo model =
+    case model.scene of
+        SceneMain SubSceneDemo _ ->
+            True
+
+        _ ->
+            False
+
+
+isPlaying : Model -> Bool
+isPlaying model =
+    case model.scene of
+        SceneMain SubSceneGameplay _ ->
+            True
+
+        _ ->
+            False
+
+
+isMapEditor : Model -> Bool
+isMapEditor model =
+    case model.scene of
+        SceneMapEditor _ ->
+            True
+
+        _ ->
+            False
+
+
+viewMenu : Menu -> Model -> Html Msg
+viewMenu menu model =
+    let
+        when : Bool -> Html a -> Html a
+        when condition stuff =
+            if condition then
+                stuff
+            else
+                text ""
+    in
+    div
+        [ class "fullWindow flex alignCenter justifyCenter"
+        ]
+        [ div
+            [ class "menu p2" ]
+            [ case menu of
+                MenuMain ->
+                    div
+                        []
+                        [ when (isDemo model) <| pageButton "Play" (OnMenuNav MenuMapSelection)
+                        , when (isDemo model) <| pageButton "Map Editor" OnOpenMapEditor
+                        , when (isPlaying model) <| pageButton "Resume" (OnKeyPress 27)
+                        , when (isDemo model || isPlaying model) <| pageButton "Settings" (OnMenuNav MenuSettings)
+                        , when (isDemo model || isPlaying model) <| pageButton "Gamepads" OnMenuNavGamepads
+
+                        --, when (isMapEditor model) <| pageButton "Save" OnMapEditorSave
+                        --, when (isMapEditor model) <| pageButton "Load" OnMapEditorLoad
+                        --, when (isMapEditor model) <| pageButton "Play here" OnMapEditorPlay
+                        , when (isPlaying model || isMapEditor model) <| pageButton "Quit" OnQuit
+                        ]
+
+                MenuMapSelection ->
+                    div
+                        []
+                        [ section
+                            []
+                            [ div [] [ text "Select map:" ]
+                            , div []
+                                [ OfficialMaps.maps
+                                    |> List.map viewMapItem
+                                    |> ul []
+                                ]
+                            ]
+                        , section
+                            []
+                            [ button
+                                [ { importString = "", error = "" }
+                                    |> MenuImportMap
+                                    |> OnMenuNav
+                                    |> onClick
+                                ]
+                                [ text "Import..." ]
+                            ]
+                        ]
+
+                MenuImportMap { importString, error } ->
+                    section
+                        []
+                        [ label [] [ text "Import a map from JSON" ]
+                        , div [] [ textarea [ defaultValue importString ] [] ]
+                        , div [ class "red" ] [ text error ]
+                        ]
+
+                MenuGamepads remap ->
+                    section
+                        []
+                        [ Remap.view model.config.gamepadDatabase remap |> Html.map OnRemapMsg
+                        ]
+
+                MenuSettings ->
+                    let
+                        noGamepads =
+                            False
+
+                        --TODO Remap.gamepadsCount model.remap == 0
+                        actuallyUseKeyboardAndMouse =
+                            noGamepads || model.config.useKeyboardAndMouse
+
+                        keyboardInstructionsClass =
+                            if actuallyUseKeyboardAndMouse then
+                                "gray"
+                            else
+                                "invisible"
+                    in
+                    div
+                        []
+                        [ section
+                            [ class "flex" ]
+                            [ input
+                                [ type_ "checkbox"
+                                , checked actuallyUseKeyboardAndMouse
+                                , disabled noGamepads
+                                , onClick OnToggleKeyboardAndMouse
+                                ]
+                                []
+                            , div
+                                [ class "ml1" ]
+                                [ div
+                                    [ class "mb1" ]
+                                    [ text "Use Keyboard & Mouse" ]
+                                , [ "ASDW: Move"
+                                  , "Q: Move units"
+                                  , "E: Transform"
+                                  , "Click: Fire"
+                                  ]
+                                    |> List.map (\t -> div [] [ text t ])
+                                    |> div [ class keyboardInstructionsClass ]
+                                ]
+                            ]
+                        ]
+            ]
+        ]
+
+
+pageButton : String -> Msg -> Html Msg
+pageButton label msg =
+    button
+        [ onClick msg ]
+        [ text label ]
+
+
+viewMapItem : ValidatedMap -> Html Msg
+viewMapItem map =
+    li
+        [ onClick (OnStartGame map) ]
+        [ map.name ++ " by " ++ map.author |> text ]
 
 
 
@@ -444,23 +529,22 @@ view model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ GamepadPort.gamepad OnGamepad
+        [ Keyboard.ups OnKeyPress
         , Mouse.downs (\_ -> OnMouseButton True)
         , Mouse.ups (\_ -> OnMouseButton False)
         , Mouse.moves OnMouseMoves
         , Sub.map OnKeyboardMsg Keyboard.Extra.subscriptions
         , Window.resizes OnWindowResizes
-        , Keyboard.ups OnKeyPress
         , case model.maybeMenu of
-            Nothing ->
-                Sub.none
+            Just (MenuGamepads remap) ->
+                Remap.subscriptions GamepadPort.gamepad |> Sub.map OnRemapMsg
 
-            Just menu ->
-                Menu.subscriptions menu |> Sub.map OnMenuMsg
-        , case model.maybeMapEditor of
-            Nothing ->
+            _ ->
                 Sub.none
+        , case model.scene of
+            SceneMain subScene scene ->
+                MainScene.subscriptions scene |> Sub.map OnMainSceneMsg
 
-            Just mapEditor ->
+            SceneMapEditor mapEditor ->
                 MapEditor.subscriptions mapEditor |> Sub.map OnMapEditorMsg
         ]

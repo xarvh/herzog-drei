@@ -2,8 +2,11 @@
 <html>
     <head>
         <meta charset="UTF-8">
+
         <title>Herzog Drei - Work in progress</title>
-        <script type="text/javascript" src="/_compile/Main.elm"></script>
+
+        <link rel="stylesheet" media="screen" href="static/style.css" type="text/css"/>
+        <script type="text/javascript" src="_compile/Main.elm"></script>
         <script type="text/javascript" src="static/gamepadPort.js"></script>
         <script type="text/javascript" src="static/localStoragePort.js"></script>
         <!--
@@ -13,11 +16,11 @@
     </head>
     <body>
         <script type="text/javascript">
-            var gamepadDatabaseKey = "gamepadDatabase"
+            var configKey = "config"
             var elmApp = Elm.Main.fullscreen({
                 dateNow: Date.now(),
-                gamepadDatabaseKey: gamepadDatabaseKey,
-                gamepadDatabaseAsString: localStorage[gamepadDatabaseKey] || "",
+                configKey: configKey,
+                configAsString: localStorage[configKey] || "",
             });
             addGamepadPort(elmApp);
             addLocalStoragePort(elmApp);

@@ -5,7 +5,7 @@ import Dict exposing (Dict)
 import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mech
-import Phases
+import Random
 import Set exposing (Set)
 import Svg exposing (..)
 import Svg.Attributes as SA
@@ -24,14 +24,16 @@ neutralTilesHalfWidth =
 
 think : List String -> Game -> Delta
 think inputSources game =
-    if game.maybeTransition /= Nothing then
-        deltaNone
-    else
-        deltaList
-            [ addAndRemoveMechs inputSources game
-            , updateAllMechsTeam game
-            , maybeExitSetupPhase game
-            ]
+    deltaList
+        [ addAndRemoveMechs inputSources game
+        , if game.maybeTransition /= Nothing then
+            deltaNone
+          else
+            deltaList
+                [ updateAllMechsTeam game
+                , maybeExitSetupPhase game
+                ]
+        ]
 
 
 
@@ -134,6 +136,19 @@ isReady ( unit, mech ) =
     unit.maybeTeamId /= Nothing
 
 
+teamSeed : Team -> Game -> TeamSeed
+teamSeed team game =
+    { colorPattern = team.colorPattern
+    , mechClassByInputKey =
+        game.unitById
+            |> Dict.values
+            |> List.filter (\u -> u.maybeTeamId == Just team.id)
+            |> List.filterMap Unit.toMech
+            |> List.map (\( unit, mech ) -> ( mech.inputKey, mech.class ))
+            |> Dict.fromList
+    }
+
+
 maybeExitSetupPhase : Game -> Delta
 maybeExitSetupPhase game =
     let
@@ -143,9 +158,35 @@ maybeExitSetupPhase game =
                 |> List.filterMap Unit.toMech
     in
     if mechs /= [] && List.all isReady mechs then
-        deltaGame (Phases.exitSetupPhase mechs)
+        deltaList
+            [ deltaGame startTransition
+            , DeltaOutcome OutcomeCanAddBots
+            ]
     else
         deltaNone
+
+
+startTransition : Game -> Game
+startTransition game =
+    let
+        mechs =
+            game.unitById
+                |> Dict.values
+                |> List.filterMap Unit.toMech
+
+        mechClassByInputKey teamId =
+            mechs
+                |> List.filter (\( u, m ) -> u.maybeTeamId == Just teamId)
+                |> List.map Tuple.second
+                |> List.map (\mech -> ( mech.inputKey, mech.class ))
+                |> Dict.fromList
+
+        addPlayers team =
+            { team | mechClassByInputKey = mechClassByInputKey team.id }
+    in
+    { game | maybeTransition = Just { start = game.time, fade = GameFadeOut } }
+        |> updateTeam (addPlayers game.leftTeam)
+        |> updateTeam (addPlayers game.rightTeam)
 
 
 

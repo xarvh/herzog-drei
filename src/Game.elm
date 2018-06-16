@@ -25,6 +25,10 @@ type alias Id =
     Int
 
 
+type alias InputKey =
+    String
+
+
 type alias Tile2 =
     ( Int, Int )
 
@@ -34,7 +38,9 @@ type alias Tile2 =
 
 
 type alias ValidatedMap =
-    { halfWidth : Int
+    { name : String
+    , author : String
+    , halfWidth : Int
     , halfHeight : Int
     , leftBase : Tile2
     , rightBase : Tile2
@@ -52,24 +58,19 @@ type TeamId
     | TeamRight
 
 
+type alias TeamSeed =
+    { mechClassByInputKey : Dict InputKey MechClass
+    , colorPattern : ColorPattern
+    }
+
+
 type alias Team =
     { id : TeamId
     , colorPattern : ColorPattern
     , markerPosition : Vec2
     , markerTime : Seconds
     , pathing : Dict Tile2 Float
-    , players : List String
-    }
-
-
-newTeam : TeamId -> ColorPattern -> Team
-newTeam id colorPattern =
-    { id = id
-    , colorPattern = colorPattern
-    , markerPosition = vec2 0 0
-    , markerTime = 0
-    , pathing = Dict.empty
-    , players = []
+    , mechClassByInputKey : Dict InputKey MechClass
     }
 
 
@@ -128,25 +129,6 @@ inputStateNeutral =
     , rally = False
     , move = vec2 0 0
     }
-
-
-inputBot : TeamId -> Int -> String
-inputBot teamId n =
-    let
-        t =
-            case teamId of
-                TeamLeft ->
-                    "L"
-
-                TeamRight ->
-                    "R"
-    in
-    "bot " ++ t ++ toString n
-
-
-inputIsBot : String -> Bool
-inputIsBot key =
-    String.startsWith "bot " key
 
 
 
@@ -223,7 +205,7 @@ type MechClass
 type alias MechComponent =
     { transformState : Float
     , transformingTo : TransformMode
-    , inputKey : String
+    , inputKey : InputKey
     , class : MechClass
     }
 
@@ -324,7 +306,7 @@ addSub maybeTeamId position game =
     addUnit subComponent maybeTeamId position startAngle game
 
 
-addMech : MechClass -> String -> Maybe TeamId -> Vec2 -> Game -> ( Game, Unit )
+addMech : MechClass -> InputKey -> Maybe TeamId -> Vec2 -> Game -> ( Game, Unit )
 addMech class inputKey maybeTeamId position game =
     let
         startAngle =
@@ -417,41 +399,36 @@ type alias Gfx =
 -- Game
 
 
-type GamePhase
-    = PhaseSetup
-    | PhasePlay
+type GameMode
+    = GameModeTeamSelection ValidatedMap
+    | GameModeVersus
 
 
-type alias GameSize =
-    { halfWidth : Int
-    , halfHeight : Int
-    }
+type GameFade
+    = GameFadeIn
+    | GameFadeOut
 
 
 type alias Game =
-    { phase : GamePhase
-    , maybeTransition : Maybe Float
-    , maybeWinnerTeamId : Maybe TeamId
+    { mode : GameMode
+    , maybeTransition : Maybe { start : Seconds, fade : GameFade }
     , time : Seconds
-    , subBuildMultiplier : Float
     , leftTeam : Team
     , rightTeam : Team
+    , maybeWinnerTeamId : Maybe TeamId
+
+    --
+    , halfWidth : Int
+    , halfHeight : Int
+    , subBuildMultiplier : Float
+    , wallTiles : Set Tile2
 
     -- entities
     , baseById : Dict Id Base
     , projectileById : Dict Id Projectile
     , unitById : Dict Id Unit
     , lastId : Id
-
-    --
     , cosmetics : List Gfx
-
-    -- map size, in tiles
-    , halfWidth : Int
-    , halfHeight : Int
-
-    -- walls are just tile blockers
-    , wallTiles : Set Tile2
 
     -- includes walls and bases
     , staticObstacles : Set Tile2
@@ -459,60 +436,8 @@ type alias Game =
     -- land units
     , dynamicObstacles : Set Tile2
 
-    -- random
+    -- random, used only for cosmetics
     , seed : Random.Seed
-    , validatedMap : ValidatedMap
-    }
-
-
-new : GameSize -> Random.Seed -> Game
-new { halfWidth, halfHeight } seed =
-    let
-        shuffledColorPatterns =
-            Random.step (Random.List.shuffle ColorPattern.patterns) seed |> Tuple.first
-
-        ( leftTeamColor, rightTeamColor ) =
-            case shuffledColorPatterns of
-                color1 :: color2 :: _ ->
-                    ( color1, color2 )
-
-                _ ->
-                    ( ColorPattern.neutral, ColorPattern.neutral )
-    in
-    { phase = PhaseSetup
-    , maybeTransition = Nothing
-    , maybeWinnerTeamId = Nothing
-    , time = 0
-    , subBuildMultiplier = 2
-    , leftTeam = newTeam TeamLeft leftTeamColor
-    , rightTeam = newTeam TeamRight rightTeamColor
-
-    --
-    , baseById = Dict.empty
-    , projectileById = Dict.empty
-    , unitById = Dict.empty
-    , lastId = 0
-
-    --
-    , cosmetics = []
-    , halfWidth = halfWidth
-    , halfHeight = halfHeight
-    , wallTiles = Set.empty
-    , staticObstacles = Set.empty
-    , dynamicObstacles = Set.empty
-
-    --
-    , seed = seed
-
-    --
-    , validatedMap =
-        { halfWidth = 20
-        , halfHeight = 10
-        , leftBase = ( -14, 0 )
-        , rightBase = ( 14, 0 )
-        , smallBases = Set.fromList [ ( 0, 0 ) ]
-        , wallTiles = Set.empty
-        }
     }
 
 
@@ -520,10 +445,16 @@ new { halfWidth, halfHeight } seed =
 -- Deltas
 
 
+type Outcome
+    = OutcomeCanAddBots
+    | OutcomeCanInitBots
+
+
 type Delta
     = DeltaNone
     | DeltaList (List Delta)
     | DeltaGame (Game -> Game)
+    | DeltaOutcome Outcome
 
 
 deltaNone : Delta
@@ -785,12 +716,11 @@ vecToAngle v =
 
 normalizeAngle : Float -> Float
 normalizeAngle angle =
-    if angle < -pi then
-        normalizeAngle (angle + 2 * pi)
-    else if angle >= pi then
-        normalizeAngle (angle - 2 * pi)
-    else
-        angle
+    let
+        n =
+            (angle + pi) / (2 * pi) |> floor |> toFloat
+    in
+    angle - n * 2 * pi
 
 
 turnTo : Float -> Float -> Float -> Float

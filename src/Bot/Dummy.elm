@@ -6,6 +6,7 @@ import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Random
+import Set exposing (Set)
 import Unit
 
 
@@ -46,27 +47,44 @@ init inputKey teamId hasHumanAlly randomInteger game =
     }
 
 
-update : Game -> State -> ( State, InputState )
-update game state =
-    let
-        pickTargetBase : List Id -> Maybe Base
-        pickTargetBase baseIds =
-            case baseIds of
-                [] ->
+unitsNotHealthy : Set Id -> Game -> Bool
+unitsNotHealthy ids game =
+    ids
+        |> Set.toList
+        |> List.filterMap (\id -> Dict.get id game.unitById)
+        |> List.any (\u -> u.integrity < 1)
+
+
+pickTargetBase : Game -> State -> List Id -> Maybe Base
+pickTargetBase game state baseIds =
+    case baseIds of
+        [] ->
+            Nothing
+
+        baseId :: bs ->
+            case Dict.get baseId game.baseById of
+                Nothing ->
                     Nothing
 
-                baseId :: bs ->
-                    case Dict.get baseId game.baseById of
+                Just base ->
+                    case base.maybeOccupied of
                         Nothing ->
-                            Nothing
+                            Just base
 
-                        Just base ->
-                            if Base.isOccupiedBy (Just state.teamId) base then
-                                pickTargetBase bs
-                            else
+                        Just occupied ->
+                            if occupied.maybeTeamId /= Just state.teamId then
                                 Just base
-    in
-    case pickTargetBase state.basesSortedByPriority of
+                            else if not occupied.isActive then
+                                Just base
+                            else if unitsNotHealthy occupied.unitIds game then
+                                Just base
+                            else
+                                pickTargetBase game state bs
+
+
+update : Game -> State -> ( State, InputState )
+update game state =
+    case pickTargetBase game state state.basesSortedByPriority of
         Nothing ->
             -- Bot owns all the bases!
             gloat game state
@@ -147,6 +165,15 @@ shootEnemies playerUnit game =
             ( Vec2.sub targetUnit.position playerUnit.position |> Vec2.normalize |> AimAbsolute, True )
 
 
+directionFromUnitToBase : Unit -> Base -> Vec2
+directionFromUnitToBase playerUnit base =
+    Vec2.normalize <|
+        if base.position == playerUnit.position then
+            Vec2.negate base.position
+        else
+            Vec2.sub base.position playerUnit.position
+
+
 moveToTargetBase : Unit -> MechComponent -> State -> Game -> Base -> ( State, { transform : Bool, rally : Bool, move : Vec2 } )
 moveToTargetBase playerUnit playerMech state game base =
     let
@@ -163,7 +190,7 @@ moveToTargetBase playerUnit playerMech state game base =
         ( state
         , { transform = playerMech.transformingTo /= ToFlyer
           , rally = False
-          , move = Vec2.sub base.position playerUnit.position |> Vec2.normalize
+          , move = directionFromUnitToBase playerUnit base
           }
         )
     else
@@ -187,6 +214,6 @@ moveToTargetBase playerUnit playerMech state game base =
           }
         , { transform = playerMech.transformingTo /= ToMech
           , rally = True
-          , move = Vec2.sub base.position playerUnit.position |> rotateVector (state.speedAroundBase * pi / 2) |> Vec2.normalize
+          , move = directionFromUnitToBase playerUnit base |> rotateVector (state.speedAroundBase * pi / 2)
           }
         )

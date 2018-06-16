@@ -24,9 +24,8 @@ type alias Map =
     , author : String
     , halfWidth : Int
     , halfHeight : Int
-    , mainBases : List Tile2
-    , smallBases : List Tile2
-    , wallTiles : List Tile2
+    , bases : Dict Tile2 BaseType
+    , wallTiles : Set Tile2
     }
 
 
@@ -49,9 +48,11 @@ validate map =
 
         allTiles : List Tile2
         allTiles =
-            [ List.map (Base.tiles BaseMain) map.mainBases |> List.concat
-            , List.map (Base.tiles BaseSmall) map.smallBases |> List.concat
-            , map.wallTiles
+            [ map.wallTiles |> Set.toList
+            , map.bases
+                |> Dict.map (\tile baseType -> Base.tiles baseType tile)
+                |> Dict.values
+                |> List.concat
             ]
                 |> List.concat
 
@@ -76,13 +77,20 @@ validate map =
         tilesToString : List Tile2 -> String
         tilesToString tiles =
             tiles |> List.map Basics.toString |> String.join ", "
+
+        bases : BaseType -> List Tile2
+        bases baseType =
+            map.bases
+                |> Dict.filter (\tile t -> t == baseType)
+                |> Dict.keys
+                |> List.sort
     in
     if outOfBounds /= [] then
         outOfBounds |> tilesToString |> (++) "Tiles out of bounds: " |> Err
     else if overlaps /= [] then
         overlaps |> tilesToString |> (++) "Overlapping tiles: " |> Err
     else
-        case map.mainBases of
+        case bases BaseMain of
             [] ->
                 Err "No main bases"
 
@@ -94,52 +102,15 @@ validate map =
 
             [ left, right ] ->
                 Ok
-                    { halfWidth = hw
+                    { name = map.name
+                    , author = map.author
+                    , halfWidth = hw
                     , halfHeight = hh
                     , leftBase = left
                     , rightBase = right
-                    , smallBases = Set.fromList map.smallBases
-                    , wallTiles = Set.fromList map.wallTiles
+                    , smallBases = bases BaseSmall |> Set.fromList
+                    , wallTiles = map.wallTiles
                     }
-
-
-
--- Map <=> Game
-
-
-fromGame : String -> String -> Game -> Map
-fromGame name author game =
-    let
-        bases baseType =
-            game.baseById
-                |> Dict.values
-                |> List.filter (\b -> b.type_ == baseType)
-                |> List.map .tile
-    in
-    { name = name
-    , author = author
-    , halfWidth = game.halfWidth
-    , halfHeight = game.halfHeight
-    , mainBases = bases BaseMain |> List.sort
-    , smallBases = bases BaseSmall |> List.sort
-    , wallTiles = Set.toList game.wallTiles |> List.sort
-    }
-
-
-addBases : BaseType -> List Tile2 -> Game -> Game
-addBases baseType tiles game =
-    List.foldl (\tile g -> Base.add baseType tile g |> Tuple.first) game tiles
-
-
-toGame : Map -> Game -> Game
-toGame map game =
-    { game
-        | halfWidth = map.halfWidth
-        , halfHeight = map.halfHeight
-        , wallTiles = Set.fromList map.wallTiles
-    }
-        |> addBases BaseMain map.mainBases
-        |> addBases BaseSmall map.smallBases
 
 
 
@@ -165,14 +136,23 @@ tileDecoder =
             )
 
 
-listOfTilesEncoder : List Tile2 -> Value
-listOfTilesEncoder tiles =
-    tiles |> List.map tileEncoder |> Encode.list
+setOfTilesEncoder : Set Tile2 -> Value
+setOfTilesEncoder tiles =
+    tiles |> Set.toList |> List.map tileEncoder |> Encode.list
 
 
-listOfTilesDecoder : Decoder (List Tile2)
-listOfTilesDecoder =
-    Decode.list tileDecoder
+setOfTilesDecoder : Decoder (Set Tile2)
+setOfTilesDecoder =
+    Decode.list tileDecoder |> Decode.map Set.fromList
+
+
+encodeBases : BaseType -> Map -> Value
+encodeBases baseType map =
+    map.bases
+        |> Dict.filter (\tile type_ -> type_ == baseType)
+        |> Dict.keys
+        |> List.map tileEncoder
+        |> Encode.list
 
 
 mapEncoder : Map -> Value
@@ -182,15 +162,43 @@ mapEncoder map =
         , ( "author", Encode.string map.author )
         , ( "halfWidth", Encode.int map.halfWidth )
         , ( "halfHeight", Encode.int map.halfHeight )
-        , ( "mainBases", listOfTilesEncoder map.mainBases )
-        , ( "smallBases", listOfTilesEncoder map.smallBases )
-        , ( "wallTiles", listOfTilesEncoder map.wallTiles )
+        , ( "mainBases", encodeBases BaseMain map )
+        , ( "smallBases", encodeBases BaseSmall map )
+        , ( "wallTiles", setOfTilesEncoder map.wallTiles )
         ]
 
 
 toString : Map -> String
 toString map =
     Encode.encode 0 (mapEncoder map)
+
+
+
+{-
+   https://github.com/avh4/elm-format/issues/352   =****(
+
+   (&>) = flip Decode.andThen
+
+   mapDecoder : Decoder Map
+   mapDecoder =
+       field "name" Decode.string &> \name ->
+       field "author" Decode.string &> \author ->
+       field "halfWidth" Decode.int &> \halfWidth ->
+       field "halfHeight" Decode.int &> \halfHeight ->
+       field "mainBases" setOfTilesDecoder &> \mainBases ->
+       field "smallBases" setOfTilesDecoder &> \smallBases ->
+       field "wallTiles" setOfTilesDecoder &> \wallTiles ->
+         Decode.succeed
+             { name = name
+             , author = author
+             , halfWidth = halfWidth
+             , halfHeight = halfHeight
+             , mainBases = mainBases
+             , smallBases = smallBases
+             , wallTiles = wallTiles
+             }
+
+-}
 
 
 mapDecoder : Decoder Map
@@ -207,13 +215,13 @@ mapDecoder =
                                         (field "halfHeight" <| Decode.int)
                                             |> Decode.andThen
                                                 (\halfHeight ->
-                                                    (field "mainBases" <| listOfTilesDecoder)
+                                                    (field "mainBases" <| Decode.list tileDecoder)
                                                         |> Decode.andThen
                                                             (\mainBases ->
-                                                                (field "smallBases" <| listOfTilesDecoder)
+                                                                (field "smallBases" <| Decode.list tileDecoder)
                                                                     |> Decode.andThen
                                                                         (\smallBases ->
-                                                                            (field "wallTiles" <| listOfTilesDecoder)
+                                                                            (field "wallTiles" <| setOfTilesDecoder)
                                                                                 |> Decode.andThen
                                                                                     (\wallTiles ->
                                                                                         Decode.succeed
@@ -221,9 +229,13 @@ mapDecoder =
                                                                                             , author = author
                                                                                             , halfWidth = halfWidth
                                                                                             , halfHeight = halfHeight
-                                                                                            , mainBases = mainBases
-                                                                                            , smallBases = smallBases
                                                                                             , wallTiles = wallTiles
+                                                                                            , bases =
+                                                                                                [ mainBases |> List.map (\tile -> ( tile, BaseMain ))
+                                                                                                , smallBases |> List.map (\tile -> ( tile, BaseSmall ))
+                                                                                                ]
+                                                                                                    |> List.concat
+                                                                                                    |> Dict.fromList
                                                                                             }
                                                                                     )
                                                                         )

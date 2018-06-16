@@ -65,27 +65,29 @@ transformMode mech =
 
 takeDamage : Int -> Game -> Unit -> Unit
 takeDamage rawDamage game unit =
-  if game.phase == PhaseSetup then
-    unit
-  else
-    let
-        ( healthPoints, armor ) =
-            case unit.component of
-                UnitMech _ ->
-                    ( 160, 2 )
+    case game.mode of
+        GameModeTeamSelection _ ->
+            unit
 
-                UnitSub sub ->
-                    case sub.mode of
-                        UnitModeFree ->
-                            ( 40, 0 )
+        _ ->
+            let
+                ( healthPoints, armor ) =
+                    case unit.component of
+                        UnitMech _ ->
+                            ( 160, 2 )
 
-                        UnitModeBase baseId ->
-                            ( 70, 1 )
+                        UnitSub sub ->
+                            case sub.mode of
+                                UnitModeFree ->
+                                    ( 40, 0 )
 
-        damage =
-            toFloat (rawDamage - armor) / healthPoints |> max 0
-    in
-    { unit | integrity = unit.integrity - damage }
+                                UnitModeBase baseId ->
+                                    ( 70, 2 )
+
+                damage =
+                    toFloat (rawDamage - armor) / healthPoints |> max 0
+            in
+            { unit | integrity = unit.integrity - damage }
 
 
 
