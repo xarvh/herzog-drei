@@ -19,7 +19,7 @@ default =
 
 maps : List ValidatedMap
 maps =
-    [ { name = "TODO"
+    [ { name = "Big Messy"
       , author = "NA"
       , halfWidth = 24
       , halfHeight = 15

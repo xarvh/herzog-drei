@@ -37,9 +37,15 @@ type alias Flags =
 type Menu
     = MenuMain
     | MenuMapSelection
-    | MenuImportMap { importString : String, error : String }
+    | MenuImportMap ImportModel
     | MenuSettings
     | MenuGamepads Remap.Model
+
+
+type alias ImportModel =
+    { importString : String
+    , mapResult : Result String ValidatedMap
+    }
 
 
 type SubScene
@@ -153,6 +159,8 @@ type Msg
       --| OnMapEditorPlay
     | OnStartGame ValidatedMap
     | OnQuit
+      -- Map Import
+    | OnImportString String
       -- TEA children
     | OnMainSceneMsg MainScene.Msg
     | OnMapEditorMsg MapEditor.Msg
@@ -191,6 +199,14 @@ update msg model =
                     demoScene model.seed
             in
             noCmd { model | scene = scene, seed = seed, maybeMenu = Nothing }
+
+        OnImportString mapAsJson ->
+            case model.maybeMenu of
+                Just (MenuImportMap importModel) ->
+                    updateOnImportString mapAsJson importModel model |> noCmd
+
+                _ ->
+                    noCmd model
 
         -- Menu navigation
         OnMenuNav menu ->
@@ -274,18 +290,22 @@ update msg model =
             model |> updateConfig (\config -> { config | useKeyboardAndMouse = not config.useKeyboardAndMouse })
 
 
+updateOnImportString : String -> ImportModel -> Model -> Model
+updateOnImportString mapAsJson importModel model =
+    { model
+        | maybeMenu =
+            { importModel
+                | importString = mapAsJson
+                , mapResult =
+                    Map.fromString mapAsJson
+                        |> Result.andThen Map.validate
+            }
+                |> MenuImportMap
+                |> Just
+    }
 
-{-
 
-   OnMapString string ->
-       case Map.fromString string |> Result.andThen Map.validate of
-           Err message ->
-               noCmd { model | errorMessage = message }
 
-           Ok validatedMap ->
-               ( { model | mapString = "", errorMessage = "Map loaded!" }, Just (OutcomeMap validatedMap) )
-
--}
 -- Gamepads
 
 
@@ -434,13 +454,15 @@ viewMenu menu model =
                             , div []
                                 [ OfficialMaps.maps
                                     |> List.map viewMapItem
-                                    |> ul []
+                                    |> div []
                                 ]
                             ]
                         , section
                             []
                             [ button
-                                [ { importString = "", error = "" }
+                                [ { importString = ""
+                                  , mapResult = Err ""
+                                  }
                                     |> MenuImportMap
                                     |> OnMenuNav
                                     |> onClick
@@ -449,12 +471,27 @@ viewMenu menu model =
                             ]
                         ]
 
-                MenuImportMap { importString, error } ->
+                MenuImportMap { importString, mapResult } ->
                     section
                         []
                         [ label [] [ text "Import a map from JSON" ]
-                        , div [] [ textarea [ defaultValue importString ] [] ]
-                        , div [ class "red" ] [ text error ]
+                        , div []
+                            [ textarea
+                                [ defaultValue importString
+                                , onInput OnImportString
+                                ]
+                                []
+                            ]
+                        , case mapResult of
+                            Err message ->
+                                div
+                                    [ class "red" ]
+                                    [ text message ]
+
+                            Ok map ->
+                                button
+                                    [ onClick (OnStartGame map) ]
+                                    [ text "Play on this map" ]
                         ]
 
                 MenuGamepads remap ->
@@ -517,9 +554,11 @@ pageButton label msg =
 
 viewMapItem : ValidatedMap -> Html Msg
 viewMapItem map =
-    li
-        [ onClick (OnStartGame map) ]
-        [ map.name ++ " by " ++ map.author |> text ]
+    div
+        []
+        [ button [ onClick (OnStartGame map) ] [ text map.name ]
+        , span [] [ text <| " by " ++ map.author ]
+        ]
 
 
 
