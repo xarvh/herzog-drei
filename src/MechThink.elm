@@ -26,6 +26,14 @@ aimControlThreshold =
     0.1
 
 
+vampireRange =
+    3
+
+
+repairRange =
+    5
+
+
 
 --
 
@@ -197,7 +205,12 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
         , repairDelta dt game unit mech
         , case mech.class of
             Plane ->
-                deltaNone
+                case Unit.transformMode mech of
+                    ToFlyer ->
+                        repairAllies dt game unit
+
+                    ToMech ->
+                        repairSelf dt unit
 
             Heli ->
                 deltaNone
@@ -207,8 +220,50 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
         ]
 
 
-vampireRange =
-    3
+repairSelf : Seconds -> Unit -> Delta
+repairSelf dt unit =
+    if unit.integrity >= 1 then
+        deltaNone
+    else
+        let
+            repairRate =
+                0.05
+
+            repair =
+                dt * repairRate
+        in
+        deltaList
+            [ deltaUnit unit.id (\g u -> { u | integrity = u.integrity + repair |> min 1 })
+            , View.Gfx.deltaAddRepairBubbles 1 dt unit.position
+            ]
+
+
+repairAllies : Seconds -> Game -> Unit -> Delta
+repairAllies dt game unit =
+    game.unitById
+        |> Dict.values
+        |> List.filter (\u -> u.maybeTeamId == unit.maybeTeamId && Vec2.distance u.position unit.position < repairRange)
+        |> List.map (repairTargetDelta dt unit)
+        |> deltaList
+
+
+repairTargetDelta : Seconds -> Unit -> Unit -> Delta
+repairTargetDelta dt healer target =
+    if healer == target || target.integrity >= 1 then
+        deltaNone
+    else
+        let
+            repairRate =
+                0.4
+
+            repair =
+                dt * repairRate
+        in
+        deltaList
+            [ deltaUnit target.id (\g u -> { u | integrity = u.integrity + repair |> min 1 })
+            , View.Gfx.deltaAddRepairBubbles 0.1 dt target.position
+            , View.Gfx.deltaAddRepairBeam healer.position target.position
+            ]
 
 
 vampireDelta : Seconds -> Game -> Unit -> MechComponent -> Delta
