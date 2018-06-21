@@ -181,6 +181,54 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
         , fire
         , transform
         , repairDelta dt game unit mech
+        , case mech.class of
+            Plane ->
+                deltaNone
+
+            Heli ->
+                deltaNone
+
+            Blimp ->
+                vampireDelta dt game unit mech
+        ]
+
+
+vampireRange =
+    3
+
+
+vampireDelta : Seconds -> Game -> Unit -> MechComponent -> Delta
+vampireDelta dt game unit mech =
+    if Unit.transformMode mech == ToMech then
+        deltaNone
+    else
+        game.unitById
+            |> Dict.values
+            |> List.filter (\u -> u.maybeTeamId /= unit.maybeTeamId && Vec2.distance u.position unit.position < vampireRange)
+            |> List.map (vampire dt unit)
+            |> deltaList
+
+
+vampire : Seconds -> Unit -> Unit -> Delta
+vampire dt attacker target =
+    let
+        damageRate =
+            3
+
+        healRatio =
+            0.01
+
+        damage =
+            dt * damageRate
+
+        repair =
+            damage * healRatio
+    in
+    deltaList
+        [ deltaUnit attacker.id (\g u -> { u | integrity = u.integrity + repair |> min 1 })
+        , deltaUnit target.id (Unit.takePiercingDamage damage)
+        , View.Gfx.deltaAddRepairBubbles 1.0 dt attacker.position
+        , View.Gfx.deltaAddRepairBeam attacker.position target.position
         ]
 
 

@@ -72,31 +72,53 @@ transformMode mech =
 -- Damage
 
 
-takeDamage : Int -> Game -> Unit -> Unit
-takeDamage rawDamage game unit =
+hitPointsAndArmor : Unit -> ( Float, Int )
+hitPointsAndArmor unit =
+    case unit.component of
+        UnitMech _ ->
+            ( 160, 2 )
+
+        UnitSub sub ->
+            case sub.mode of
+                UnitModeFree ->
+                    ( 40, 0 )
+
+                UnitModeBase baseId ->
+                    ( 70, 2 )
+
+
+removeIntegrity : Float -> Game -> Unit -> Unit
+removeIntegrity integrityLoss game unit =
     case game.mode of
         GameModeTeamSelection _ ->
             unit
 
         _ ->
-            let
-                ( healthPoints, armor ) =
-                    case unit.component of
-                        UnitMech _ ->
-                            ( 160, 2 )
+            { unit | integrity = unit.integrity - integrityLoss }
 
-                        UnitSub sub ->
-                            case sub.mode of
-                                UnitModeFree ->
-                                    ( 40, 0 )
 
-                                UnitModeBase baseId ->
-                                    ( 70, 2 )
+takePiercingDamage : Float -> Game -> Unit -> Unit
+takePiercingDamage rawDamage game unit =
+    let
+        ( healthPoints, armor ) =
+            hitPointsAndArmor unit
 
-                damage =
-                    toFloat (rawDamage - armor) / healthPoints |> max 0
-            in
-            { unit | integrity = unit.integrity - damage }
+        damage =
+            rawDamage / healthPoints |> max 0
+    in
+    removeIntegrity damage game unit
+
+
+takeDamage : Int -> Game -> Unit -> Unit
+takeDamage rawDamage game unit =
+    let
+        ( healthPoints, armor ) =
+            hitPointsAndArmor unit
+
+        damage =
+            toFloat (rawDamage - armor) / healthPoints |> max 0
+    in
+    removeIntegrity damage game unit
 
 
 
