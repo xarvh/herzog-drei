@@ -205,12 +205,12 @@ vampireDelta dt game unit mech =
         game.unitById
             |> Dict.values
             |> List.filter (\u -> u.maybeTeamId /= unit.maybeTeamId && Vec2.distance u.position unit.position < vampireRange)
-            |> List.map (vampire dt unit)
+            |> List.map (vampireTargetDelta dt unit)
             |> deltaList
 
 
-vampire : Seconds -> Unit -> Unit -> Delta
-vampire dt attacker target =
+vampireTargetDelta : Seconds -> Unit -> Unit -> Delta
+vampireTargetDelta dt attacker target =
     let
         damageRate =
             3
@@ -228,7 +228,7 @@ vampire dt attacker target =
         [ deltaUnit attacker.id (\g u -> { u | integrity = u.integrity + repair |> min 1 })
         , deltaUnit target.id (Unit.takePiercingDamage damage)
         , View.Gfx.deltaAddRepairBubbles 1.0 dt attacker.position
-        , View.Gfx.deltaAddRepairBeam attacker.position target.position
+        , View.Gfx.deltaAddVampireBeam attacker.position target.position
         ]
 
 

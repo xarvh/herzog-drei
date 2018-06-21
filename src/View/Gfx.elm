@@ -10,6 +10,26 @@ import View exposing (..)
 import View.Mech
 
 
+healingGreen : ColorPattern
+healingGreen =
+    { bright = "#2d0"
+    , dark = "#090"
+    , key = ""
+    }
+
+
+vampireRed : ColorPattern
+vampireRed =
+    { bright = "#f11"
+    , dark = "#c33"
+    , key = ""
+    }
+
+
+
+--
+
+
 addGfx : Gfx -> Game -> Game
 addGfx gfx game =
     { game | cosmetics = gfx :: game.cosmetics }
@@ -78,7 +98,16 @@ deltaAddRepairBeam start end =
     deltaAddGfx
         { age = 0
         , maxAge = 0.04
-        , render = GfxRepairBeam start end
+        , render = GfxFractalBeam start end healingGreen
+        }
+
+
+deltaAddVampireBeam : Vec2 -> Vec2 -> Delta
+deltaAddVampireBeam start end =
+    deltaAddGfx
+        { age = 0
+        , maxAge = 0.02
+        , render = GfxFractalBeam start end vampireRed
         }
 
 
@@ -145,8 +174,8 @@ update dt cosmetic =
 -- Item Render
 
 
-repairBeam : Vec2 -> Vec2 -> Float -> Svg a
-repairBeam start end t =
+fractalBeam : Vec2 -> Vec2 -> ColorPattern -> Float -> Svg a
+fractalBeam start end { bright, dark } t =
     let
         dp =
             Vec2.sub end start
@@ -167,7 +196,7 @@ repairBeam start end t =
         [ transform [ translate start, rotateRad a, scale2 1 l ]
         , d <| "M0,0 C" ++ toString x1 ++ ",0.33 " ++ toString x2 ++ ",0.66 0,1"
         , fill "none"
-        , stroke "#2f0"
+        , stroke bright
         , strokeWidth 0.06
         , opacity 0.8
         ]
@@ -209,8 +238,8 @@ render cosmetic =
             cosmetic.age / cosmetic.maxAge
     in
     case cosmetic.render of
-        GfxRepairBeam start end ->
-            repairBeam start end t
+        GfxFractalBeam start end colorPattern ->
+            fractalBeam start end colorPattern t
 
         GfxProjectileCase origin angle ->
             rect
@@ -292,7 +321,7 @@ render cosmetic =
             in
             g
                 []
-                [ repairBeam destination headPosition t
+                [ fractalBeam destination headPosition healingGreen t
                 , g
                     [ transform [ translate headPosition ]
                     , opacity (1 - t * t)
@@ -310,7 +339,7 @@ render cosmetic =
                     , translate2 0 t
                     , scale 0.05
                     ]
-                , fill "#2d0"
-                , stroke "#090"
+                , fill healingGreen.bright
+                , stroke healingGreen.dark
                 , strokeWidth 0.5
                 ]

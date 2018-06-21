@@ -384,7 +384,7 @@ type GfxRender
     = GfxBeam Vec2 Vec2 ColorPattern
     | GfxExplosion Vec2 Float
     | GfxProjectileCase Vec2 Angle
-    | GfxRepairBeam Vec2 Vec2
+    | GfxFractalBeam Vec2 Vec2 ColorPattern
     | GfxFlyingHead Vec2 Vec2 ColorPattern
     | GfxRepairBubble Vec2
 
