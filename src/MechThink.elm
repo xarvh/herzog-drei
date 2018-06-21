@@ -46,13 +46,27 @@ nextClass class =
 mechThink : ( InputState, InputState ) -> Seconds -> Game -> Unit -> MechComponent -> Delta
 mechThink ( previousInput, currentInput ) dt game unit mech =
     let
+        isAiming =
+            Vec2.length aimDirection > aimControlThreshold
+
+        isMoving =
+            Vec2.length currentInput.move > aimControlThreshold
+
         speed =
             case Unit.transformMode mech of
                 ToMech ->
                     5.0
 
                 ToFlyer ->
-                    12.0
+                    case mech.class of
+                        Plane ->
+                            18.0
+
+                        Heli ->
+                            12.0
+
+                        Blimp ->
+                            8.0
 
         dx =
             currentInput.move
@@ -148,9 +162,9 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
                     Vec2.sub mousePosition unit.position
 
         aimAngle =
-            if Vec2.length aimDirection > aimControlThreshold then
+            if isAiming then
                 vecToAngle aimDirection
-            else if Vec2.length currentInput.move > aimControlThreshold then
+            else if isMoving then
                 vecToAngle currentInput.move
             else
                 -- Keep old value
