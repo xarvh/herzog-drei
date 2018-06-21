@@ -32,7 +32,9 @@ step t threshold a b =
         a
 
 
+
 -- Round Arc
+
 
 roundArcD : Float -> Float -> Float -> Svg.Attribute a
 roundArcD radius startA endA =
@@ -62,6 +64,8 @@ roundArcD radius startA endA =
     [ "M 0 0 L", startX, startY, "A", r, r, "0", largeArcFlag, "0", endX, endY ]
         |> String.join " "
         |> d
+
+
 
 -- String
 

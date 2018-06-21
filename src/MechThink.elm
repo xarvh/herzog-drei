@@ -138,12 +138,6 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
                 |> Game.updateMech
                 |> deltaUnit unit.id
 
-        reload =
-            if unit.timeToReload > 0 then
-                deltaUnit unit.id (\g u -> { u | timeToReload = max 0 (u.timeToReload - dt) })
-            else
-                deltaNone
-
         aimDirection =
             case currentInput.aim of
                 AimAbsolute direction ->
@@ -180,9 +174,9 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
             Game.deltaAddProjectile { maybeTeamId = unit.maybeTeamId, position = origin, angle = aimAngle }
 
         fire =
-            if currentInput.fire && unit.timeToReload == 0 then
+            if currentInput.fire && game.time >= unit.reloadEndTime then
                 deltaList
-                    [ deltaUnit unit.id (\g u -> { u | timeToReload = Unit.mechReloadTime mech })
+                    [ deltaUnit unit.id (\g u -> { u | reloadEndTime = game.time + Unit.mechReloadTime mech })
                     , deltaFire leftOrigin
                     , View.Gfx.deltaAddProjectileCase leftOrigin (aimAngle - pi - pi / 12)
                     , deltaFire rightOrigin
@@ -194,7 +188,6 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
     deltaList
         [ rally
         , moveMech
-        , reload
         , aimDelta
         , fire
         , transform

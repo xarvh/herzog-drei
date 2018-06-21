@@ -33,10 +33,10 @@ mechShootDamage =
 mechReloadTime mech =
     case transformMode mech of
         ToMech ->
-            0.1
+            0.05
 
         ToFlyer ->
-            0.15
+            0.075
 
 
 
