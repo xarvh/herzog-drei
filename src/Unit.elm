@@ -30,13 +30,22 @@ mechShootDamage =
     4
 
 
-mechReloadTime mech =
-    case transformMode mech of
-        ToMech ->
-            0.1
+blimpBeamDamage =
+    20
 
-        ToFlyer ->
-            0.15
+
+mechReloadTime mech =
+    case mech.class of
+        Blimp ->
+            0.75
+
+        _ ->
+            case transformMode mech of
+                ToMech ->
+                    0.05
+
+                ToFlyer ->
+                    0.075
 
 
 

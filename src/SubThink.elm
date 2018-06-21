@@ -108,7 +108,7 @@ searchForTargets game unit =
                 else
                     Just ( target, targetPriority distance target )
 
-        setTarget (target, priority) =
+        setTarget ( target, priority ) =
             (\sub -> { sub | targetId = target.id })
                 |> updateSub
                 |> deltaUnit unit.id
@@ -164,10 +164,10 @@ thinkTarget dt game unit sub =
                             }
                         )
                     , deltaList <|
-                        if unit.timeToReload > 0 || Vec2.lengthSquared dp > Unit.subShootRange ^ 2 then
+                        if game.time < unit.reloadEndTime || Vec2.lengthSquared dp > Unit.subShootRange ^ 2 then
                             []
                         else
-                            [ deltaUnit unit.id (\g u -> { u | timeToReload = Unit.subReloadTime })
+                            [ deltaUnit unit.id (\g u -> { u | reloadEndTime = game.time + Unit.subReloadTime })
                             , deltaUnit target.id (Unit.takeDamage Unit.subShootDamage)
                             , View.Gfx.deltaAddBeam
                                 (Vec2.add unit.position (View.Sub.gunOffset unit.moveAngle))

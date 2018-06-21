@@ -126,7 +126,194 @@ eye ar =
 
 
 
--- Heli
+-- Blimp =====================================================================
+
+
+blimp : Args -> Svg a
+blimp args =
+    let
+        smooth =
+            View.smooth args.transformState
+
+        step =
+            View.step args.transformState 0
+
+        rectangle =
+            rectangleColor args.fill args.stroke
+
+        mirrorRectangles =
+            mirrorRectanglesColor args.fill args.stroke
+
+        ellipse =
+            ellipseColor args.fill args.stroke
+
+        -- Gun covers (ellipses)
+        armX =
+            0.4
+
+        armY =
+            0.2
+
+        armW =
+            0.2
+
+        armH =
+            0.8
+
+        -- shoulders
+        shX =
+            0.63
+
+        shY =
+            -0.2
+
+        shW =
+            0.4
+
+        shH =
+            0.6
+
+        shA =
+            10
+    in
+    g []
+        [ g
+            [ transform [ rotateRad args.fireAngle ] ]
+            [ guns
+                { x = smooth 0.42 0.25
+                , y = smooth 0.63 0.8
+                , w = smooth 0.24 0.15
+                , h = 0.9
+                }
+
+            -- tail wings
+            , mirrorRectangles
+                { x = smooth 0.3 0.3
+                , y = smooth -0.15 -0.8
+                , w = smooth 0.2 0.3
+                , h = 0.3
+                , a = smooth 30 45
+                }
+            , mirrorRectangles
+                { x = smooth 0.25 0.35
+                , y = smooth -0.35 -0.94
+                , w = smooth 0.45 0.35
+                , h = 0.2
+                , a = smooth -15 0
+                }
+
+            -- side mid winglets, gun covers (rectangular)
+            , mirrorRectangles
+                { x = smooth 0.6 0.5
+                , y = smooth 0.2 0
+                , w = smooth 0.7 0.5
+                , h = smooth 0.1 0.3
+                , a = smooth 80 40
+                }
+
+            -- watermelon bottom, right gun cover
+            , ellipse
+                { x = smooth armX 0
+                , y = smooth armY 0
+                , w = smooth armW 1.0
+                , h = smooth armH 2.0
+                }
+
+            -- watermelon mid, left gun cover
+            , ellipse
+                { x = smooth -armX 0
+                , y = smooth armY 0
+                , w = smooth armW 0.65
+                , h = smooth armH 2.0
+                }
+
+            -- watermelon top, mech body
+            , ellipse
+                { x = 0
+                , y = smooth -0.1 0
+                , w = smooth 1.2 0.25
+                , h = smooth 0.55 2.0
+                }
+
+            -- central tail winglet, shoulders
+            , rectangle
+                { x = smooth shX 0
+                , y = smooth shY -0.8
+                , w = smooth shW 0.1
+                , h = smooth shH 0.3
+                , a = smooth shA 0
+                }
+            , rectangle
+                { x = smooth -shX 0
+                , y = smooth shY -0.94
+                , w = smooth shW 0.1
+                , h = smooth shH 0.2
+                , a = smooth -shA 0
+                }
+            ]
+        , blimpHead args.transformState args.fill args.stroke (step args.lookAngle args.fireAngle)
+        ]
+
+
+blimpHead : Float -> String -> String -> Angle -> Svg a
+blimpHead t fillColor strokeColor angle =
+    let
+        smooth =
+            View.smooth t
+
+        a =
+            smooth -35 0
+
+        x =
+            smooth 0.1 0
+
+        y =
+            0.35
+
+        h =
+            0.2
+    in
+    g
+        [ transform [ rotateRad angle ] ]
+        -- central mid winglet, head
+        [ rectangleColor fillColor
+            strokeColor
+            { x = 0
+            , y = 0
+            , w = smooth 0.4 0.1
+            , h = smooth 0.9 0.5
+            , a = 0
+            }
+        , eye
+            { x = -x
+            , y = smooth y 0.4
+            , a = -a
+            }
+        , eye
+            { x = x
+            , y = smooth y 0.4
+            , a = a
+            }
+        , eye
+            { x = x
+            , y = smooth (y - h) -0.4
+            , a = a
+            }
+        , eye
+            { x = x
+            , y = smooth (y - 2 * h) -0.4
+            , a = a
+            }
+        , eye
+            { x = x
+            , y = smooth (y - 3 * h) -0.4
+            , a = a
+            }
+        ]
+
+
+
+-- Heli ======================================================================
 
 
 heli : Args -> Svg a
@@ -259,7 +446,7 @@ heliHead t fillColor strokeColor angle =
 
 
 
--- Render
+-- Plane =====================================================================
 
 
 plane : Args -> Svg a
@@ -378,6 +565,9 @@ mech class =
         Heli ->
             heli
 
+        Blimp ->
+            blimp
+
 
 head class =
     case class of
@@ -386,3 +576,6 @@ head class =
 
         Heli ->
             heliHead
+
+        Blimp ->
+            blimpHead

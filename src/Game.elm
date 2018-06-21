@@ -200,6 +200,7 @@ type TransformMode
 type MechClass
     = Plane
     | Heli
+    | Blimp
 
 
 type alias MechComponent =
@@ -227,7 +228,7 @@ type alias Unit =
     , maybeTeamId : Maybe TeamId
     , integrity : Float
     , position : Vec2
-    , timeToReload : Seconds
+    , reloadEndTime : Seconds
 
     --
     , fireAngle : Float
@@ -253,7 +254,7 @@ addUnit component maybeTeamId position startAngle game =
             , maybeTeamId = maybeTeamId
             , position = position
             , integrity = 1
-            , timeToReload = 0
+            , reloadEndTime = game.time
             , component = component
 
             --
