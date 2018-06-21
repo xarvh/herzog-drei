@@ -8,6 +8,7 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Pathfinding
 import Set exposing (Set)
 import Unit
+import UnitCollision
 import View.Gfx
 import View.Mech
 
@@ -164,23 +165,11 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
             )
                 |> deltaUnit unit.id
 
-        leftOrigin =
-            View.Mech.leftGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
-
-        rightOrigin =
-            View.Mech.rightGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
-
-        deltaFire origin =
-            Game.deltaAddProjectile { maybeTeamId = unit.maybeTeamId, position = origin, angle = aimAngle }
-
         fire =
             if currentInput.fire && game.time >= unit.reloadEndTime then
                 deltaList
                     [ deltaUnit unit.id (\g u -> { u | reloadEndTime = game.time + Unit.mechReloadTime mech })
-                    , deltaFire leftOrigin
-                    , View.Gfx.deltaAddProjectileCase leftOrigin (aimAngle - pi - pi / 12)
-                    , deltaFire rightOrigin
-                    , View.Gfx.deltaAddProjectileCase rightOrigin (aimAngle + pi / 12)
+                    , attackDelta game unit mech
                     ]
             else
                 deltaNone
@@ -193,6 +182,70 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
         , transform
         , repairDelta dt game unit mech
         ]
+
+
+attackDelta : Game -> Unit -> MechComponent -> Delta
+attackDelta game unit mech =
+    let
+        leftOrigin =
+            View.Mech.leftGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
+
+        rightOrigin =
+            View.Mech.rightGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
+    in
+    case mech.class of
+        Blimp ->
+            deltaList
+                [ beamAttackDelta game unit mech leftOrigin
+                , beamAttackDelta game unit mech rightOrigin
+                ]
+
+        _ ->
+            let
+                deltaFire origin =
+                    Game.deltaAddProjectile { maybeTeamId = unit.maybeTeamId, position = origin, angle = unit.fireAngle }
+            in
+            deltaList
+                [ deltaFire leftOrigin
+                , View.Gfx.deltaAddProjectileCase leftOrigin (unit.fireAngle - pi - pi / 12)
+                , deltaFire rightOrigin
+                , View.Gfx.deltaAddProjectileCase rightOrigin (unit.fireAngle + pi / 12)
+                ]
+
+
+beamAttackDelta : Game -> Unit -> MechComponent -> Vec2 -> Delta
+beamAttackDelta game unit mech start =
+    let
+        maxLength =
+            case Unit.transformMode mech of
+                ToMech ->
+                    Unit.mechShootRange + 2
+
+                ToFlyer ->
+                    Unit.mechShootRange
+
+        direction =
+            vec2 0 1 |> rotateVector unit.fireAngle
+
+        end =
+            Vec2.add start (Vec2.scale maxLength direction)
+    in
+    case UnitCollision.closestEnemyToVectorOrigin start end unit.maybeTeamId game of
+        Nothing ->
+            View.Gfx.deltaAddBeam start end (teamColorPattern game unit.maybeTeamId)
+
+        Just target ->
+            let
+                length =
+                    Vec2.distance start target.position
+
+                newEnd =
+                    Vec2.add start (Vec2.scale length direction)
+            in
+            deltaList
+                [ View.Gfx.deltaAddBeam start newEnd (teamColorPattern game unit.maybeTeamId)
+                , deltaUnit target.id (Unit.takeDamage Unit.blimpBeamDamage)
+                ]
 
 
 repairDelta : Seconds -> Game -> Unit -> MechComponent -> Delta

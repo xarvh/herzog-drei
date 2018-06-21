@@ -1,8 +1,4 @@
-module Collision
-    exposing
-        ( Polygon
-        , collisionPolygonVsPolygon
-        )
+module Collision exposing (Polygon, collisionPolygonVsPolygon)
 
 {-| Convex polygon collision detection
 
