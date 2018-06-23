@@ -26,6 +26,14 @@ aimControlThreshold =
     0.1
 
 
+vampireRange =
+    3
+
+
+repairRange =
+    5
+
+
 
 --
 
@@ -46,13 +54,27 @@ nextClass class =
 mechThink : ( InputState, InputState ) -> Seconds -> Game -> Unit -> MechComponent -> Delta
 mechThink ( previousInput, currentInput ) dt game unit mech =
     let
+        isAiming =
+            Vec2.length aimDirection > aimControlThreshold
+
+        isMoving =
+            Vec2.length currentInput.move > aimControlThreshold
+
         speed =
             case Unit.transformMode mech of
                 ToMech ->
                     5.0
 
                 ToFlyer ->
-                    12.0
+                    case mech.class of
+                        Plane ->
+                            18.0
+
+                        Heli ->
+                            12.0
+
+                        Blimp ->
+                            8.0
 
         dx =
             currentInput.move
@@ -148,9 +170,9 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
                     Vec2.sub mousePosition unit.position
 
         aimAngle =
-            if Vec2.length aimDirection > aimControlThreshold then
+            if isAiming then
                 vecToAngle aimDirection
-            else if Vec2.length currentInput.move > aimControlThreshold then
+            else if isMoving then
                 vecToAngle currentInput.move
             else
                 -- Keep old value
@@ -183,7 +205,12 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
         , repairDelta dt game unit mech
         , case mech.class of
             Plane ->
-                deltaNone
+                case Unit.transformMode mech of
+                    ToFlyer ->
+                        repairAllies dt game unit
+
+                    ToMech ->
+                        repairSelf dt unit
 
             Heli ->
                 deltaNone
@@ -193,8 +220,50 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
         ]
 
 
-vampireRange =
-    3
+repairSelf : Seconds -> Unit -> Delta
+repairSelf dt unit =
+    if unit.integrity >= 1 then
+        deltaNone
+    else
+        let
+            repairRate =
+                0.05
+
+            repair =
+                dt * repairRate
+        in
+        deltaList
+            [ deltaUnit unit.id (\g u -> { u | integrity = u.integrity + repair |> min 1 })
+            , View.Gfx.deltaAddRepairBubbles 1 dt unit.position
+            ]
+
+
+repairAllies : Seconds -> Game -> Unit -> Delta
+repairAllies dt game unit =
+    game.unitById
+        |> Dict.values
+        |> List.filter (\u -> u.maybeTeamId == unit.maybeTeamId && Vec2.distance u.position unit.position < repairRange)
+        |> List.map (repairTargetDelta dt unit)
+        |> deltaList
+
+
+repairTargetDelta : Seconds -> Unit -> Unit -> Delta
+repairTargetDelta dt healer target =
+    if healer == target || target.integrity >= 1 then
+        deltaNone
+    else
+        let
+            repairRate =
+                0.4
+
+            repair =
+                dt * repairRate
+        in
+        deltaList
+            [ deltaUnit target.id (\g u -> { u | integrity = u.integrity + repair |> min 1 })
+            , View.Gfx.deltaAddRepairBubbles 0.1 dt target.position
+            , View.Gfx.deltaAddRepairBeam healer.position target.position
+            ]
 
 
 vampireDelta : Seconds -> Game -> Unit -> MechComponent -> Delta
@@ -205,12 +274,12 @@ vampireDelta dt game unit mech =
         game.unitById
             |> Dict.values
             |> List.filter (\u -> u.maybeTeamId /= unit.maybeTeamId && Vec2.distance u.position unit.position < vampireRange)
-            |> List.map (vampire dt unit)
+            |> List.map (vampireTargetDelta dt unit)
             |> deltaList
 
 
-vampire : Seconds -> Unit -> Unit -> Delta
-vampire dt attacker target =
+vampireTargetDelta : Seconds -> Unit -> Unit -> Delta
+vampireTargetDelta dt attacker target =
     let
         damageRate =
             3
@@ -228,7 +297,7 @@ vampire dt attacker target =
         [ deltaUnit attacker.id (\g u -> { u | integrity = u.integrity + repair |> min 1 })
         , deltaUnit target.id (Unit.takePiercingDamage damage)
         , View.Gfx.deltaAddRepairBubbles 1.0 dt attacker.position
-        , View.Gfx.deltaAddRepairBeam attacker.position target.position
+        , View.Gfx.deltaAddVampireBeam attacker.position target.position
         ]
 
 
