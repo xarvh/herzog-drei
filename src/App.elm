@@ -425,7 +425,7 @@ viewMenu menu model =
                 text ""
     in
     div
-        [ class "fullWindow flex alignCenter justifyCenter"
+        [ class "fullWindow bgOpaque flex alignCenter justifyCenter"
         ]
         [ div
             [ class "menu p2" ]
