@@ -30,9 +30,17 @@ gunOffset torsoAngle =
 -- Render
 
 
-sub : Angle -> Angle -> Angle -> String -> String -> Svg a
-sub lookAngle moveAngle aimAngle brightColor darkColor =
+sub : Angle -> Angle -> Angle -> String -> String -> Bool -> Svg a
+sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
     let
+        (headFill, headStroke) =
+          if isBig then
+            ("#111", "#aaa")
+          else
+            ( "#f00" , "#900")
+
+
+
         {-
            -- aimAngle - moveAngle
            am =
@@ -97,8 +105,8 @@ sub lookAngle moveAngle aimAngle brightColor darkColor =
             []
         , ellipse
             [ transform [ rotateRad lookAngle ]
-            , fill "#f00"
-            , stroke "#900"
+            , fill headFill
+            , stroke headStroke
             , strokeWidth 0.07
             , cy 0.27
             , rx 0.25

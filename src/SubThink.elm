@@ -70,11 +70,11 @@ destroy game unit sub =
 -- Targeting
 
 
-searchForTargets : Game -> Unit -> Maybe Delta
-searchForTargets game unit =
+searchForTargets : Game -> Unit -> SubComponent -> Maybe Delta
+searchForTargets game unit sub =
     let
         ifCloseEnough ( target, priority ) =
-            if vectorDistance unit.position target.position > Unit.subShootRange then
+            if vectorDistance unit.position target.position > Unit.subShootRange sub then
                 Nothing
             else
                 (\sub -> { sub | targetId = target.id })
@@ -83,17 +83,30 @@ searchForTargets game unit =
                     |> Just
 
         targetPriority distance target =
-            case target.component of
-                UnitMech mech ->
-                    1
+            if sub.isBig then
+                case target.component of
+                    UnitMech mech ->
+                        -8
 
-                UnitSub sub ->
-                    case sub.mode of
-                        UnitModeBase baseId ->
-                            2
+                    UnitSub sub ->
+                        case sub.mode of
+                            UnitModeBase baseId ->
+                                -8
 
-                        UnitModeFree ->
-                            -distance
+                            UnitModeFree ->
+                                -distance
+            else
+                case target.component of
+                    UnitMech mech ->
+                        1
+
+                    UnitSub sub ->
+                        case sub.mode of
+                            UnitModeBase baseId ->
+                                2
+
+                            UnitModeFree ->
+                                -distance
 
         validTargetPriority target =
             if target.maybeTeamId == unit.maybeTeamId then
@@ -103,7 +116,7 @@ searchForTargets game unit =
                     distance =
                         vectorDistance unit.position target.position
                 in
-                if distance > Unit.subShootRange then
+                if distance > Unit.subShootRange sub then
                     Nothing
                 else
                     Just ( target, targetPriority distance target )
@@ -131,9 +144,9 @@ unitAlignsAimToMovement dt unit =
         )
 
 
-searchForTargetOrAlignToMovement : Float -> Game -> Unit -> Delta
-searchForTargetOrAlignToMovement dt game unit =
-    case searchForTargets game unit of
+searchForTargetOrAlignToMovement : Float -> Game -> Unit -> SubComponent -> Delta
+searchForTargetOrAlignToMovement dt game unit sub =
+    case searchForTargets game unit sub of
         Just delta ->
             delta
 
@@ -145,11 +158,11 @@ thinkTarget : Float -> Game -> Unit -> SubComponent -> Delta
 thinkTarget dt game unit sub =
     case Dict.get sub.targetId game.unitById of
         Nothing ->
-            searchForTargetOrAlignToMovement dt game unit
+            searchForTargetOrAlignToMovement dt game unit sub
 
         Just target ->
-            if vectorDistance unit.position target.position > Unit.subShootRange then
-                searchForTargetOrAlignToMovement dt game unit
+            if vectorDistance unit.position target.position > Unit.subShootRange sub then
+                searchForTargetOrAlignToMovement dt game unit sub
             else
                 let
                     dp =
@@ -164,11 +177,11 @@ thinkTarget dt game unit sub =
                             }
                         )
                     , deltaList <|
-                        if game.time < unit.reloadEndTime || Vec2.lengthSquared dp > Unit.subShootRange ^ 2 then
+                        if game.time < unit.reloadEndTime || Vec2.lengthSquared dp > Unit.subShootRange sub ^ 2 then
                             []
                         else
-                            [ deltaUnit unit.id (\g u -> { u | reloadEndTime = game.time + Unit.subReloadTime })
-                            , deltaUnit target.id (Unit.takeDamage Unit.subShootDamage)
+                            [ deltaUnit unit.id (\g u -> { u | reloadEndTime = game.time + Unit.subReloadTime sub })
+                            , deltaUnit target.id (Unit.takeDamage (Unit.subShootDamage sub))
                             , View.Gfx.deltaAddBeam
                                 (Vec2.add unit.position (View.Sub.gunOffset unit.moveAngle))
                                 target.position
@@ -394,22 +407,26 @@ thinkMovement dt game unit sub =
                         deltaNone
 
                     Just team ->
-                        let
-                            conquerBaseDistanceThreshold =
-                                3.0
+                        if sub.isBig then
+                            -- big subs never enter in bases
+                            movePath dt game team.pathing unit
+                        else
+                            let
+                                conquerBaseDistanceThreshold =
+                                    3.0
 
-                            baseDistance base =
-                                vectorDistance base.position unit.position - toFloat (Base.size base.type_ // 2)
+                                baseDistance base =
+                                    vectorDistance base.position unit.position - toFloat (Base.size base.type_ // 2)
 
-                            baseIsConquerable base =
-                                (baseDistance base < conquerBaseDistanceThreshold) && Base.unitCanEnter unit base
-                        in
-                        case List.Extra.find baseIsConquerable (Dict.values game.baseById) of
-                            Just base ->
-                                if baseDistance base > Base.maximumDistanceForUnitToEnterBase then
-                                    move dt game base.position unit
-                                else
-                                    deltaGame (deltaGameUnitEntersBase unit.id base.id)
+                                baseIsConquerable base =
+                                    (baseDistance base < conquerBaseDistanceThreshold) && Base.unitCanEnter unit base
+                            in
+                            case List.Extra.find baseIsConquerable (Dict.values game.baseById) of
+                                Just base ->
+                                    if baseDistance base > Base.maximumDistanceForUnitToEnterBase then
+                                        move dt game base.position unit
+                                    else
+                                        deltaGame (deltaGameUnitEntersBase unit.id base.id)
 
-                            Nothing ->
-                                movePath dt game team.pathing unit
+                                Nothing ->
+                                    movePath dt game team.pathing unit

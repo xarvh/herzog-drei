@@ -71,6 +71,7 @@ type alias Team =
     , markerTime : Seconds
     , pathing : Dict Tile2 Float
     , mechClassByInputKey : Dict InputKey MechClass
+    , bigSubsToSpawn : Int
     }
 
 
@@ -214,6 +215,7 @@ type alias MechComponent =
 type alias SubComponent =
     { mode : UnitMode
     , targetId : Id
+    , isBig : Bool
     }
 
 
@@ -272,8 +274,8 @@ addUnit component maybeTeamId position startAngle game =
     ( { game | lastId = id, unitById = unitById }, unit )
 
 
-addSub : Maybe TeamId -> Vec2 -> Game -> ( Game, Unit )
-addSub maybeTeamId position game =
+addSub : Maybe TeamId -> Vec2 -> Bool -> Game -> ( Game, Unit )
+addSub maybeTeamId position isBig game =
     let
         ( x, y ) =
             Vec2.toTuple position
@@ -302,6 +304,7 @@ addSub maybeTeamId position game =
             UnitSub
                 { mode = UnitModeFree
                 , targetId = -1
+                , isBig = isBig
                 }
     in
     addUnit subComponent maybeTeamId position startAngle game

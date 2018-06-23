@@ -6,6 +6,7 @@ import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Pathfinding
+import Random
 import Set exposing (Set)
 import Unit
 import UnitCollision
@@ -188,7 +189,12 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
                 |> deltaUnit unit.id
 
         fire =
-            if currentInput.fire && game.time >= unit.reloadEndTime then
+            if mech.class == Blimp && Unit.transformMode mech == ToFlyer then
+                if currentInput.fire then
+                    vampireDelta dt game unit mech newPosition
+                else
+                    deltaNone
+            else if currentInput.fire && game.time >= unit.reloadEndTime then
                 deltaList
                     [ deltaUnit unit.id (\g u -> { u | reloadEndTime = game.time + Unit.mechReloadTime mech })
                     , attackDelta game unit mech
@@ -216,7 +222,7 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
                 deltaNone
 
             Blimp ->
-                vampireDelta dt game unit mech
+                deltaNone
         ]
 
 
@@ -266,26 +272,94 @@ repairTargetDelta dt healer target =
             ]
 
 
-vampireDelta : Seconds -> Game -> Unit -> MechComponent -> Delta
-vampireDelta dt game unit mech =
+vampireDelta : Seconds -> Game -> Unit -> MechComponent -> Vec2 -> Delta
+vampireDelta dt game unit mech newPosition =
     if Unit.transformMode mech == ToMech then
         deltaNone
     else
-        game.unitById
-            |> Dict.values
-            |> List.filter (\u -> u.maybeTeamId /= unit.maybeTeamId && Vec2.distance u.position unit.position < vampireRange)
-            |> List.map (vampireTargetDelta dt unit)
-            |> deltaList
+        let
+            deltas =
+                game.unitById
+                    |> Dict.values
+                    |> List.filter (\u -> u.maybeTeamId /= unit.maybeTeamId && Vec2.distance u.position unit.position < vampireRange)
+                    |> List.map (vampireTargetDelta dt unit)
+        in
+        if deltas /= [] then
+            deltaList deltas
+        else
+            emptyVampire dt unit newPosition game
+
+
+emptyVampire : Seconds -> Unit -> Vec2 -> Game -> Delta
+emptyVampire dt unit newPosition game =
+    let
+        angle =
+            normalizeAngle (game.time + toFloat unit.id)
+
+        start =
+            newPosition
+
+        end =
+            Vec2.add start (vec2 0 vampireRange |> rotateVector angle)
+    in
+    View.Gfx.deltaAddVampireBeam start end
+
+
+{-| TODO move to game.elm?
+angleGenerator : Random.Generator Angle
+angleGenerator =
+Random.float -pi pi
+
+updateRandom : Random.Generator a -> (Game -> a -> Game) -> Game -> Game
+updateRandom generator update game =
+let
+( value, seed ) =
+Random.step generator game.seed
+in
+update { game | seed = seed } value
+
+deltaRandom : Random.Generator a -> (Game -> a -> Game) -> Delta
+deltaRandom generator update =
+deltaGame (updateRandom generator update)
+
+-}
+
+
+
+--
+
+
+randomVampire : Seconds -> Unit -> Game -> Angle -> Game
+randomVampire dt unit game angle =
+    let
+        start =
+            unit.position
+
+        end =
+            Vec2.add start (vec2 0 vampireRange |> rotateVector angle)
+
+        gfx =
+            { age = 0
+            , maxAge = dt
+            , render = GfxFractalBeam start end View.Gfx.vampireRed
+            }
+    in
+    View.Gfx.addGfx gfx game
 
 
 vampireTargetDelta : Seconds -> Unit -> Unit -> Delta
 vampireTargetDelta dt attacker target =
     let
         damageRate =
-            3
+            case target.component of
+                UnitMech _ ->
+                    40
+
+                UnitSub sub ->
+                    14
 
         healRatio =
-            0.01
+            0.005
 
         damage =
             dt * damageRate

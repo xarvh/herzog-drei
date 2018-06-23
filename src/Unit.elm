@@ -6,16 +6,28 @@ import Game exposing (..)
 -- Subs constants
 
 
-subReloadTime =
-    4.0
+subReloadTime : SubComponent -> Seconds
+subReloadTime sub =
+    if sub.isBig then
+        0.8
+    else
+        4.0
 
 
-subShootRange =
-    7.0
+subShootRange : SubComponent -> Float
+subShootRange sub =
+    if sub.isBig then
+        8.0
+    else
+        7.0
 
 
-subShootDamage =
-    11
+subShootDamage : SubComponent -> number
+subShootDamage sub =
+    if sub.isBig then
+        4
+    else
+        11
 
 
 
@@ -31,13 +43,13 @@ mechShootDamage =
 
 
 blimpBeamDamage =
-    20
+    40
 
 
 mechReloadTime mech =
     case mech.class of
         Blimp ->
-            0.75
+          1.0
 
         _ ->
             case transformMode mech of
@@ -75,13 +87,21 @@ transformMode mech =
 hitPointsAndArmor : Unit -> ( Float, Int )
 hitPointsAndArmor unit =
     case unit.component of
-        UnitMech _ ->
-            ( 160, 2 )
+        UnitMech mech ->
+          case mech.class of
+            Blimp ->
+              ( 280, 0 )
+            _ ->
+              ( 160, 2 )
+
 
         UnitSub sub ->
             case sub.mode of
                 UnitModeFree ->
-                    ( 40, 0 )
+                    if sub.isBig then
+                        ( 160, 0 )
+                    else
+                        ( 40, 0 )
 
                 UnitModeBase baseId ->
                     ( 70, 2 )
