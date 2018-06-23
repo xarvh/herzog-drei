@@ -1,5 +1,6 @@
 module Pathfinding exposing (..)
 
+import Base
 import Dict exposing (Dict)
 import Game exposing (Game, Tile2)
 import List.Extra
@@ -46,13 +47,13 @@ listRemove nodeId openNodes =
     List.foldl rm [] openNodes
 
 
-dijkstra : (NodeId -> Set ( NodeId, Cost )) -> NodeId -> Dict NodeId Distance
-dijkstra getAdjacent start =
+dijkstra : (NodeId -> Set ( NodeId, Cost )) -> List NodeId -> Dict NodeId Distance
+dijkstra getAdjacent startIds =
     let
         -- Open nodes are nodes that HAVE been evaluated but whose neighbors have NOT been evaluated
         initialOpenNodes : OpenNodes
         initialOpenNodes =
-            [ ( start, 0 ) ]
+            List.map (\id -> ( id, 0 )) startIds
 
         initialDistances : DistancesById
         initialDistances =
@@ -149,6 +150,31 @@ availableMoves { halfWidth, halfHeight, staticObstacles } ( x, y ) =
 --
 
 
+maybeFind : (a -> b) -> (b -> Bool) -> List a -> Maybe b
+maybeFind transform condition list =
+    case list of
+        [] ->
+            Nothing
+
+        a :: xs ->
+            let
+                b =
+                    transform a
+            in
+            if condition b then
+                Just b
+            else
+                maybeFind transform condition xs
+
+
+maybeBaseAt : Game -> Tile2 -> Maybe (List Tile2)
+maybeBaseAt game target =
+    -- TODO: once we have precalculated base proximity, use that
+    game.baseById
+        |> Dict.values
+        |> maybeFind (\b -> Base.tiles b.type_ b.tile) (List.member target)
+
+
 makePaths : Game -> Tile2 -> Dict Tile2 Distance
 makePaths game target =
     let
@@ -167,8 +193,17 @@ makePaths game target =
 
         keyNodeIdToKeyCartesian nodeId distance d =
             Dict.insert (idToXy nodeId) distance d
+
+        targetTiles =
+            case maybeBaseAt game target of
+                Nothing ->
+                    [ target ]
+
+                Just tiles ->
+                    tiles
     in
-    xyToId target
+    targetTiles
+        |> List.map xyToId
         |> dijkstra availableMovesNode
         |> Dict.foldl keyNodeIdToKeyCartesian Dict.empty
 
