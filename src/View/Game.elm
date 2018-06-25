@@ -188,6 +188,7 @@ viewSub game ( unit, subRecord ) =
             unit.fireAngle
             colorPattern.bright
             colorPattern.dark
+            subRecord.isBig
 
         --, View.Sub.collider unit.moveAngle (vec2 0 0) |> View.renderCollider
         ]

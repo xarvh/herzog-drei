@@ -42,7 +42,7 @@ think dt game projectile =
                 deltaList
                     [ Game.deltaRemoveProjectile projectile.id
                     , View.Gfx.deltaAddExplosion (Vec2.add newPosition oldPosition |> Vec2.scale 0.5) 0.2
-                    , deltaUnit unit.id (Unit.takeDamage Unit.mechShootDamage)
+                    , deltaUnit unit.id (Unit.takeDamage projectile.damage)
                     ]
 
             Nothing ->

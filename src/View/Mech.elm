@@ -181,7 +181,7 @@ blimp args =
             [ transform [ rotateRad args.fireAngle ] ]
             [ guns
                 { x = smooth 0.42 0.25
-                , y = smooth 0.63 0.8
+                , y = smooth 0.63 0.3
                 , w = smooth 0.24 0.15
                 , h = 0.9
                 }
@@ -216,7 +216,7 @@ blimp args =
                 { x = smooth armX 0
                 , y = smooth armY 0
                 , w = smooth armW 1.0
-                , h = smooth armH 2.0
+                , h = smooth armH 2.4
                 }
 
             -- watermelon mid, left gun cover
@@ -224,7 +224,7 @@ blimp args =
                 { x = smooth -armX 0
                 , y = smooth armY 0
                 , w = smooth armW 0.65
-                , h = smooth armH 2.0
+                , h = smooth armH 2.4
                 }
 
             -- watermelon top, mech body
@@ -232,7 +232,7 @@ blimp args =
                 { x = 0
                 , y = smooth -0.1 0
                 , w = smooth 1.2 0.25
-                , h = smooth 0.55 2.0
+                , h = smooth 0.55 2.4
                 }
 
             -- central tail winglet, shoulders

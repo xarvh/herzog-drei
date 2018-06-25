@@ -23,7 +23,10 @@ think dt pairedInputStates game unit =
                     SubThink.destroy game unit sub
 
                 UnitMech mech ->
-                    respawnMech game unit mech
+                    deltaList
+                        [ respawnMech game unit mech
+                        , addBigSubsToEnemyTeam unit
+                        ]
             ]
     else
         case unit.component of
@@ -37,6 +40,29 @@ think dt pairedInputStates game unit =
                             |> Maybe.withDefault ( inputStateNeutral, inputStateNeutral )
                 in
                 MechThink.mechThink input dt game unit mech
+
+
+
+-- Big Subs
+
+
+addBigSubsToEnemyTeam : Unit -> Delta
+addBigSubsToEnemyTeam killedUnit =
+    case killedUnit.maybeTeamId of
+        Nothing ->
+            deltaNone
+
+        Just killedUnitTeamId ->
+            let
+                enemyTeam =
+                    case killedUnitTeamId of
+                        TeamLeft ->
+                            TeamRight
+
+                        TeamRight ->
+                            TeamLeft
+            in
+            deltaTeam enemyTeam (\g t -> { t | bigSubsToSpawn = t.bigSubsToSpawn + 3 })
 
 
 

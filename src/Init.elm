@@ -126,6 +126,7 @@ newTeam id colorPattern mechs =
     , markerTime = 0
     , pathing = Dict.empty
     , mechClassByInputKey = mechs
+    , bigSubsToSpawn = 0
     }
 
 
@@ -154,16 +155,11 @@ initMarkerPosition id game =
 -- Units
 
 
-addSub : Maybe TeamId -> Vec2 -> Game -> Game
-addSub maybeTeamId position game =
-    Game.addSub maybeTeamId position game |> Tuple.first
-
-
 addEmbeddedSub : Maybe TeamId -> Base -> Game -> Game
 addEmbeddedSub maybeTeamId base game =
     let
         ( game_, unit ) =
-            Game.addSub maybeTeamId (vec2 0 0) game
+            Game.addSub maybeTeamId (vec2 0 0) False game
     in
     SubThink.deltaGameUnitEntersBase unit.id base.id game_
 

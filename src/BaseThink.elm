@@ -18,7 +18,7 @@ subBuildSpeed =
 
 
 mechBuildSpeed =
-    0.1
+    0.5
 
 
 
@@ -95,8 +95,29 @@ deltaBuildSub dt game base occupied =
             else
                 deltaList
                     [ deltaBase base.id (Base.updateOccupied (\o -> { o | subBuildCompletion = 0 }))
-                    , deltaGame (\g -> Game.addSub occupied.maybeTeamId base.position g |> Tuple.first)
+                    , deltaGame (updateAddSub occupied.maybeTeamId base.position)
                     ]
+
+
+updateAddSub : Maybe TeamId -> Vec2 -> Game -> Game
+updateAddSub maybeTeamId position game =
+    case maybeTeamId of
+        Nothing ->
+            game
+
+        Just teamId ->
+            let
+                team =
+                    getTeam game teamId
+
+                spawnBigSub =
+                    team.bigSubsToSpawn > 0
+            in
+            game
+                |> Game.addSub maybeTeamId position spawnBigSub
+                |> Tuple.first
+                -- TODO clean this up
+                |> updateTeam { team | bigSubsToSpawn = team.bigSubsToSpawn - 1 |> max 0 }
 
 
 deltaBuildAllMechs : Seconds -> Game -> Base -> BaseOccupied -> Delta
