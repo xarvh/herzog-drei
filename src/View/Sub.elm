@@ -1,6 +1,6 @@
 module View.Sub exposing (..)
 
-import Game exposing (normalizeAngle, Angle)
+import Game exposing (Angle, normalizeAngle)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import View exposing (..)
@@ -26,20 +26,17 @@ gunOffset torsoAngle =
 
 
 
-
 -- Render
 
 
 sub : Angle -> Angle -> Angle -> String -> String -> Bool -> Svg a
 sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
     let
-        (headFill, headStroke) =
-          if isBig then
-            ("#111", "#aaa")
-          else
-            ( "#f00" , "#900")
-
-
+        ( fillColor, strokeColor ) =
+            if isBig then
+                ( darkColor, brightColor )
+            else
+                ( brightColor, darkColor )
 
         {-
            -- aimAngle - moveAngle
@@ -89,15 +86,15 @@ sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
             , width 1.8
             , y -0.4
             , x -0.9
-            , fill brightColor
-            , stroke darkColor
+            , fill fillColor
+            , stroke strokeColor
             , strokeWidth 0.1
             ]
             []
         , ellipse
             [ transform [ rotateRad lookAngle ]
-            , fill brightColor
-            , stroke darkColor
+            , fill fillColor
+            , stroke strokeColor
             , strokeWidth 0.1
             , rx 0.5
             , ry 0.6
@@ -105,12 +102,12 @@ sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
             []
         , ellipse
             [ transform [ rotateRad lookAngle ]
-            , fill headFill
-            , stroke headStroke
+            , fill "#f00"
+            , stroke "#900"
             , strokeWidth 0.07
             , cy 0.27
             , rx 0.25
-            , ry 0.30
+            , ry 0.3
             ]
             []
         ]

@@ -155,11 +155,6 @@ initMarkerPosition id game =
 -- Units
 
 
--- addSub : Maybe TeamId -> Vec2 -> Game -> Game
--- addSub maybeTeamId position game =
---     Game.addSub maybeTeamId position game |> Tuple.first
-
-
 addEmbeddedSub : Maybe TeamId -> Base -> Game -> Game
 addEmbeddedSub maybeTeamId base game =
     let

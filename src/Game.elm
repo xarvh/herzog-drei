@@ -140,6 +140,7 @@ type alias ProjectileSeed =
     { maybeTeamId : Maybe TeamId
     , position : Vec2
     , angle : Angle
+    , damage : Int
     }
 
 
@@ -149,11 +150,12 @@ type alias Projectile =
     , position : Vec2
     , spawnPosition : Vec2
     , angle : Angle
+    , damage : Int
     }
 
 
 addProjectile : ProjectileSeed -> Game -> Game
-addProjectile { maybeTeamId, position, angle } game =
+addProjectile { maybeTeamId, position, angle, damage } game =
     let
         projectile =
             { id = game.lastId + 1
@@ -161,6 +163,7 @@ addProjectile { maybeTeamId, position, angle } game =
             , position = position
             , spawnPosition = position
             , angle = angle
+            , damage = damage
             }
 
         projectileById =

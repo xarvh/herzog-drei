@@ -9,7 +9,7 @@ import Game exposing (..)
 subReloadTime : SubComponent -> Seconds
 subReloadTime sub =
     if sub.isBig then
-        0.8
+        0.4
     else
         4.0
 
@@ -49,7 +49,7 @@ blimpBeamDamage =
 mechReloadTime mech =
     case mech.class of
         Blimp ->
-          1.0
+            1.0
 
         _ ->
             case transformMode mech of
@@ -88,12 +88,12 @@ hitPointsAndArmor : Unit -> ( Float, Int )
 hitPointsAndArmor unit =
     case unit.component of
         UnitMech mech ->
-          case mech.class of
-            Blimp ->
-              ( 280, 0 )
-            _ ->
-              ( 160, 2 )
+            case mech.class of
+                Blimp ->
+                    ( 280, 0 )
 
+                _ ->
+                    ( 160, 2 )
 
         UnitSub sub ->
             case sub.mode of

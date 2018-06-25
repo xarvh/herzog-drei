@@ -394,7 +394,12 @@ attackDelta game unit mech =
         _ ->
             let
                 deltaFire origin =
-                    Game.deltaAddProjectile { maybeTeamId = unit.maybeTeamId, position = origin, angle = unit.fireAngle }
+                    Game.deltaAddProjectile
+                        { maybeTeamId = unit.maybeTeamId
+                        , position = origin
+                        , angle = unit.fireAngle
+                        , damage = Unit.mechShootDamage
+                        }
             in
             deltaList
                 [ deltaFire leftOrigin

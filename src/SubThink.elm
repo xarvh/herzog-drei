@@ -29,7 +29,27 @@ think dt game unit sub =
     deltaList
         [ thinkTarget dt game unit sub
         , thinkMovement dt game unit sub
+        , thinkRegenerate dt game unit sub
         ]
+
+
+
+--
+
+
+thinkRegenerate : Seconds -> Game -> Unit -> SubComponent -> Delta
+thinkRegenerate dt game unit sub =
+    if not sub.isBig || unit.integrity >= 1 then
+        deltaNone
+    else
+        let
+            repair =
+                0.03 * dt
+        in
+        deltaList
+            [ View.Gfx.deltaAddRepairBubbles 0.3 dt unit.position
+            , deltaUnit unit.id (\g u -> { u | integrity = u.integrity + repair |> min 1 })
+            ]
 
 
 
@@ -181,11 +201,30 @@ thinkTarget dt game unit sub =
                             []
                         else
                             [ deltaUnit unit.id (\g u -> { u | reloadEndTime = game.time + Unit.subReloadTime sub })
-                            , deltaUnit target.id (Unit.takeDamage (Unit.subShootDamage sub))
-                            , View.Gfx.deltaAddBeam
-                                (Vec2.add unit.position (View.Sub.gunOffset unit.moveAngle))
-                                target.position
-                                (Game.teamColorPattern game unit.maybeTeamId)
+                            , let
+                                origin =
+                                    Vec2.add unit.position (View.Sub.gunOffset unit.moveAngle)
+
+                                damage =
+                                    Unit.subShootDamage sub
+                              in
+                              case sub.isBig of
+                                False ->
+                                    deltaList
+                                        [ deltaUnit target.id (Unit.takeDamage damage)
+                                        , View.Gfx.deltaAddBeam
+                                            origin
+                                            target.position
+                                            (Game.teamColorPattern game unit.maybeTeamId)
+                                        ]
+
+                                True ->
+                                    Game.deltaAddProjectile
+                                        { maybeTeamId = unit.maybeTeamId
+                                        , position = origin
+                                        , angle = unit.fireAngle
+                                        , damage = damage
+                                        }
                             ]
                     ]
 
