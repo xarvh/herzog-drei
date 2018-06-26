@@ -97,7 +97,7 @@ searchForTargets game unit sub =
             if vectorDistance unit.position target.position > Unit.subShootRange sub then
                 Nothing
             else
-                (\sub -> { sub | targetId = target.id })
+                (\s -> { s | targetId = target.id })
                     |> updateSub
                     |> deltaUnit unit.id
                     |> Just
@@ -108,8 +108,8 @@ searchForTargets game unit sub =
                     UnitMech mech ->
                         -8
 
-                    UnitSub sub ->
-                        case sub.mode of
+                    UnitSub s ->
+                        case s.mode of
                             UnitModeBase baseId ->
                                 -8
 
@@ -120,8 +120,8 @@ searchForTargets game unit sub =
                     UnitMech mech ->
                         1
 
-                    UnitSub sub ->
-                        case sub.mode of
+                    UnitSub s ->
+                        case s.mode of
                             UnitModeBase baseId ->
                                 2
 
@@ -142,7 +142,7 @@ searchForTargets game unit sub =
                     Just ( target, targetPriority distance target )
 
         setTarget ( target, priority ) =
-            (\sub -> { sub | targetId = target.id })
+            (\s -> { s | targetId = target.id })
                 |> updateSub
                 |> deltaUnit unit.id
     in

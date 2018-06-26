@@ -40,20 +40,13 @@ deltaAddGfx gfx =
     deltaGame (addGfx gfx)
 
 
-{-| TODO update to Elm 0.19 and replace this with Random.constant
--}
-randomConstant : a -> Random.Generator a
-randomConstant value =
-    Random.bool |> Random.map (always value)
-
-
 randomlyUpdateGame : Float -> Random.Generator a -> (a -> Game -> Game) -> Game -> Game
-randomlyUpdateGame probability generator update game =
+randomlyUpdateGame probability generator upd game =
     let
         floatToMaybeValue : Float -> Random.Generator (Maybe a)
         floatToMaybeValue float =
             if float > probability then
-                randomConstant Nothing
+                Random.constant Nothing
             else
                 Random.map Just generator
 
@@ -66,7 +59,7 @@ randomlyUpdateGame probability generator update game =
                     identity
 
                 Just value ->
-                    update value
+                    upd value
     in
     updateGame { game | seed = seed }
 
@@ -147,11 +140,11 @@ deltaAddRepairBubbles bubblesPerSecond dt position =
                 , render = GfxRepairBubble (Vec2.add position (vec2 randomDx 0))
                 }
 
-        update : Game -> Game
-        update =
+        upd : Game -> Game
+        upd =
             randomlyUpdateGame (dt * bubblesPerSecond) (Random.float -0.5 0.5) addBubble
     in
-    deltaGame update
+    deltaGame upd
 
 
 
@@ -194,7 +187,7 @@ fractalBeam start end { bright, dark } t =
     in
     path
         [ transform [ translate start, rotateRad a, scale2 1 l ]
-        , d <| "M0,0 C" ++ toString x1 ++ ",0.33 " ++ toString x2 ++ ",0.66 0,1"
+        , d <| "M0,0 C" ++ String.fromFloat x1 ++ ",0.33 " ++ String.fromFloat x2 ++ ",0.66 0,1"
         , fill "none"
         , stroke bright
         , strokeWidth 0.06
@@ -258,17 +251,17 @@ render cosmetic =
 
         GfxBeam start end colorPattern ->
             let
-                ( sx, sy ) =
-                    Vec2.toTuple start
+                s =
+                    Vec2.toRecord start
 
-                ( ex, ey ) =
-                    Vec2.toTuple end
+                e =
+                    Vec2.toRecord end
             in
             line
-                [ x1 sx
-                , y1 sy
-                , x2 ex
-                , y2 ey
+                [ x1 s.x
+                , y1 s.y
+                , x2 e.x
+                , y2 e.y
                 , strokeWidth (0.1 * (1 + 3 * t))
                 , stroke colorPattern.bright
                 , opacity (1 - Ease.outExpo t)

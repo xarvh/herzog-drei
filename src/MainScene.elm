@@ -10,7 +10,7 @@ import GamepadPort
 import Html exposing (..)
 import Html.Attributes exposing (class)
 import Init
-import Keyboard.Extra
+import Input
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mech
 import Random exposing (Generator)
@@ -75,7 +75,7 @@ inputKeyboardAndMouseKey =
 
 inputGamepadKey : Int -> String
 inputGamepadKey index =
-    "gamepad " ++ toString index
+    "gamepad " ++ String.fromInt index
 
 
 inputKeyIsHuman : String -> Bool
@@ -94,7 +94,7 @@ inputBot teamId n =
                 TeamRight ->
                     "R"
     in
-    "bot " ++ t ++ toString n
+    "bot " ++ t ++ String.fromInt n
 
 
 inputIsBot : InputKey -> Bool
@@ -116,7 +116,7 @@ threshold v =
 
 gamepadToInput : Gamepad -> ( String, InputState )
 gamepadToInput gamepad =
-    ( "gamepad " ++ toString (Gamepad.getIndex gamepad)
+    ( "gamepad " ++ String.fromInt (Gamepad.getIndex gamepad)
     , { aim = vec2 (Gamepad.rightX gamepad) (Gamepad.rightY gamepad) |> threshold |> AimAbsolute
       , fire =
             Gamepad.rightBumperIsPressed gamepad
@@ -137,26 +137,24 @@ gamepadToInput gamepad =
 getKeyboardAndMouseInputState : Shell -> Model -> InputState
 getKeyboardAndMouseInputState shell model =
     let
-        { x, y } =
-            Keyboard.Extra.wasd shell.pressedKeys
+        move =
+            Input.arrowsAndWasd shell.pressedKeys
 
         isPressed key =
-            List.member key shell.pressedKeys
+            Set.member key shell.pressedKeys
 
         mouseAim =
             SplitScreen.mouseScreenToViewport shell.mousePosition shell.viewport
-                |> Vec2.fromTuple
+                |> (\( xx, yy ) -> vec2 xx yy)
                 |> Vec2.scale (View.Game.tilesToViewport model.game shell.viewport)
                 |> AimRelative
     in
     { aim = mouseAim
     , fire = shell.mouseIsPressed
-    , transform = isPressed Keyboard.Extra.CharE
-    , switchUnit = isPressed Keyboard.Extra.Space
-
-    -- TODO this should be right mouse button
-    , rally = isPressed Keyboard.Extra.CharQ
-    , move = vec2 (toFloat x) (toFloat y)
+    , transform = isPressed "E"
+    , switchUnit = isPressed " "
+    , rally = isPressed "Q"
+    , move = move
     }
 
 
@@ -323,8 +321,8 @@ sanitizeInputState inputKey inputState =
     let
         vecNoNaN v =
             let
-                ( x, y ) =
-                    Vec2.toTuple v
+                { x, y } =
+                    Vec2.toRecord v
             in
             if isNaN x || isNaN y then
                 let
@@ -413,7 +411,7 @@ view shell model =
     , if Dict.member "fps" shell.params then
         div
             [ class "fps nonSelectable" ]
-            [ text ("FPS " ++ toString fps) ]
+            [ text ("FPS " ++ String.fromInt fps) ]
       else
         text ""
     ]

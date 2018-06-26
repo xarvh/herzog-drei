@@ -45,7 +45,7 @@ propeller size time =
             time * speed
 
         angleInDeg =
-            toFloat (floor v % 360)
+            toFloat (modBy 360 (floor v))
     in
     g
         [ transform [ scale size ] ]

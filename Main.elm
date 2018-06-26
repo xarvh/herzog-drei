@@ -1,8 +1,8 @@
 module Main exposing (..)
 
 import App
+import Browser
 import Dict exposing (Dict)
-import Navigation
 
 
 stringToTuple : String -> Maybe ( String, String )
@@ -15,23 +15,34 @@ stringToTuple str =
             Nothing
 
 
-init : App.Flags -> Navigation.Location -> ( App.Model, Cmd App.Msg )
-init flags location =
+init : App.Flags -> ( App.Model, Cmd App.Msg )
+init flags =
     let
         params =
-            location.hash
-                |> String.dropLeft 1
-                |> String.split "&"
-                |> List.filterMap stringToTuple
-                |> Dict.fromList
+            Dict.empty
+
+        {-
+           location.hash
+               |> String.dropLeft 1
+               |> String.split "&"
+               |> List.filterMap stringToTuple
+               |> Dict.fromList
+        -}
     in
     App.init params flags
 
 
+view : App.Model -> Browser.Document App.Msg
+view model =
+    { title = "Herzog Drei"
+    , body = [ App.view model ]
+    }
+
+
 main =
-    Navigation.programWithFlags
-        (always App.Noop)
-        { view = App.view
+    Browser.document
+        --(always App.Noop)
+        { view = view
         , subscriptions = App.subscriptions
         , update = App.update
         , init = init

@@ -28,11 +28,11 @@ vector : Vec2 -> Vec2 -> Unit -> Bool
 vector a b unit =
     let
         -- get an easy-to-compute circle centered in A that contains B
-        ( dx, dy ) =
-            Vec2.toTuple <| Vec2.sub a b
+        d =
+            Vec2.toRecord <| Vec2.sub a b
 
         radius =
-            max (abs dx) (abs dy)
+            max (abs d.x) (abs d.y)
 
         minimumCollisionDistance =
             radius + unitSize

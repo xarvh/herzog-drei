@@ -28,8 +28,8 @@ maxContainedUnits =
 corners : Base -> List Vec2
 corners base =
     let
-        ( x, y ) =
-            Vec2.toTuple base.position
+        { x, y } =
+            Vec2.toRecord base.position
 
         r =
             toFloat (size base.type_ // 2) - 0.2

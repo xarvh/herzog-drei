@@ -2,28 +2,34 @@ module Shell exposing (..)
 
 import Config exposing (Config)
 import Dict exposing (Dict)
-import Keyboard.Extra
-import Mouse
+import Set exposing (Set)
 import SplitScreen exposing (Viewport)
-import Window
 
 
 type alias Flags =
     { config : String
     , customMaps : String
-    , mapEditorCurrentMap : String
     , dateNow : Int
+    , mapEditorCurrentMap : String
+    , windowWidth : Int
+    , windowHeight : Int
     }
 
 
 type alias Shell =
     { gameIsPaused : Bool
-    , mousePosition : Mouse.Position
+    , mousePosition : { x : Int, y : Int }
     , mouseIsPressed : Bool
-    , windowSize : Window.Size
+    , windowSize : WindowSize
     , viewport : Viewport
     , params : Dict String String
-    , pressedKeys : List Keyboard.Extra.Key
+    , pressedKeys : Set String
     , config : Config
     , flags : Flags
+    }
+
+
+type alias WindowSize =
+    { width : Int
+    , height : Int
     }

@@ -15,12 +15,18 @@
         -->
     </head>
     <body>
+        <div id='herzog-drei'></div>
         <script type="text/javascript">
-            var elmApp = Elm.Main.fullscreen({
-                dateNow: Date.now(),
+            var elmApp = Elm.Main.init({
+              node: document.getElementById('herzog-drei'),
+              flags: {
                 config: localStorage.config || "",
                 customMaps: localStorage.customMaps || "",
+                dateNow: Date.now(),
                 mapEditorCurrentMap: localStorage.mapEditorCurrentMap || "",
+                windowWidth: window.innerWidth,
+                windowHeight: window.innerHeight,
+              }
             });
             addGamepadPort(elmApp);
             addLocalStoragePort(elmApp);

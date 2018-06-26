@@ -92,7 +92,7 @@ transitionThink game =
                                     ]
 
                             GameModeVersus ->
-                                Debug.crash "GameModeVersus does not really have a fade out"
+                                deltaNone
 
 
 

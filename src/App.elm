@@ -1,5 +1,6 @@
 module App exposing (..)
 
+import Browser.Events
 import Config exposing (Config)
 import Dict exposing (Dict)
 import Game exposing (ValidatedMap)
@@ -8,22 +9,20 @@ import GamepadPort
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
-import Keyboard
-import Keyboard.Extra
+import Input
+import Json.Decode exposing (Decoder)
 import LocalStoragePort
 import MainScene
 import Map
 import MapEditor
-import Mouse
 import OfficialMaps
 import Random
 import Random.List
 import Remap
 import Set exposing (Set)
-import Shell exposing (Shell)
+import Shell exposing (Shell, WindowSize)
 import SplitScreen exposing (Viewport)
 import Task
-import Window
 
 
 type alias Flags =
@@ -67,13 +66,13 @@ type alias Model =
     , flags : Flags
     , config : Config
     , params : Dict String String
-    , windowSize : Window.Size
+    , windowSize : WindowSize
     , viewport : Viewport
 
     -- input stuff
-    , mousePosition : Mouse.Position
+    , mousePosition : { x : Int, y : Int }
     , mouseIsPressed : Bool
-    , pressedKeys : List Keyboard.Extra.Key
+    , pressedKeys : Set String
     }
 
 
@@ -86,28 +85,28 @@ init params flags =
         ( scene, seed ) =
             demoScene (Random.initialSeed flags.dateNow)
 
-        model =
-            { scene = scene
-            , maybeMenu = Just MenuMain
-            , seed = seed
-
-            -- env stuff
-            , flags = flags
-            , config = config
-            , params = params
-            , windowSize = { width = 1, height = 1 }
-            , viewport = SplitScreen.defaultViewport
-
-            -- input stuff
-            , mousePosition = { x = 0, y = 0 }
-            , mouseIsPressed = False
-            , pressedKeys = []
+        windowSize =
+            { width = flags.windowWidth
+            , height = flags.windowHeight
             }
-
-        cmd =
-            Window.size |> Task.perform OnWindowResizes
     in
-    ( model, cmd )
+    noCmd
+        { scene = scene
+        , maybeMenu = Just MenuMain
+        , seed = seed
+
+        -- env stuff
+        , flags = flags
+        , config = config
+        , params = params
+        , windowSize = windowSize
+        , viewport = makeViewport windowSize
+
+        -- input stuff
+        , mousePosition = { x = 0, y = 0 }
+        , mouseIsPressed = False
+        , pressedKeys = Set.empty
+        }
 
 
 demoScene : Random.Seed -> ( Scene, Random.Seed )
@@ -144,6 +143,13 @@ shell model =
     }
 
 
+makeViewport : WindowSize -> Viewport
+makeViewport windowSize =
+    SplitScreen.makeViewports windowSize 1
+        |> List.head
+        |> Maybe.withDefault SplitScreen.defaultViewport
+
+
 
 -- Update
 
@@ -166,11 +172,12 @@ type Msg
     | OnMapEditorMsg MapEditor.Msg
     | OnRemapMsg Remap.Msg
       -- Env stuff used by map editor and main scene
-    | OnWindowResizes Window.Size
+    | OnWindowResizes Int Int
     | OnMouseButton Bool
-    | OnMouseMoves Mouse.Position
-    | OnKeyboardMsg Keyboard.Extra.Msg
-    | OnKeyPress Keyboard.KeyCode
+    | OnMouseMoves Int Int
+    | OnKeyDown String
+    | OnKeyUp String
+    | OnVisibilityChange Browser.Events.Visibility
       -- Config
     | OnToggleKeyboardAndMouse
 
@@ -226,35 +233,24 @@ update msg model =
         OnMouseButton state ->
             noCmd { model | mouseIsPressed = state }
 
-        OnMouseMoves mousePosition ->
-            noCmd { model | mousePosition = mousePosition }
+        OnMouseMoves x y ->
+            noCmd { model | mousePosition = { x = x, y = y } }
 
-        OnWindowResizes windowSize ->
-            { model
-                | windowSize = windowSize
-                , viewport =
-                    SplitScreen.makeViewports windowSize 1
-                        |> List.head
-                        |> Maybe.withDefault SplitScreen.defaultViewport
-            }
-                |> noCmd
+        OnWindowResizes w h ->
+            let
+                windowSize =
+                    { width = w, height = h }
+            in
+            { model | windowSize = windowSize, viewport = makeViewport windowSize } |> noCmd
 
-        OnKeyPress keyCode ->
-            case ( keyCode, model.maybeMenu ) of
-                ( 27, Just MenuMain ) ->
-                    noCmd { model | maybeMenu = Nothing }
+        OnKeyDown keyName ->
+            noCmd { model | pressedKeys = Set.insert keyName model.pressedKeys }
 
-                ( 27, Just (MenuImportMap _) ) ->
-                    noCmd { model | maybeMenu = Just MenuMapSelection }
+        OnKeyUp keyName ->
+            updateOnKeyUp keyName { model | pressedKeys = Set.remove keyName model.pressedKeys }
 
-                ( 27, _ ) ->
-                    noCmd { model | maybeMenu = Just MenuMain }
-
-                _ ->
-                    noCmd model
-
-        OnKeyboardMsg keyboardMsg ->
-            noCmd { model | pressedKeys = Keyboard.Extra.update keyboardMsg model.pressedKeys }
+        OnVisibilityChange _ ->
+            noCmd { model | pressedKeys = Set.empty }
 
         -- TEA children
         OnMainSceneMsg sceneMsg ->
@@ -303,6 +299,22 @@ updateOnImportString mapAsJson importModel model =
                 |> MenuImportMap
                 |> Just
     }
+
+
+updateOnKeyUp : String -> Model -> ( Model, Cmd Msg )
+updateOnKeyUp keyName model =
+    case ( keyName, model.maybeMenu ) of
+        ( "Escape", Just MenuMain ) ->
+            noCmd { model | maybeMenu = Nothing }
+
+        ( "Escape", Just (MenuImportMap _) ) ->
+            noCmd { model | maybeMenu = Just MenuMapSelection }
+
+        ( "Escape", _ ) ->
+            noCmd { model | maybeMenu = Just MenuMain }
+
+        _ ->
+            noCmd model
 
 
 
@@ -435,7 +447,8 @@ viewMenu menu model =
                         []
                         [ when (isDemo model) <| pageButton "Play" (OnMenuNav MenuMapSelection)
                         , when (isDemo model) <| pageButton "Map Editor" OnOpenMapEditor
-                        , when (isPlaying model) <| pageButton "Resume" (OnKeyPress 27)
+
+                        --, when (isPlaying model) <| pageButton "Resume" (OnKeyPress 27)
                         , when (isDemo model || isPlaying model) <| pageButton "Settings" (OnMenuNav MenuSettings)
                         , when (isDemo model || isPlaying model) <| pageButton "Gamepads" OnMenuNavGamepads
 
@@ -477,7 +490,7 @@ viewMenu menu model =
                         [ label [] [ text "Import a map from JSON" ]
                         , div []
                             [ textarea
-                                [ defaultValue importString
+                                [ value importString
                                 , onInput OnImportString
                                 ]
                                 []
@@ -568,12 +581,13 @@ viewMapItem map =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ Keyboard.ups OnKeyPress
-        , Mouse.downs (\_ -> OnMouseButton True)
-        , Mouse.ups (\_ -> OnMouseButton False)
-        , Mouse.moves OnMouseMoves
-        , Sub.map OnKeyboardMsg Keyboard.Extra.subscriptions
-        , Window.resizes OnWindowResizes
+        [ Browser.Events.onKeyDown (Input.keyboardDecoder OnKeyDown)
+        , Browser.Events.onKeyUp (Input.keyboardDecoder OnKeyUp)
+        , Browser.Events.onVisibilityChange OnVisibilityChange
+        , Browser.Events.onMouseDown (OnMouseButton True |> Json.Decode.succeed)
+        , Browser.Events.onMouseUp (OnMouseButton False |> Json.Decode.succeed)
+        , Browser.Events.onMouseMove (Input.mouseMoveDecoder OnMouseMoves)
+        , Browser.Events.onResize OnWindowResizes
         , case model.maybeMenu of
             Just (MenuGamepads remap) ->
                 Remap.subscriptions GamepadPort.gamepad |> Sub.map OnRemapMsg

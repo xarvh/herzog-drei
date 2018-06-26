@@ -280,8 +280,8 @@ addUnit component maybeTeamId position startAngle game =
 addSub : Maybe TeamId -> Vec2 -> Bool -> Game -> ( Game, Unit )
 addSub maybeTeamId position isBig game =
     let
-        ( x, y ) =
-            Vec2.toTuple position
+        { x, y } =
+            Vec2.toRecord position
 
         -- When a newly constructed unit leaves the base, it will face the
         -- orhtogonal direction closest to the center.
@@ -662,13 +662,13 @@ vectorDistance : Vec2 -> Vec2 -> Float
 vectorDistance v1 v2 =
     -- Manhattan distance
     let
-        ( x1, y1 ) =
-            Vec2.toTuple v1
+        a =
+            Vec2.toRecord v1
 
-        ( x2, y2 ) =
-            Vec2.toTuple v2
+        b =
+            Vec2.toRecord v2
     in
-    abs (x1 - x2) + abs (y1 - y2)
+    abs (a.x - b.x) + abs (a.y - b.y)
 
 
 clampToRadius : Float -> Vec2 -> Vec2
@@ -686,8 +686,8 @@ clampToRadius radius v =
 clampToGameSize : Game -> Float -> Vec2 -> Vec2
 clampToGameSize game radius v =
     let
-        ( x, y ) =
-            Vec2.toTuple v
+        { x, y } =
+            Vec2.toRecord v
 
         hw =
             toFloat game.halfWidth - radius
@@ -701,8 +701,8 @@ clampToGameSize game radius v =
 vec2Tile : Vec2 -> Tile2
 vec2Tile v =
     let
-        ( x, y ) =
-            Vec2.toTuple v
+        { x, y } =
+            Vec2.toRecord v
     in
     ( floor x, floor y )
 
@@ -715,8 +715,8 @@ tile2Vec ( x, y ) =
 vecToAngle : Vec2 -> Float
 vecToAngle v =
     let
-        ( x, y ) =
-            Vec2.toTuple v
+        { x, y } =
+            Vec2.toRecord v
     in
     atan2 x y
 
@@ -749,8 +749,8 @@ angleToVector angle =
 rotateVector : Float -> Vec2 -> Vec2
 rotateVector angle v =
     let
-        ( x, y ) =
-            Vec2.toTuple v
+        { x, y } =
+            Vec2.toRecord v
 
         sinA =
             sin -angle
