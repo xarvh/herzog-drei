@@ -302,9 +302,6 @@ updateOnKeyUp keyName model =
         "Escape" ->
             menuBack model
 
-        "Backspace" ->
-            menuBack model
-
         -- "updateOnButton"
         "Enter" ->
             updateOnButton model.selectedButtonName model
@@ -411,6 +408,14 @@ mainMenuButtons model =
                 _ ->
                     False
 
+        isMapEditor =
+            case model.scene of
+                SceneMapEditor _ ->
+                    True
+
+                _ ->
+                    False
+
         isFinished =
             False
 
@@ -433,6 +438,8 @@ mainMenuButtons model =
       , isVisible = isPlaying && not isFinished
       , update = menuBack
       }
+
+    --
     , { name = "How to play"
       , view = MenuButtonLabel
       , isVisible = True
@@ -449,13 +456,18 @@ mainMenuButtons model =
     -- Config
     , { name = "Settings"
       , view = MenuButtonLabel
-      , isVisible = isDemo
+      , isVisible = isDemo || isMapEditor
       , update = menuNav MenuSettings
       }
     , { name = "Gamepads"
       , view = MenuButtonLabel
-      , isVisible = isDemo
+      , isVisible = isDemo || isMapEditor
       , update = menuNav <| MenuGamepads <| Remap.init <| gamepadButtonMap
+      }
+    , { name = "Quit"
+      , view = MenuButtonLabel
+      , isVisible = isMapEditor
+      , update = menuDemo
       }
     ]
 
