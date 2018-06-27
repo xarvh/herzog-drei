@@ -15,23 +15,6 @@ stringToTuple str =
             Nothing
 
 
-init : App.Flags -> ( App.Model, Cmd App.Msg )
-init flags =
-    let
-        params =
-            Dict.empty
-
-        {-
-           location.hash
-               |> String.dropLeft 1
-               |> String.split "&"
-               |> List.filterMap stringToTuple
-               |> Dict.fromList
-        -}
-    in
-    App.init params flags
-
-
 view : App.Model -> Browser.Document App.Msg
 view model =
     { title = "Herzog Drei"
@@ -45,5 +28,5 @@ main =
         { view = view
         , subscriptions = App.subscriptions
         , update = App.update
-        , init = init
+        , init = App.init
         }

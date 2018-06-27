@@ -22,7 +22,6 @@ type alias Shell =
     , mouseIsPressed : Bool
     , windowSize : WindowSize
     , viewport : Viewport
-    , params : Dict String String
     , pressedKeys : Set String
     , config : Config
     , flags : Flags

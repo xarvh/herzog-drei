@@ -69,7 +69,6 @@ type alias Model =
     -- env stuff
     , flags : Flags
     , config : Config
-    , params : Dict String String
     , windowSize : WindowSize
     , viewport : Viewport
 
@@ -80,8 +79,8 @@ type alias Model =
     }
 
 
-init : Dict String String -> Flags -> ( Model, Cmd Msg )
-init params flags =
+init : Flags -> ( Model, Cmd Msg )
+init flags =
     let
         config =
             Config.fromString flags.config
@@ -103,7 +102,6 @@ init params flags =
         -- env stuff
         , flags = flags
         , config = config
-        , params = params
         , windowSize = windowSize
         , viewport = makeViewport windowSize
 
@@ -134,7 +132,6 @@ shell model =
     , mouseIsPressed = model.mouseIsPressed
     , windowSize = model.windowSize
     , viewport = model.viewport
-    , params = model.params
     , pressedKeys = model.pressedKeys
     , config = model.config
     , flags = model.flags
