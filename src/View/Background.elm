@@ -25,7 +25,7 @@ type alias Rect =
 
 intToRgb : Int -> String
 intToRgb n =
-    "rgb(" ++ toString n ++ "," ++ toString n ++ "," ++ toString n ++ ")"
+    "rgb(" ++ String.fromInt n ++ "," ++ String.fromInt n ++ "," ++ String.fromInt n ++ ")"
 
 
 sizeGenerator : Generator Float
@@ -51,9 +51,9 @@ rectGenerator x y =
         s =
             1
 
-        makeRect x y ( w, h ) color class =
-            { x = x
-            , y = y
+        makeRect xx yy ( w, h ) color class =
+            { x = xx
+            , y = yy
             , w = w
             , h = h
             , color = color
@@ -63,7 +63,7 @@ rectGenerator x y =
     Random.map5 makeRect
         (Random.float -s s |> Random.map (\d -> d + toFloat x))
         (Random.float -s s |> Random.map (\d -> d + toFloat y))
-        (Random.map2 (,) sizeGenerator sizeGenerator)
+        (Random.map2 Tuple.pair sizeGenerator sizeGenerator)
         (Random.int 210 250 |> Random.map intToRgb)
         classGenerator
 

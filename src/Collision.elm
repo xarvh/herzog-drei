@@ -28,7 +28,7 @@ anySegment f poly =
             Array.length polyAsArray
 
         getVertex index =
-            case Array.get (index % length) polyAsArray of
+            case Array.get (modBy length index) polyAsArray of
                 Just vertex ->
                     vertex
 
@@ -44,8 +44,8 @@ anySegment f poly =
 rightHandNormal : Vec2 -> Vec2
 rightHandNormal v =
     let
-        ( x, y ) =
-            Vec2.toTuple v
+        { x, y } =
+            Vec2.toRecord v
     in
     vec2 -y x
 

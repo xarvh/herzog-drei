@@ -110,7 +110,7 @@ nodeIdToCartesian { halfWidth, halfHeight } id =
         w =
             halfWidth * 2
     in
-    ( (id % w) - halfWidth, (id // w) - halfHeight )
+    ( modBy w id - halfWidth, (id // w) - halfHeight )
 
 
 

@@ -1,15 +1,15 @@
 module MapEditor exposing (..)
 
 import Base
+import Browser.Events
 import Dict exposing (Dict)
 import Game exposing (..)
 import Html exposing (..)
 import Html.Attributes as SA exposing (..)
 import Html.Events exposing (onBlur, onClick, onFocus, onInput)
-import Keyboard
+import Input
 import List.Extra
 import Map exposing (Map)
-import Mouse
 import Random
 import Set exposing (Set)
 import Shell exposing (Shell)
@@ -17,7 +17,6 @@ import SplitScreen exposing (Viewport)
 import Task
 import View.Background
 import View.Game
-import Window
 
 
 toolbarHeightInPixels : Int
@@ -75,15 +74,14 @@ type TextInputField
 
 type Msg
     = Noop
-    | OnWindowResizes Window.Size
     | OnMapClick
-    | OnMouseMoves Mouse.Position
     | OnMouseButton Bool
     | OnMouseClick
+    | OnMouseMoves Int Int
     | OnSwitchSymmetry Symmetry
     | OnSwitchMode EditMode
     | OnChangeSize Dimension String
-    | OnKeyPress Keyboard.KeyCode
+    | OnKeyPress String
     | OnTextInput TextInputField String
     | OnTextBlur
 
@@ -109,7 +107,6 @@ setDimension dimension magnitude map =
 
 type alias Model =
     { map : Map
-    , windowSize : Window.Size
     , mouseTile : Tile2
     , editMode : EditMode
     , symmetry : Symmetry
@@ -131,7 +128,6 @@ init =
             }
     in
     { map = map
-    , windowSize = { width = 1, height = 1 + toolbarHeightInPixels }
     , mouseTile = ( 0, 0 )
     , editMode = EditWalls Nothing
     , symmetry = SymmetryCentral
@@ -230,7 +226,7 @@ addBase symmetry baseType targetTile map =
             |> List.map (findBasesAt map)
             |> List.concat
             |> List.foldl removeBase map
-            |> (\map -> { map | bases = Dict.insert shiftedTile baseType map.bases })
+            |> (\m -> { m | bases = Dict.insert shiftedTile baseType m.bases })
     else
         map
 
@@ -250,14 +246,11 @@ update msg shell model =
         Noop ->
             noCmd model
 
-        OnWindowResizes windowSize ->
-            noCmd { model | windowSize = windowSize }
-
         OnMapClick ->
             noCmd model
 
-        OnMouseMoves mousePosition ->
-            updateOnMouseMove mousePosition shell model |> noCmd
+        OnMouseMoves x y ->
+            updateOnMouseMove { x = x, y = y } shell model |> noCmd
 
         OnMouseClick ->
             case model.editMode of
@@ -295,18 +288,18 @@ update msg shell model =
 
         OnChangeSize dimension magnitudeAsString ->
             case String.toInt magnitudeAsString of
-                Err _ ->
+                Nothing ->
                     noCmd model
 
-                Ok n ->
+                Just n ->
                     noCmd { model | map = setDimension dimension (clamp minSize maxSize n) model.map }
 
         OnSwitchMode mode ->
             noCmd { model | editMode = mode }
 
-        OnKeyPress keyCode ->
-            case keyCode of
-                32 ->
+        OnKeyPress keyName ->
+            case keyName of
+                "Escape" ->
                     noCmd
                         { model
                             | editMode =
@@ -375,7 +368,7 @@ updateOnSymmetry sym model =
     { model | symmetry = sym }
 
 
-updateOnMouseMove : Mouse.Position -> Shell -> Model -> Model
+updateOnMouseMove : { x : Int, y : Int } -> Shell -> Model -> Model
 updateOnMouseMove mousePositionInPixels shell model =
     let
         vp =
@@ -495,9 +488,9 @@ sizeInput model ( name, get, dimension ) =
         [ class "flex" ]
         [ input
             [ type_ "number"
-            , model.map |> get |> toString |> value
-            , SA.min (toString minSize)
-            , SA.max (toString maxSize)
+            , model.map |> get |> String.fromInt |> value
+            , SA.min (String.fromInt minSize)
+            , SA.max (String.fromInt maxSize)
             , onInput (OnChangeSize dimension)
             ]
             []
@@ -526,7 +519,7 @@ stringInput model inputField currentValue =
         [ onInput (OnTextInput inputField)
         , onBlur OnTextBlur
         , value content
-        , style [ ( "width", "100%" ) ]
+        , style "width" "100%"
         ]
         []
 
@@ -540,7 +533,7 @@ view shell model =
             [ SplitScreen.viewportsWrapper [ View.Game.viewMap (terrain model) (viewport shell) model.map ]
             ]
         , div
-            [ style [ ( "height", toString toolbarHeightInPixels ++ "px" ) ]
+            [ style "height" (String.fromInt toolbarHeightInPixels ++ "px")
             , class "map-editor-toolbar flex alignCenter nonSelectable"
             ]
             [ div
@@ -575,7 +568,7 @@ view shell model =
                 ]
             , div
                 [ class "flex1" ]
-                [ div [] [ text (toString model.mouseTile) ]
+                [ div [] [ text (Debug.toString model.mouseTile) ]
                 , stringInput model
                     FieldMapJson
                     (Map.toString model.map)
@@ -603,10 +596,9 @@ view shell model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ Window.resizes OnWindowResizes
-        , Mouse.moves OnMouseMoves
-        , Mouse.downs (\_ -> OnMouseButton True)
-        , Mouse.ups (\_ -> OnMouseButton False)
-        , Mouse.clicks (\_ -> OnMouseClick)
-        , Keyboard.ups OnKeyPress
+        [ Browser.Events.onClick (Input.always OnMouseClick)
+        , Browser.Events.onMouseDown (Input.always <| OnMouseButton True)
+        , Browser.Events.onMouseUp (Input.always <| OnMouseButton False)
+        , Browser.Events.onMouseMove (Input.mouseMoveDecoder OnMouseMoves)
+        , Browser.Events.onKeyUp (Input.keyboardDecoder OnKeyPress)
         ]

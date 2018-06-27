@@ -23,8 +23,8 @@ default =
 
 
 withDefault : a -> Decoder a -> Decoder a
-withDefault value decoder =
-    Decode.maybe decoder |> Decode.map (Maybe.withDefault value)
+withDefault value dec =
+    Decode.maybe dec |> Decode.map (Maybe.withDefault value)
 
 
 gamepadDatabaseDecoder : Decoder Gamepad.Database

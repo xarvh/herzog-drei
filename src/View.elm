@@ -41,16 +41,16 @@ roundArcD radius startA endA =
     let
         -- https://stackoverflow.com/questions/5736398/how-to-calculate-the-svg-path-for-an-arc-of-a-circle
         startX =
-            radius * cos startA |> toString
+            radius * cos startA |> String.fromFloat
 
         startY =
-            radius * sin startA |> toString
+            radius * sin startA |> String.fromFloat
 
         endX =
-            radius * cos endA |> toString
+            radius * cos endA |> String.fromFloat
 
         endY =
-            radius * sin endA |> toString
+            radius * sin endA |> String.fromFloat
 
         largeArcFlag =
             if endA - startA <= pi then
@@ -58,10 +58,10 @@ roundArcD radius startA endA =
             else
                 "1"
 
-        r =
-            toString radius
+        rr =
+            String.fromFloat radius
     in
-    [ "M 0 0 L", startX, startY, "A", r, r, "0", largeArcFlag, "0", endX, endY ]
+    [ "M 0 0 L", startX, startY, "A", rr, rr, "0", largeArcFlag, "0", endX, endY ]
         |> String.join " "
         |> d
 
@@ -71,12 +71,12 @@ roundArcD radius startA endA =
 
 
 vecToString : Vec2 -> String
-vecToString v =
+vecToString vector =
     let
-        ( x, y ) =
-            Vec2.toTuple v
+        v =
+            Vec2.toRecord vector
     in
-    toString x ++ "," ++ toString y
+    String.fromFloat v.x ++ "," ++ String.fromFloat v.y
 
 
 
@@ -111,18 +111,18 @@ translate v =
 
 
 translate2 : Float -> Float -> String
-translate2 x y =
-    "translate(" ++ toString x ++ "," ++ toString y ++ ")"
+translate2 xx yy =
+    "translate(" ++ String.fromFloat xx ++ "," ++ String.fromFloat yy ++ ")"
 
 
 scale : Float -> String
 scale s =
-    "scale(" ++ toString s ++ ")"
+    "scale(" ++ String.fromFloat s ++ ")"
 
 
 scale2 : Float -> Float -> String
-scale2 x y =
-    "scale(" ++ toString x ++ "," ++ toString y ++ ")"
+scale2 xx yy =
+    "scale(" ++ String.fromFloat xx ++ "," ++ String.fromFloat yy ++ ")"
 
 
 rotateRad : Angle -> String
@@ -132,7 +132,7 @@ rotateRad angle =
 
 rotateDeg : Angle -> String
 rotateDeg angleInDeg =
-    "rotate(" ++ toString -angleInDeg ++ ")"
+    "rotate(" ++ String.fromFloat -angleInDeg ++ ")"
 
 
 
@@ -149,12 +149,12 @@ stroke =
 
 strokeWidth : Float -> Svg.Attribute a
 strokeWidth =
-    toString >> Svg.Attributes.strokeWidth
+    String.fromFloat >> Svg.Attributes.strokeWidth
 
 
 opacity : Float -> Svg.Attribute a
 opacity =
-    toString >> Svg.Attributes.opacity
+    String.fromFloat >> Svg.Attributes.opacity
 
 
 
@@ -167,64 +167,64 @@ d =
 
 x : Float -> Svg.Attribute a
 x =
-    toString >> Svg.Attributes.x
+    String.fromFloat >> Svg.Attributes.x
 
 
 y : Float -> Svg.Attribute a
 y =
-    toString >> Svg.Attributes.y
+    String.fromFloat >> Svg.Attributes.y
 
 
 x1 : Float -> Svg.Attribute a
 x1 =
-    toString >> Svg.Attributes.x1
+    String.fromFloat >> Svg.Attributes.x1
 
 
 y1 : Float -> Svg.Attribute a
 y1 =
-    toString >> Svg.Attributes.y1
+    String.fromFloat >> Svg.Attributes.y1
 
 
 x2 : Float -> Svg.Attribute a
 x2 =
-    toString >> Svg.Attributes.x2
+    String.fromFloat >> Svg.Attributes.x2
 
 
 y2 : Float -> Svg.Attribute a
 y2 =
-    toString >> Svg.Attributes.y2
+    String.fromFloat >> Svg.Attributes.y2
 
 
 r : Float -> Svg.Attribute a
 r =
-    toString >> Svg.Attributes.r
+    String.fromFloat >> Svg.Attributes.r
 
 
 rx : Float -> Svg.Attribute a
 rx =
-    toString >> Svg.Attributes.rx
+    String.fromFloat >> Svg.Attributes.rx
 
 
 ry : Float -> Svg.Attribute a
 ry =
-    toString >> Svg.Attributes.ry
+    String.fromFloat >> Svg.Attributes.ry
 
 
 cx : Float -> Svg.Attribute a
 cx =
-    toString >> Svg.Attributes.cx
+    String.fromFloat >> Svg.Attributes.cx
 
 
 cy : Float -> Svg.Attribute a
 cy =
-    toString >> Svg.Attributes.cy
+    String.fromFloat >> Svg.Attributes.cy
 
 
 width : Float -> Svg.Attribute a
 width =
-    toString >> Svg.Attributes.width
+    String.fromFloat >> Svg.Attributes.width
 
 
 height : Float -> Svg.Attribute a
 height =
-    toString >> Svg.Attributes.height
+    String.fromFloat >> Svg.Attributes.height

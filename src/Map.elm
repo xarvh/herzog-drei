@@ -76,7 +76,7 @@ validate map =
 
         tilesToString : List Tile2 -> String
         tilesToString tiles =
-            tiles |> List.map Basics.toString |> String.join ", "
+            tiles |> List.map Debug.toString |> String.join ", "
 
         bases : BaseType -> List Tile2
         bases baseType =
@@ -119,7 +119,7 @@ validate map =
 
 tileEncoder : Tile2 -> Value
 tileEncoder ( x, y ) =
-    Encode.list [ Encode.int x, Encode.int y ]
+    Encode.list Encode.int [ x, y ]
 
 
 tileDecoder : Decoder Tile2
@@ -138,7 +138,7 @@ tileDecoder =
 
 setOfTilesEncoder : Set Tile2 -> Value
 setOfTilesEncoder tiles =
-    tiles |> Set.toList |> List.map tileEncoder |> Encode.list
+    tiles |> Encode.set tileEncoder
 
 
 setOfTilesDecoder : Decoder (Set Tile2)
@@ -151,8 +151,7 @@ encodeBases baseType map =
     map.bases
         |> Dict.filter (\tile type_ -> type_ == baseType)
         |> Dict.keys
-        |> List.map tileEncoder
-        |> Encode.list
+        |> Encode.list tileEncoder
 
 
 mapEncoder : Map -> Value
@@ -248,4 +247,4 @@ mapDecoder =
 
 fromString : String -> Result String Map
 fromString json =
-    Decode.decodeString mapDecoder json
+    Decode.decodeString mapDecoder json |> Result.mapError Decode.errorToString

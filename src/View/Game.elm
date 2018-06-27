@@ -10,7 +10,6 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 import SetupPhase
 import SplitScreen exposing (Viewport)
-import String.Extra
 import Svg exposing (..)
 import Svg.Attributes
 import Svg.Lazy
@@ -313,7 +312,7 @@ wall ( xi, yi ) =
             5 * c
 
         color =
-            (1 + d) / 4 * 255 |> floor |> toString
+            (1 + d) / 4 * 255 |> floor |> String.fromInt
     in
     Svg.rect
         [ transform [ translate2 (xf + 0.5) (yf + 0.5), rotateDeg rot ]
@@ -352,7 +351,8 @@ viewVictory game =
                 , Svg.Attributes.y "-0.2"
                 , textNotSelectable
                 ]
-                [ String.Extra.toTitleCase pattern.key ++ " wins!" |> text ]
+                --TODO [ String.Extra.toTitleCase pattern.key ++ " wins!" |> text ]
+                [ pattern.key ++ " wins!" |> text ]
 
 
 

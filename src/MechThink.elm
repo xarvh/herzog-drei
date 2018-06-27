@@ -86,7 +86,7 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
             if currentInput.rally && not previousInput.rally then
                 case game.mode of
                     GameModeTeamSelection _ ->
-                        (\mech -> { mech | class = nextClass mech.class })
+                        (\m -> { m | class = nextClass m.class })
                             |> Game.updateMech
                             |> deltaUnit unit.id
 
@@ -153,8 +153,8 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
                     (+)
 
         transform =
-            (\mech ->
-                { mech
+            (\m ->
+                { m
                     | transformingTo = transformingTo
                     , transformState = clamp 0 1 (transformDirection mech.transformState (dt / transformTime))
                 }
@@ -549,13 +549,13 @@ walk dp game unit =
                 else
                     oY + 1.99
 
-            ( iX, iY ) =
-                Vec2.toTuple idealPosition
+            i =
+                Vec2.toRecord idealPosition
 
             fX =
-                clamp minX maxX iX
+                clamp minX maxX i.x
 
             fY =
-                clamp minY maxY iY
+                clamp minY maxY i.y
         in
         vec2 fX fY

@@ -86,7 +86,7 @@ update msg model =
                             noCmd { model | maybeRemap = Just newRemap }
 
                         Gamepad.Remap.Error message ->
-                            Debug.crash message
+                            Debug.todo message
 
                         Gamepad.Remap.UpdateDatabase updateDatabase ->
                             ( { model | maybeRemap = Nothing }, Just updateDatabase )
@@ -154,8 +154,8 @@ getterToState gamepad getter =
 
 
 destinationState : Gamepad -> Destination -> Bool
-destinationState gamepad destination =
-    case List.Extra.find (\( dest, getter ) -> dest == destination) getters of
+destinationState gamepad d =
+    case List.Extra.find (\( dest, getter ) -> dest == d) getters of
         Nothing ->
             False
 
@@ -191,7 +191,7 @@ viewGamepadWithIndex db model blob index =
     in
     li
         []
-        [ "Gamepad #" ++ toString (index + 1) |> text
+        [ "Gamepad #" ++ String.fromInt (index + 1) |> text
         , text " "
         , text <|
             case maybeRecognised of

@@ -5,10 +5,15 @@ import Html.Attributes
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (Attribute)
 import Svg.Attributes
-import Window
 
 
 -- Types
+
+
+type alias Size =
+    { width : Int
+    , height : Int
+    }
 
 
 type alias Rect a =
@@ -36,6 +41,15 @@ defaultViewport =
 
 
 
+--
+
+
+style : List ( String, String ) -> List (Html.Attribute a)
+style tuples =
+    List.map (\( k, v ) -> Html.Attributes.style k v) tuples
+
+
+
 -- Size
 
 
@@ -58,31 +72,31 @@ isWithinViewport : Viewport -> Vec2 -> Float -> (Vec2 -> Float -> Bool)
 isWithinViewport viewport centeredOn minSizeInGameUnits =
     let
         -- center coordinates
-        ( cx, cy ) =
-            Vec2.toTuple centeredOn
+        c =
+            Vec2.toRecord centeredOn
 
         -- half size
         ( hw, hh ) =
             viewportSizeInGameUnits viewport (minSizeInGameUnits / 2)
 
         minX =
-            cx - hw
+            c.x - hw
 
         maxX =
-            cx + hw
+            c.x + hw
 
         minY =
-            cy - hh
+            c.x - hh
 
         maxY =
-            cy + hh
+            c.x + hh
 
         test position r =
             let
-                ( px, py ) =
-                    Vec2.toTuple position
+                p =
+                    Vec2.toRecord position
             in
-            (px < maxX + r) && (px > minX - r) && (py < maxY + r) && (py > minY - r)
+            (p.x < maxX + r) && (p.x > minX - r) && (p.y < maxY + r) && (p.y > minY - r)
     in
     test
 
@@ -150,32 +164,31 @@ viewportToViewBox viewport =
             pixelH / minSize
     in
     [ -w / 2, -h / 2, w, h ]
-        |> List.map toString
+        |> List.map String.fromFloat
         |> String.join " "
         |> Svg.Attributes.viewBox
 
 
 viewportToStyle : Viewport -> List ( String, String )
 viewportToStyle viewport =
-    [ ( "width", toString viewport.w ++ "px" )
-    , ( "height", toString viewport.h ++ "px" )
-    , ( "left", toString viewport.x ++ "px" )
-    , ( "top", toString viewport.y ++ "px" )
+    [ ( "width", String.fromInt viewport.w ++ "px" )
+    , ( "height", String.fromInt viewport.h ++ "px" )
+    , ( "left", String.fromInt viewport.x ++ "px" )
+    , ( "top", String.fromInt viewport.y ++ "px" )
     ]
 
 
 viewportToSvgAttributes : Viewport -> List (Svg.Attribute a)
 viewportToSvgAttributes viewport =
-    [ Html.Attributes.style (viewportToStyle viewport)
-    , viewportToViewBox viewport
-    ]
+    viewportToViewBox viewport
+        :: style (viewportToStyle viewport)
 
 
 
 -- Viewports
 
 
-cellToViewport : Window.Size -> Cell -> Viewport
+cellToViewport : Size -> Cell -> Viewport
 cellToViewport window { x, y, w, h } =
     { x = floor <| x * toFloat window.width
     , y = floor <| y * toFloat window.height
@@ -203,7 +216,7 @@ makeRowCells rowHeight rowIndex numberOfColumns =
     List.range 0 (numberOfColumns - 1) |> List.map columnIndexToCell
 
 
-makeViewports : Window.Size -> Int -> List Viewport
+makeViewports : Size -> Int -> List Viewport
 makeViewports windowSize numberOfPlayers =
     {- TODO
        * Drop the assumption that screens are landscape
@@ -257,10 +270,9 @@ makeViewports windowSize numberOfPlayers =
 
 viewportsWrapper : List (Html a) -> Html a
 viewportsWrapper =
-    Html.div
-        [ Html.Attributes.style
-            [ ( "width", "100vw" )
-            , ( "height", "100vh" )
-            , ( "overflow", "hidden" )
-            ]
-        ]
+    [ ( "width", "100vw" )
+    , ( "height", "100vh" )
+    , ( "overflow", "hidden" )
+    ]
+        |> style
+        |> Html.div
