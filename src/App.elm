@@ -24,6 +24,7 @@ import Set exposing (Set)
 import Shell exposing (Shell, WindowSize)
 import SplitScreen exposing (Viewport)
 import Task
+import View.Game
 
 
 type alias Flags =
@@ -160,10 +161,9 @@ makeViewport windowSize =
 type Msg
     = Noop
       -- Menu buttons
+    | OnStartGame ValidatedMap
     | OnMenuButton String
     | OnSelectButton String
-    | OnStartGame ValidatedMap
-      -- Map Import
     | OnImportString String
       -- TEA children
     | OnMainSceneMsg MainScene.Msg
@@ -192,11 +192,7 @@ update msg model =
             noCmd model
 
         OnStartGame map ->
-            { model
-                | scene = SceneMain SubSceneGameplay <| MainScene.initTeamSelection model.seed map
-                , maybeMenu = Nothing
-            }
-                |> noCmd
+            updateStartGame map model
 
         OnImportString mapAsJson ->
             case model.maybeMenu of
@@ -287,10 +283,18 @@ updateOnImportString mapAsJson importModel model =
 updateOnKeyUp : String -> Model -> ( Model, Cmd Msg )
 updateOnKeyUp keyName model =
     case keyName of
+        -- previous
         "ArrowUp" ->
             menuSelectPrevButton model |> noCmd
 
+        "ArrowLeft" ->
+            menuSelectPrevButton model |> noCmd
+
+        -- next
         "ArrowDown" ->
+            menuSelectNextButton model |> noCmd
+
+        "ArrowRight" ->
             menuSelectNextButton model |> noCmd
 
         -- back
@@ -300,13 +304,7 @@ updateOnKeyUp keyName model =
         "Backspace" ->
             menuBack model
 
-        "ArrowLeft" ->
-            menuBack model
-
         -- "updateOnButton"
-        "ArrowRight" ->
-            updateOnButton model.selectedButtonName model
-
         "Enter" ->
             updateOnButton model.selectedButtonName model
 
@@ -328,9 +326,15 @@ updateOnKeyUp keyName model =
 
 type alias MenuButton =
     { name : String
+    , view : MenuButtonView
     , isVisible : Bool
     , update : Model -> ( Model, Cmd Msg )
     }
+
+
+type MenuButtonView
+    = MenuButtonLabel
+    | MenuButtonMap ValidatedMap
 
 
 menuButtons : Model -> List MenuButton
@@ -340,8 +344,43 @@ menuButtons model =
             Just MenuMain ->
                 mainMenuButtons model
 
+            Just MenuMapSelection ->
+                mapSelectionMenuButtons model
+
             _ ->
                 []
+
+
+mapSelectionMenuButtons : Model -> List MenuButton
+mapSelectionMenuButtons model =
+    let
+        mapToButton index map =
+            { name = "map " ++ String.fromInt index
+            , view = MenuButtonMap map
+            , isVisible = True
+            , update = updateStartGame map
+            }
+
+        maps =
+            OfficialMaps.maps |> List.indexedMap mapToButton
+
+        importButton =
+            { name = "Import..."
+            , view = MenuButtonLabel
+            , isVisible = True
+            , update = menuNav (MenuImportMap { importString = "", mapResult = Err "" })
+            }
+    in
+    maps ++ [ importButton ]
+
+
+updateStartGame : ValidatedMap -> Model -> ( Model, Cmd Msg )
+updateStartGame map model =
+    noCmd
+        { model
+            | scene = SceneMain SubSceneGameplay <| MainScene.initTeamSelection model.seed map
+            , maybeMenu = Nothing
+        }
 
 
 mainMenuButtons : Model -> List MenuButton
@@ -371,49 +410,58 @@ mainMenuButtons model =
     in
     -- Game
     [ { name = "Play"
+      , view = MenuButtonLabel
       , isVisible = isDemo
       , update = menuNav MenuMapSelection
       }
     , { name = "Play again"
+      , view = MenuButtonLabel
       , isVisible = isPlaying && isFinished
       , update = menuNav MenuMapSelection
       }
     , { name = "Resume"
+      , view = MenuButtonLabel
       , isVisible = isPlaying && not isFinished
       , update = menuBack
       }
     , { name = "How to play"
+      , view = MenuButtonLabel
       , isVisible = True
       , update = menuBack
       }
 
     -- Map editor
     , { name = "Map Editor"
+      , view = MenuButtonLabel
       , isVisible = isDemo
       , update = menuOpenMapEditor
       }
 
     -- Config
     , { name = "Settings"
+      , view = MenuButtonLabel
       , isVisible = isDemo
       , update = menuNav MenuSettings
       }
     , { name = "Gamepads"
+      , view = MenuButtonLabel
       , isVisible = isDemo
-      , update = menuNav <| MenuGamepads <| Remap.init <| gamepadButtonMap
-      }
-
-    -- Back
-    , { name = "Back"
-      , isVisible = not isMainMenu
       , update = menuNav <| MenuGamepads <| Remap.init <| gamepadButtonMap
       }
     ]
 
 
 menuNav : Menu -> Model -> ( Model, Cmd Msg )
-menuNav menu model =
-    noCmd { model | maybeMenu = Just menu }
+menuNav menu oldModel =
+    let
+        newModel =
+            { oldModel | maybeMenu = Just menu }
+    in
+    noCmd <|
+        if findButton newModel.selectedButtonName newModel == Nothing then
+            menuSelectFirstButton newModel
+        else
+            newModel
 
 
 menuOpenMapEditor : Model -> ( Model, Cmd Msg )
@@ -443,9 +491,14 @@ menuBack model =
             noCmd { model | maybeMenu = Just MenuMain }
 
 
+findButton : String -> Model -> Maybe MenuButton
+findButton buttonName model =
+    List.Extra.find (\button -> button.name == buttonName) (menuButtons model)
+
+
 updateOnButton : String -> Model -> ( Model, Cmd Msg )
 updateOnButton buttonName model =
-    case List.Extra.find (\button -> button.name == buttonName) (menuButtons model) of
+    case findButton buttonName model of
         Nothing ->
             noCmd model
 
@@ -602,33 +655,26 @@ viewMenu menu model =
             [ case menu of
                 MenuMain ->
                     menuButtons model
-                        |> List.map (viewMenuButton model.selectedButtonName)
+                        |> List.map (viewMenuButton model)
                         |> div [ class "flex flexColumn" ]
 
                 MenuMapSelection ->
                     div
                         []
                         [ section
-                            []
-                            [ div [] [ text "Select map:" ]
-                            , div []
-                                [ OfficialMaps.maps
-                                    |> List.map viewMapItem
-                                    |> div []
-                                ]
+                            [ class "flex flexColumn alignCenter" ]
+                            [ div [] [ text "Select map" ]
+                            , menuButtons model
+                                |> List.filter (\b -> b.view /= MenuButtonLabel)
+                                |> List.map (viewMenuButton model)
+                                |> div [ class "map-selection" ]
                             ]
                         , section
-                            []
-                            [{- button
-                                [ { importString = ""
-                                  , mapResult = Err ""
-                                  }
-                                    |> MenuImportMap
-                                    |> OnMenuNav
-                                    |> onClick
-                                ]
-                                [ text "Import..." ]
-                             -}
+                            [ class "flex justifyCenter" ]
+                            [ menuButtons model
+                                |> List.filter (\b -> b.view == MenuButtonLabel)
+                                |> List.map (viewMenuButton model)
+                                |> div []
                             ]
                         ]
 
@@ -706,39 +752,67 @@ viewMenu menu model =
         ]
 
 
-viewButton : Bool -> String -> Msg -> Html Msg
-viewButton isSelected name msg =
+viewMenuButton : Model -> MenuButton -> Html Msg
+viewMenuButton model b =
     let
+        isSelected =
+            b.name == model.selectedButtonName
+
         borderColor =
             if isSelected then
                 "black"
             else
                 "transparent"
+
+        ( className, content ) =
+            case b.view of
+                MenuButtonLabel ->
+                    ( "label", text b.name )
+
+                MenuButtonMap map ->
+                    ( "map-preview", viewMapPreview model map )
     in
     div
         [ class "menu-button"
         , style "border" ("3px solid " ++ borderColor)
         ]
         [ button
-            [ onClick msg
-            , onFocus (OnSelectButton name)
+            [ onClick (OnMenuButton b.name)
+            , onFocus (OnSelectButton b.name)
+            , class className
             ]
-            [ text name ]
+            [ content ]
         ]
 
 
-viewMenuButton : String -> MenuButton -> Html Msg
-viewMenuButton selectedButtonName { name } =
-    viewButton (name == selectedButtonName) name (OnMenuButton name)
+viewMapPreview : Model -> ValidatedMap -> Html Msg
+viewMapPreview model map =
+    let
+        width =
+            model.windowSize.width // 6
 
+        size =
+            { width = width
+            , height = 2 * width // 3
+            }
 
-viewMapItem : ValidatedMap -> Html Msg
-viewMapItem map =
+        viewport =
+            SplitScreen.makeViewports size 1
+                |> List.head
+                |> Maybe.withDefault SplitScreen.defaultViewport
+
+        mmmap =
+            { name = map.name
+            , author = map.author
+            , halfWidth = map.halfWidth
+            , halfHeight = map.halfHeight
+            , bases = map.smallBases |> Set.toList |> List.map (\tile -> ( tile, Game.BaseSmall )) |> Dict.fromList
+            , wallTiles = map.wallTiles
+            }
+    in
     div
         []
-        [ button [ onClick (OnStartGame map) ] [ text map.name ]
-        , span [] [ text <| " by " ++ map.author ]
-        ]
+        [ View.Game.viewMap [] viewport mmmap ]
 
 
 

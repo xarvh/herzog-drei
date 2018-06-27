@@ -109,16 +109,31 @@ body, button {
 
 .menu-button {
   margin: 0.5em;
-  width: 20vw;
 }
 
-.menu-button button {
+.menu-button > * {
   outline: none;
   width: 100%;
-  padding: 1em;
   text-align: center;
   background-color: transparent;
   border: none;
+}
+
+.menu-button .label {
+  width: 20vw;
+  padding: 1em;
+}
+
+.menu-button .map-preview {
+}
+
+
+.map-selection {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 80vw;
+  max-height: 80vh;
+  overflow-y: auto;
 }
 
 
