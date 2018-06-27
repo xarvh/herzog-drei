@@ -1,13 +1,13 @@
 module MapEditor exposing (..)
 
--- import Keyboard
-
 import Base
+import Browser.Events
 import Dict exposing (Dict)
 import Game exposing (..)
 import Html exposing (..)
 import Html.Attributes as SA exposing (..)
 import Html.Events exposing (onBlur, onClick, onFocus, onInput)
+import Input
 import List.Extra
 import Map exposing (Map)
 import Random
@@ -77,10 +77,11 @@ type Msg
     | OnMapClick
     | OnMouseButton Bool
     | OnMouseClick
+    | OnMouseMoves Int Int
     | OnSwitchSymmetry Symmetry
     | OnSwitchMode EditMode
     | OnChangeSize Dimension String
-    | OnKeyPress Int --Keyboard.KeyCode
+    | OnKeyPress String
     | OnTextInput TextInputField String
     | OnTextBlur
 
@@ -248,8 +249,9 @@ update msg shell model =
         OnMapClick ->
             noCmd model
 
-        --OnMouseMoves mousePosition ->
-        --    updateOnMouseMove mousePosition shell model |> noCmd
+        OnMouseMoves x y ->
+            updateOnMouseMove { x = x, y = y } shell model |> noCmd
+
         OnMouseClick ->
             case model.editMode of
                 EditWalls _ ->
@@ -295,9 +297,9 @@ update msg shell model =
         OnSwitchMode mode ->
             noCmd { model | editMode = mode }
 
-        OnKeyPress keyCode ->
-            case keyCode of
-                32 ->
+        OnKeyPress keyName ->
+            case keyName of
+                "Escape" ->
                     noCmd
                         { model
                             | editMode =
@@ -593,16 +595,10 @@ view shell model =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
-
-
-
-{-
-   Sub.batch
-       [ Mouse.moves OnMouseMoves
-       , Mouse.downs (\_ -> OnMouseButton True)
-       , Mouse.ups (\_ -> OnMouseButton False)
-       , Mouse.clicks (\_ -> OnMouseClick)
-       , Keyboard.ups OnKeyPress
-       ]
--}
+    Sub.batch
+        [ Browser.Events.onClick (Input.always OnMouseClick)
+        , Browser.Events.onMouseDown (Input.always <| OnMouseButton True)
+        , Browser.Events.onMouseUp (Input.always <| OnMouseButton False)
+        , Browser.Events.onMouseMove (Input.mouseMoveDecoder OnMouseMoves)
+        , Browser.Events.onKeyUp (Input.keyboardDecoder OnKeyPress)
+        ]

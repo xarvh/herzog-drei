@@ -5,6 +5,11 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 
 
+always : a -> Decoder a
+always =
+    Json.Decode.succeed
+
+
 mouseMoveDecoder : (Int -> Int -> msg) -> Decoder msg
 mouseMoveDecoder msg =
     Json.Decode.map2 msg

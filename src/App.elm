@@ -584,8 +584,8 @@ subscriptions model =
         [ Browser.Events.onKeyDown (Input.keyboardDecoder OnKeyDown)
         , Browser.Events.onKeyUp (Input.keyboardDecoder OnKeyUp)
         , Browser.Events.onVisibilityChange OnVisibilityChange
-        , Browser.Events.onMouseDown (OnMouseButton True |> Json.Decode.succeed)
-        , Browser.Events.onMouseUp (OnMouseButton False |> Json.Decode.succeed)
+        , Browser.Events.onMouseDown (OnMouseButton True |> Input.always)
+        , Browser.Events.onMouseUp (OnMouseButton False |> Input.always)
         , Browser.Events.onMouseMove (Input.mouseMoveDecoder OnMouseMoves)
         , Browser.Events.onResize OnWindowResizes
         , case model.maybeMenu of
