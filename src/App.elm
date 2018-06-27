@@ -287,16 +287,38 @@ updateOnImportString mapAsJson importModel model =
 updateOnKeyUp : String -> Model -> ( Model, Cmd Msg )
 updateOnKeyUp keyName model =
     case keyName of
-        "Escape" ->
-            menuBack model
-
         "ArrowUp" ->
             menuSelectPrevButton model |> noCmd
 
         "ArrowDown" ->
             menuSelectNextButton model |> noCmd
 
+        -- back
+        "Escape" ->
+            menuBack model
+
+        "Backspace" ->
+            menuBack model
+
+        "ArrowLeft" ->
+            menuBack model
+
+        -- "updateOnButton"
+        "ArrowRight" ->
+            updateOnButton model.selectedButtonName model
+
+        "Enter" ->
+            updateOnButton model.selectedButtonName model
+
+        " " ->
+            updateOnButton model.selectedButtonName model
+
+        -- ignore
         _ ->
+            let
+                _ =
+                    Debug.log "key" keyName
+            in
             noCmd model
 
 
