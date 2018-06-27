@@ -400,13 +400,13 @@ mainMenuButtons model =
                 _ ->
                     False
 
-        isPlaying =
+        ( isPlaying, isFinished ) =
             case model.scene of
-                SceneMain SubSceneGameplay _ ->
-                    True
+                SceneMain subScene scene ->
+                    ( subScene == SubSceneGameplay, scene.game.maybeWinnerTeamId /= Nothing )
 
                 _ ->
-                    False
+                    (False, False)
 
         isMapEditor =
             case model.scene of
@@ -415,9 +415,6 @@ mainMenuButtons model =
 
                 _ ->
                     False
-
-        isFinished =
-            False
 
         isMainMenu =
             model.maybeMenu == Just MenuMain
