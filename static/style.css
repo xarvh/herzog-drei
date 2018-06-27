@@ -100,13 +100,41 @@ body, button {
 .menu {
   background-color: white;
   border: 1px solid black;
-  min-width: 18em;
+  min-width: 20vw;
 }
 
 .menu * + section {
   margin-top: 2em;
 }
 
+.menu-button {
+  margin: 0.5em;
+}
+
+.menu-button > * {
+  outline: none;
+  width: 100%;
+  text-align: center;
+  background-color: transparent;
+  border: none;
+}
+
+.menu-button .label {
+  width: 20vw;
+  padding: 1em;
+}
+
+.menu-button .map-preview {
+}
+
+
+.map-selection {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 80vw;
+  max-height: 80vh;
+  overflow-y: auto;
+}
 
 
 /* Text animation */
