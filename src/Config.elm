@@ -8,6 +8,7 @@ import Json.Encode as Encode
 type alias Config =
     { gamepadDatabase : Gamepad.Database
     , useKeyboardAndMouse : Bool
+    , showFps : Bool
     }
 
 
@@ -15,6 +16,7 @@ default : Config
 default =
     { gamepadDatabase = Gamepad.emptyDatabase
     , useKeyboardAndMouse = True
+    , showFps = False
     }
 
 
@@ -43,9 +45,10 @@ gamepadDatabaseDecoder =
 
 decoder : Decoder Config
 decoder =
-    Decode.map2 Config
+    Decode.map3 Config
         (Decode.field "gamepadDatabase" gamepadDatabaseDecoder |> withDefault default.gamepadDatabase)
         (Decode.field "useKeyboardAndMouse" Decode.bool |> withDefault default.useKeyboardAndMouse)
+        (Decode.field "showFps" Decode.bool |> withDefault default.showFps)
 
 
 fromString : String -> Config
@@ -67,6 +70,7 @@ encoder config =
     Encode.object
         [ ( "gamepadDatabase", Encode.string (Gamepad.databaseToString config.gamepadDatabase) )
         , ( "useKeyboardAndMouse", Encode.bool config.useKeyboardAndMouse )
+        , ( "showFps", Encode.bool config.showFps )
         ]
 
 

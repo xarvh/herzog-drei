@@ -408,7 +408,7 @@ view shell model =
         [ SplitScreen.viewportsWrapper
             [ View.Game.view model.terrain shell.viewport model.game ]
         ]
-    , if Dict.member "fps" shell.params then
+    , if shell.config.showFps then
         div
             [ class "fps nonSelectable" ]
             [ text ("FPS " ++ String.fromInt fps) ]

@@ -177,8 +177,6 @@ type Msg
     | OnKeyDown String
     | OnKeyUp String
     | OnVisibilityChange Browser.Events.Visibility
-      -- Config
-    | OnToggleKeyboardAndMouse
 
 
 noCmd : Model -> ( Model, Cmd Msg )
@@ -261,10 +259,6 @@ update msg model =
                 _ ->
                     noCmd model
 
-        -- Config
-        OnToggleKeyboardAndMouse ->
-            model |> updateConfig (\config -> { config | useKeyboardAndMouse = not config.useKeyboardAndMouse })
-
 
 updateOnImportString : String -> ImportModel -> Model -> Model
 updateOnImportString mapAsJson importModel model =
@@ -333,6 +327,7 @@ type alias MenuButton =
 type MenuButtonView
     = MenuButtonLabel
     | MenuButtonMap ValidatedMap
+    | MenuButtonToggle (Model -> Bool)
 
 
 menuButtons : Model -> List MenuButton
@@ -353,8 +348,32 @@ menuButtons model =
                   }
                 ]
 
+            Just MenuSettings ->
+                menuSettingsButtons model
+
             _ ->
                 []
+
+
+menuSettingsButtons : Model -> List MenuButton
+menuSettingsButtons model =
+    [ -- TODO: move this in the "gamepads" menu? Or disable it?
+      { name = "Use Keyboard & Mouse"
+      , view = MenuButtonToggle (.config >> .useKeyboardAndMouse)
+      , isVisible = True
+      , update = updateConfigFlag .useKeyboardAndMouse (\v c -> { c | useKeyboardAndMouse = v })
+      }
+    , { name = "Show Frames per Second"
+      , view = MenuButtonToggle (.config >> .showFps)
+      , isVisible = True
+      , update = updateConfigFlag .showFps (\v c -> { c | showFps = v })
+      }
+    ]
+
+
+updateConfigFlag : (Config -> Bool) -> (Bool -> Config -> Config) -> Model -> ( Model, Cmd Msg )
+updateConfigFlag getter setter model =
+    updateConfig (\config -> setter (getter config |> not) config) model
 
 
 mapSelectionMenuButtons : Model -> List MenuButton
@@ -406,7 +425,7 @@ mainMenuButtons model =
                     ( subScene == SubSceneGameplay, scene.game.maybeWinnerTeamId /= Nothing )
 
                 _ ->
-                    (False, False)
+                    ( False, False )
 
         isMapEditor =
             case model.scene of
@@ -659,147 +678,118 @@ view model =
                 text ""
 
             Just menu ->
-                viewMenu menu model
+                div
+                    [ class "fullWindow bgOpaque flex alignCenter justifyCenter"
+                    ]
+                    [ div
+                        [ class "menu p2" ]
+                        [ viewMenu menu model ]
+                    ]
         ]
 
 
 viewMenu : Menu -> Model -> Html Msg
 viewMenu menu model =
-    div
-        [ class "fullWindow bgOpaque flex alignCenter justifyCenter"
-        ]
-        [ div
-            [ class "menu p2" ]
-            [ case menu of
-                MenuMain ->
-                    div
-                        [ class "flex flexColumn alignCenter" ]
-                        [ div [ class "mb2" ] [ text "Press Esc or ▶ (Start) to toggle Menu" ]
-                        , menuButtons model
-                            |> List.map (viewMenuButton model)
-                            |> div [ class "flex flexColumn" ]
-                        ]
+    case menu of
+        MenuMain ->
+            div
+                [ class "flex flexColumn alignCenter" ]
+                [ div [ class "mb2" ] [ text "Press Esc or ▶ (Start) to toggle Menu" ]
+                , menuButtons model
+                    |> List.map (viewMenuButton model)
+                    |> div [ class "flex flexColumn" ]
+                ]
 
-                MenuMapSelection ->
-                    div
+        MenuMapSelection ->
+            div
+                []
+                [ section
+                    [ class "flex flexColumn alignCenter" ]
+                    [ div [] [ text "Select map" ]
+                    , menuButtons model
+                        |> List.filter (\b -> b.view /= MenuButtonLabel)
+                        |> List.map (viewMenuButton model)
+                        |> div [ class "map-selection" ]
+                    ]
+                , section
+                    [ class "flex justifyCenter" ]
+                    [ menuButtons model
+                        |> List.filter (\b -> b.view == MenuButtonLabel)
+                        |> List.map (viewMenuButton model)
+                        |> div []
+                    ]
+                ]
+
+        MenuImportMap { importString, mapResult } ->
+            section
+                []
+                [ label [] [ text "Import a map from JSON" ]
+                , div []
+                    [ textarea
+                        [ value importString
+                        , onInput OnImportString
+                        ]
                         []
-                        [ section
-                            [ class "flex flexColumn alignCenter" ]
-                            [ div [] [ text "Select map" ]
-                            , menuButtons model
-                                |> List.filter (\b -> b.view /= MenuButtonLabel)
-                                |> List.map (viewMenuButton model)
-                                |> div [ class "map-selection" ]
-                            ]
-                        , section
-                            [ class "flex justifyCenter" ]
-                            [ menuButtons model
-                                |> List.filter (\b -> b.view == MenuButtonLabel)
-                                |> List.map (viewMenuButton model)
-                                |> div []
-                            ]
-                        ]
+                    ]
+                , case mapResult of
+                    Err message ->
+                        div
+                            [ class "red" ]
+                            [ text message ]
 
-                MenuImportMap { importString, mapResult } ->
-                    section
-                        []
-                        [ label [] [ text "Import a map from JSON" ]
-                        , div []
-                            [ textarea
-                                [ value importString
-                                , onInput OnImportString
-                                ]
-                                []
-                            ]
-                        , case mapResult of
-                            Err message ->
-                                div
-                                    [ class "red" ]
-                                    [ text message ]
+                    Ok map ->
+                        button
+                            [ onClick (OnStartGame map) ]
+                            [ text "Play on this map" ]
+                ]
 
-                            Ok map ->
-                                button
-                                    [ onClick (OnStartGame map) ]
-                                    [ text "Play on this map" ]
-                        ]
+        MenuHowToPlay ->
+            div
+                [ class "flex flexColumn alignCenter" ]
+                [ div [] [ text "> How to Play <" ]
+                , section
+                    []
+                    [ [ "Arrow keys or ASDW to move"
+                      , "Q to move the Rally point"
+                      , "E to transform"
+                      , "Click to fire"
+                      , "ESC to toggle the Menu"
+                      , "Your goal is to destroy all four drones guarding the main enemy base"
+                      , "Rally your drones close to an unoccupied base to conquer it"
+                      , "Conquered bases produce more drones and repair your mech"
+                      , "Drones inside bases are a lot hardier than free romaing ones"
+                      , "When a mech is destroyed, the enemy will produce three special drones"
+                      , "Special drones are very strong against other drones, but can't enter bases"
+                      ]
+                        |> List.map (\t -> li [] [ text t ])
+                        |> ul []
+                    ]
+                , section
+                    [ class "flex justifyCenter" ]
+                    [ menuButtons model
+                        |> List.map (viewMenuButton model)
+                        |> div []
+                    ]
+                ]
 
-                MenuHowToPlay ->
-                    div
-                        []
-                        [ section
-                            []
-                            [ [ "Arrow keys or ASDW to move"
-                              , "Q to move the Rally point"
-                              , "E to transform"
-                              , "Click to fire"
-                              , "ESC to toggle the Menu"
-                              , "Your goal is to destroy all four drones guarding the main enemy base"
-                              , "Rally your drones close to an unoccupied base to conquer it"
-                              , "Conquered bases produce more drones and repair your mech"
-                              , "Drones inside bases are a lot hardier than free romaing ones"
-                              , "When a mech is killed, the enemy will produce three special drones"
-                              , "Special drones are very strong against other drones, but can't enter bases"
-                              ]
-                                |> List.map (\t -> li [] [ text t ])
-                                |> ul []
-                            ]
-                        , section
-                            [ class "flex justifyCenter" ]
-                            [ menuButtons model
-                                |> List.map (viewMenuButton model)
-                                |> div []
-                            ]
-                        ]
+        MenuGamepads remap ->
+            div
+                [ class "flex flexColumn alignCenter" ]
+                [ div [ class "mb2" ] [ text "> Settings <" ]
+                , section
+                    []
+                    [ Remap.view model.config.gamepadDatabase remap |> Html.map OnRemapMsg
+                    ]
+                ]
 
-                MenuGamepads remap ->
-                    section
-                        []
-                        [ Remap.view model.config.gamepadDatabase remap |> Html.map OnRemapMsg
-                        ]
-
-                MenuSettings ->
-                    let
-                        noGamepads =
-                            False
-
-                        --TODO Remap.gamepadsCount model.remap == 0
-                        actuallyUseKeyboardAndMouse =
-                            noGamepads || model.config.useKeyboardAndMouse
-
-                        keyboardInstructionsClass =
-                            if actuallyUseKeyboardAndMouse then
-                                "gray"
-                            else
-                                "invisible"
-                    in
-                    div
-                        []
-                        [ section
-                            [ class "flex" ]
-                            [ input
-                                [ type_ "checkbox"
-                                , checked actuallyUseKeyboardAndMouse
-                                , disabled noGamepads
-                                , onClick OnToggleKeyboardAndMouse
-                                ]
-                                []
-                            , div
-                                [ class "ml1" ]
-                                [ div
-                                    [ class "mb1" ]
-                                    [ text "Use Keyboard & Mouse" ]
-                                , [ "ASDW: Move"
-                                  , "Q: Move units"
-                                  , "E: Transform"
-                                  , "Click: Fire"
-                                  ]
-                                    |> List.map (\t -> div [] [ text t ])
-                                    |> div [ class keyboardInstructionsClass ]
-                                ]
-                            ]
-                        ]
-            ]
-        ]
+        MenuSettings ->
+            div
+                [ class "flex flexColumn alignCenter" ]
+                [ div [ class "mb2" ] [ text "> Gamepads <" ]
+                , menuButtons model
+                    |> List.map (viewMenuButton model)
+                    |> div [ class "flex flexColumn" ]
+                ]
 
 
 viewMenuButton : Model -> MenuButton -> Html Msg
@@ -817,10 +807,13 @@ viewMenuButton model b =
         ( className, content ) =
             case b.view of
                 MenuButtonLabel ->
-                    ( "label", text b.name )
+                    ( "label", [ text b.name ] )
 
                 MenuButtonMap map ->
-                    ( "map-preview", viewMapPreview model map )
+                    ( "map-preview", [ viewMapPreview model map ] )
+
+                MenuButtonToggle getter ->
+                    ( "label flex justifyBetween", viewToggle b.name (getter model) )
     in
     div
         [ class "menu-button"
@@ -831,8 +824,24 @@ viewMenuButton model b =
             , onFocus (OnSelectButton b.name)
             , class className
             ]
-            [ content ]
+            content
         ]
+
+
+viewToggle : String -> Bool -> List (Html a)
+viewToggle label state =
+    [ span
+        []
+        [ text label ]
+    , span
+        []
+        [ text <|
+            if state then
+                "Yes"
+            else
+                "No"
+        ]
+    ]
 
 
 viewMapPreview : Model -> ValidatedMap -> Html Msg
