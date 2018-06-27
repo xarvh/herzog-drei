@@ -8,9 +8,10 @@ import Gamepad exposing (Database, Gamepad)
 import GamepadPort
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
+import Html.Events exposing (onClick, onFocus, onInput)
 import Input
 import Json.Decode exposing (Decoder)
+import List.Extra
 import LocalStoragePort
 import MainScene
 import Map
@@ -60,6 +61,7 @@ type Scene
 type alias Model =
     { scene : Scene
     , maybeMenu : Maybe Menu
+    , selectedButtonName : String
     , seed : Random.Seed
 
     -- env stuff
@@ -93,6 +95,7 @@ init params flags =
     noCmd
         { scene = scene
         , maybeMenu = Just MenuMain
+        , selectedButtonName = "Play"
         , seed = seed
 
         -- env stuff
@@ -157,14 +160,9 @@ makeViewport windowSize =
 type Msg
     = Noop
       -- Menu buttons
-    | OnMenuNav Menu
-    | OnMenuNavGamepads
-    | OnOpenMapEditor
-      --| OnMapEditorSave
-      --| OnMapEditorLoad
-      --| OnMapEditorPlay
+    | OnMenuButton String
+    | OnSelectButton String
     | OnStartGame ValidatedMap
-    | OnQuit
       -- Map Import
     | OnImportString String
       -- TEA children
@@ -200,13 +198,6 @@ update msg model =
             }
                 |> noCmd
 
-        OnQuit ->
-            let
-                ( scene, seed ) =
-                    demoScene model.seed
-            in
-            noCmd { model | scene = scene, seed = seed, maybeMenu = Nothing }
-
         OnImportString mapAsJson ->
             case model.maybeMenu of
                 Just (MenuImportMap importModel) ->
@@ -215,19 +206,11 @@ update msg model =
                 _ ->
                     noCmd model
 
-        -- Menu navigation
-        OnMenuNav menu ->
-            noCmd { model | maybeMenu = Just menu }
+        OnMenuButton buttonName ->
+            updateOnButton buttonName model
 
-        OnMenuNavGamepads ->
-            noCmd { model | maybeMenu = Just <| MenuGamepads <| Remap.init <| gamepadButtonMap }
-
-        OnOpenMapEditor ->
-            noCmd
-                { model
-                    | maybeMenu = Nothing
-                    , scene = SceneMapEditor MapEditor.init
-                }
+        OnSelectButton name ->
+            noCmd { model | selectedButtonName = name }
 
         -- Env stuff
         OnMouseButton state ->
@@ -303,18 +286,209 @@ updateOnImportString mapAsJson importModel model =
 
 updateOnKeyUp : String -> Model -> ( Model, Cmd Msg )
 updateOnKeyUp keyName model =
-    case ( keyName, model.maybeMenu ) of
-        ( "Escape", Just MenuMain ) ->
-            noCmd { model | maybeMenu = Nothing }
+    case keyName of
+        "Escape" ->
+            menuBack model
 
-        ( "Escape", Just (MenuImportMap _) ) ->
-            noCmd { model | maybeMenu = Just MenuMapSelection }
+        "ArrowUp" ->
+            menuSelectPrevButton model |> noCmd
 
-        ( "Escape", _ ) ->
-            noCmd { model | maybeMenu = Just MenuMain }
+        "ArrowDown" ->
+            menuSelectNextButton model |> noCmd
 
         _ ->
             noCmd model
+
+
+
+-- Menu
+
+
+type alias MenuButton =
+    { name : String
+    , isVisible : Bool
+    , update : Model -> ( Model, Cmd Msg )
+    }
+
+
+menuButtons : Model -> List MenuButton
+menuButtons model =
+    List.filter .isVisible <|
+        case model.maybeMenu of
+            Just MenuMain ->
+                mainMenuButtons model
+
+            _ ->
+                []
+
+
+mainMenuButtons : Model -> List MenuButton
+mainMenuButtons model =
+    let
+        isDemo =
+            case model.scene of
+                SceneMain SubSceneDemo _ ->
+                    True
+
+                _ ->
+                    False
+
+        isPlaying =
+            case model.scene of
+                SceneMain SubSceneGameplay _ ->
+                    True
+
+                _ ->
+                    False
+
+        isFinished =
+            False
+
+        isMainMenu =
+            model.maybeMenu == Just MenuMain
+    in
+    -- Game
+    [ { name = "Play"
+      , isVisible = isDemo
+      , update = menuNav MenuMapSelection
+      }
+    , { name = "Play again"
+      , isVisible = isPlaying && isFinished
+      , update = menuNav MenuMapSelection
+      }
+    , { name = "Resume"
+      , isVisible = isPlaying && not isFinished
+      , update = menuBack
+      }
+    , { name = "How to play"
+      , isVisible = True
+      , update = menuBack
+      }
+
+    -- Map editor
+    , { name = "Map Editor"
+      , isVisible = isDemo
+      , update = menuOpenMapEditor
+      }
+
+    -- Config
+    , { name = "Settings"
+      , isVisible = isDemo
+      , update = menuNav MenuSettings
+      }
+    , { name = "Gamepads"
+      , isVisible = isDemo
+      , update = menuNav <| MenuGamepads <| Remap.init <| gamepadButtonMap
+      }
+
+    -- Back
+    , { name = "Back"
+      , isVisible = not isMainMenu
+      , update = menuNav <| MenuGamepads <| Remap.init <| gamepadButtonMap
+      }
+    ]
+
+
+menuNav : Menu -> Model -> ( Model, Cmd Msg )
+menuNav menu model =
+    noCmd { model | maybeMenu = Just menu }
+
+
+menuOpenMapEditor : Model -> ( Model, Cmd Msg )
+menuOpenMapEditor model =
+    noCmd { model | maybeMenu = Nothing, scene = SceneMapEditor MapEditor.init }
+
+
+menuDemo : Model -> ( Model, Cmd Msg )
+menuDemo model =
+    let
+        ( scene, seed ) =
+            demoScene model.seed
+    in
+    noCmd { model | scene = scene, seed = seed, maybeMenu = Nothing }
+
+
+menuBack : Model -> ( Model, Cmd Msg )
+menuBack model =
+    case model.maybeMenu of
+        Just MenuMain ->
+            noCmd { model | maybeMenu = Nothing }
+
+        Just (MenuImportMap _) ->
+            noCmd { model | maybeMenu = Just MenuMapSelection }
+
+        _ ->
+            noCmd { model | maybeMenu = Just MenuMain }
+
+
+updateOnButton : String -> Model -> ( Model, Cmd Msg )
+updateOnButton buttonName model =
+    case List.Extra.find (\button -> button.name == buttonName) (menuButtons model) of
+        Nothing ->
+            noCmd model
+
+        Just button ->
+            button.update model
+
+
+selectButton : MenuButton -> Model -> Model
+selectButton button model =
+    { model | selectedButtonName = button.name }
+
+
+menuSelectFirstButton : Model -> Model
+menuSelectFirstButton model =
+    case menuButtons model of
+        [] ->
+            model
+
+        b :: bs ->
+            selectButton b model
+
+
+menuSelectLastButton : Model -> Model
+menuSelectLastButton model =
+    case menuButtons model |> List.reverse of
+        [] ->
+            model
+
+        b :: bs ->
+            selectButton b model
+
+
+menuSelectNextButton : Model -> Model
+menuSelectNextButton model =
+    let
+        maybeButton =
+            menuButtons model
+                |> List.Extra.dropWhile (\b -> b.name /= model.selectedButtonName)
+                |> List.drop 1
+                |> List.head
+    in
+    case maybeButton of
+        Nothing ->
+            menuSelectLastButton model
+
+        Just button ->
+            selectButton button model
+
+
+menuSelectPrevButton : Model -> Model
+menuSelectPrevButton model =
+    let
+        maybeButton =
+            menuButtons model
+                |> List.reverse
+                |> List.Extra.dropWhile (\b -> b.name /= model.selectedButtonName)
+                |> List.drop 1
+                |> List.head
+    in
+    case maybeButton of
+        Nothing ->
+            menuSelectFirstButton model
+
+        Just button ->
+            selectButton button model
 
 
 
@@ -396,46 +570,8 @@ view model =
         ]
 
 
-isDemo : Model -> Bool
-isDemo model =
-    case model.scene of
-        SceneMain SubSceneDemo _ ->
-            True
-
-        _ ->
-            False
-
-
-isPlaying : Model -> Bool
-isPlaying model =
-    case model.scene of
-        SceneMain SubSceneGameplay _ ->
-            True
-
-        _ ->
-            False
-
-
-isMapEditor : Model -> Bool
-isMapEditor model =
-    case model.scene of
-        SceneMapEditor _ ->
-            True
-
-        _ ->
-            False
-
-
 viewMenu : Menu -> Model -> Html Msg
 viewMenu menu model =
-    let
-        when : Bool -> Html a -> Html a
-        when condition stuff =
-            if condition then
-                stuff
-            else
-                text ""
-    in
     div
         [ class "fullWindow bgOpaque flex alignCenter justifyCenter"
         ]
@@ -443,20 +579,9 @@ viewMenu menu model =
             [ class "menu p2" ]
             [ case menu of
                 MenuMain ->
-                    div
-                        []
-                        [ when (isDemo model) <| pageButton "Play" (OnMenuNav MenuMapSelection)
-                        , when (isDemo model) <| pageButton "Map Editor" OnOpenMapEditor
-
-                        --, when (isPlaying model) <| pageButton "Resume" (OnKeyPress 27)
-                        , when (isDemo model || isPlaying model) <| pageButton "Settings" (OnMenuNav MenuSettings)
-                        , when (isDemo model || isPlaying model) <| pageButton "Gamepads" OnMenuNavGamepads
-
-                        --, when (isMapEditor model) <| pageButton "Save" OnMapEditorSave
-                        --, when (isMapEditor model) <| pageButton "Load" OnMapEditorLoad
-                        --, when (isMapEditor model) <| pageButton "Play here" OnMapEditorPlay
-                        , when (isPlaying model || isMapEditor model) <| pageButton "Quit" OnQuit
-                        ]
+                    menuButtons model
+                        |> List.map (viewMenuButton model.selectedButtonName)
+                        |> div [ class "flex flexColumn" ]
 
                 MenuMapSelection ->
                     div
@@ -472,7 +597,7 @@ viewMenu menu model =
                             ]
                         , section
                             []
-                            [ button
+                            [{- button
                                 [ { importString = ""
                                   , mapResult = Err ""
                                   }
@@ -481,6 +606,7 @@ viewMenu menu model =
                                     |> onClick
                                 ]
                                 [ text "Import..." ]
+                             -}
                             ]
                         ]
 
@@ -558,11 +684,30 @@ viewMenu menu model =
         ]
 
 
-pageButton : String -> Msg -> Html Msg
-pageButton label msg =
-    button
-        [ onClick msg ]
-        [ text label ]
+viewButton : Bool -> String -> Msg -> Html Msg
+viewButton isSelected name msg =
+    let
+        borderColor =
+            if isSelected then
+                "black"
+            else
+                "transparent"
+    in
+    div
+        [ class "menu-button"
+        , style "border" ("3px solid " ++ borderColor)
+        ]
+        [ button
+            [ onClick msg
+            , onFocus (OnSelectButton name)
+            ]
+            [ text name ]
+        ]
+
+
+viewMenuButton : String -> MenuButton -> Html Msg
+viewMenuButton selectedButtonName { name } =
+    viewButton (name == selectedButtonName) name (OnMenuButton name)
 
 
 viewMapItem : ValidatedMap -> Html Msg

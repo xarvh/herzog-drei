@@ -100,13 +100,26 @@ body, button {
 .menu {
   background-color: white;
   border: 1px solid black;
-  min-width: 18em;
+  min-width: 20vw;
 }
 
 .menu * + section {
   margin-top: 2em;
 }
 
+.menu-button {
+  margin: 0.5em;
+  width: 20vw;
+}
+
+.menu-button button {
+  outline: none;
+  width: 100%;
+  padding: 1em;
+  text-align: center;
+  background-color: transparent;
+  border: none;
+}
 
 
 /* Text animation */
