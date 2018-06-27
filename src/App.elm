@@ -39,6 +39,7 @@ type Menu
     = MenuMain
     | MenuMapSelection
     | MenuImportMap ImportModel
+    | MenuHowToPlay
     | MenuSettings
     | MenuGamepads Remap.Model
 
@@ -347,6 +348,14 @@ menuButtons model =
             Just MenuMapSelection ->
                 mapSelectionMenuButtons model
 
+            Just MenuHowToPlay ->
+                [ { name = "Ok"
+                  , view = MenuButtonLabel
+                  , isVisible = True
+                  , update = menuBack
+                  }
+                ]
+
             _ ->
                 []
 
@@ -427,7 +436,7 @@ mainMenuButtons model =
     , { name = "How to play"
       , view = MenuButtonLabel
       , isVisible = True
-      , update = menuBack
+      , update = menuNav MenuHowToPlay
       }
 
     -- Map editor
@@ -485,10 +494,10 @@ menuBack model =
             noCmd { model | maybeMenu = Nothing }
 
         Just (MenuImportMap _) ->
-            noCmd { model | maybeMenu = Just MenuMapSelection }
+            menuNav MenuMapSelection model
 
         _ ->
-            noCmd { model | maybeMenu = Just MenuMain }
+            menuNav MenuMain model
 
 
 findButton : String -> Model -> Maybe MenuButton
@@ -654,9 +663,13 @@ viewMenu menu model =
             [ class "menu p2" ]
             [ case menu of
                 MenuMain ->
-                    menuButtons model
-                        |> List.map (viewMenuButton model)
-                        |> div [ class "flex flexColumn" ]
+                    div
+                        [ class "flex flexColumn alignCenter" ]
+                        [ div [ class "mb2" ] [ text "Press Esc or ▶ (Start) to toggle Menu" ]
+                        , menuButtons model
+                            |> List.map (viewMenuButton model)
+                            |> div [ class "flex flexColumn" ]
+                        ]
 
                 MenuMapSelection ->
                     div
@@ -699,6 +712,34 @@ viewMenu menu model =
                                 button
                                     [ onClick (OnStartGame map) ]
                                     [ text "Play on this map" ]
+                        ]
+
+                MenuHowToPlay ->
+                    div
+                        []
+                        [ section
+                            []
+                            [ [ "Arrow keys or ASDW to move"
+                              , "Q to move the Rally point"
+                              , "E to transform"
+                              , "Click to fire"
+                              , "ESC to toggle the Menu"
+                              , "Your goal is to destroy all four drones guarding the main enemy base"
+                              , "Rally your drones close to an unoccupied base to conquer it"
+                              , "Conquered bases produce more drones and repair your mech"
+                              , "Drones inside bases are a lot hardier than free romaing ones"
+                              , "When a mech is killed, the enemy will produce three special drones"
+                              , "Special drones are very strong against other drones, but can't enter bases"
+                              ]
+                                |> List.map (\t -> li [] [ text t ])
+                                |> ul []
+                            ]
+                        , section
+                            [ class "flex justifyCenter" ]
+                            [ menuButtons model
+                                |> List.map (viewMenuButton model)
+                                |> div []
+                            ]
                         ]
 
                 MenuGamepads remap ->
