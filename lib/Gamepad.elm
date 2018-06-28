@@ -130,6 +130,7 @@ import Dict exposing (Dict)
 import Gamepad.Private exposing (RawGamepad)
 import Regex
 import Set exposing (Set)
+import Time
 
 
 {-| A recognised gamepad, whose buttons mapping was found in the Database.
@@ -347,6 +348,20 @@ animationFrameDelta blob =
 
         _ ->
             17
+
+
+{-| TODO
+<https://alpha.elm-lang.org/packages/elm/browser/latest/Browser-Events#onAnimationFrame>
+-}
+animationFrameTimestamp : Blob -> Time.Posix
+animationFrameTimestamp blob =
+    Time.millisToPosix <|
+        case blob of
+            [] ->
+                0
+
+            frame :: fs ->
+                floor frame.timestamp
 
 
 destinationToString : RemapDestination -> String
