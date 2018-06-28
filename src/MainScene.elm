@@ -117,15 +117,15 @@ threshold v =
 gamepadToInput : Gamepad -> ( String, InputState )
 gamepadToInput gamepad =
     ( "gamepad " ++ String.fromInt (Gamepad.getIndex gamepad)
-    , { aim = vec2 (Gamepad.rightX gamepad) (Gamepad.rightY gamepad) |> threshold |> AimAbsolute
+    , { aim = Gamepad.rightPosition gamepad |> Vec2.fromRecord |> threshold |> AimAbsolute
       , fire =
-            Gamepad.rightBumperIsPressed gamepad
-                || Gamepad.rightTriggerIsPressed gamepad
-                || Gamepad.rightStickIsPressed gamepad
-      , transform = Gamepad.aIsPressed gamepad
+            Gamepad.isPressed Gamepad.RightBumper gamepad
+                || Gamepad.isPressed Gamepad.RightTriggerDigital gamepad
+                || Gamepad.isPressed Gamepad.RightStickPress gamepad
+      , transform = Gamepad.isPressed Gamepad.A gamepad
       , switchUnit = False
-      , rally = Gamepad.bIsPressed gamepad
-      , move = vec2 (Gamepad.leftX gamepad) (Gamepad.leftY gamepad) |> threshold
+      , rally = Gamepad.isPressed Gamepad.B gamepad
+      , move = Gamepad.leftPosition gamepad |> Vec2.fromRecord |> threshold
       }
     )
 

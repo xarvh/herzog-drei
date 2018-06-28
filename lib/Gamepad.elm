@@ -1,48 +1,29 @@
 module Gamepad
     exposing
-        ( Blob
+        ( Analog(..)
+        , Blob
         , Database
+        , Digital(..)
         , Gamepad
         , Origin
         , RemapDestination(..)
         , UnknownGamepad
-        , aIsPressed
         , animationFrameDelta
-        , bIsPressed
-        , backIsPressed
+        , axisValue
         , buttonMapToUpdateDatabase
         , databaseFromString
         , databaseToString
-        , dpadDownIsPressed
-        , dpadLeftIsPressed
-        , dpadRightIsPressed
-        , dpadUpIsPressed
-        , dpadX
-        , dpadY
         , emptyDatabase
         , estimateOrigin
         , getAllGamepadsAsUnknown
         , getGamepads
         , getIndex
         , getUnknownGamepads
-        , homeIsPressed
-        , leftBumperIsPressed
-        , leftStickIsPressed
-        , leftTriggerIsPressed
-        , leftTriggerValue
-        , leftX
-        , leftY
-        , rightBumperIsPressed
-        , rightStickIsPressed
-        , rightTriggerIsPressed
-        , rightTriggerValue
-        , rightX
-        , rightY
-        , startIsPressed
+        , isPressed
+        , leftPosition
+        , rightPosition
         , unknownGetId
         , unknownGetIndex
-        , xIsPressed
-        , yIsPressed
         )
 
 {-| A library to make sense of
@@ -206,16 +187,6 @@ type alias Blob =
     Gamepad.Private.Blob
 
 
-animationFrameDelta : Blob -> Float
-animationFrameDelta blob =
-    case blob of
-        frameA :: frameB :: fs ->
-            frameA.timestamp - frameB.timestamp
-
-        _ ->
-            17
-
-
 {-| Gamepads seem to have very different opinions on how to represent directions.
 Because of that, to create a reliable button map we can't just ask the user to
 "move the stick horizontally", we actually need to test left and right separately.
@@ -249,6 +220,133 @@ type RemapDestination
     | RemapDpadDown
     | RemapDpadLeft
     | RemapDpadRight
+
+
+{-| TODO
+-}
+type Digital
+    = A
+    | B
+    | X
+    | Y
+    | Start
+    | Back
+    | Home
+    | LeftStickPress
+    | LeftTriggerDigital
+    | LeftBumper
+    | RightStickPress
+    | RightTriggerDigital
+    | RightBumper
+    | DpadUp
+    | DpadDown
+    | DpadLeft
+    | DpadRight
+
+
+{-| TODO
+-}
+type Analog
+    = LeftX
+    | LeftY
+    | LeftTriggerAnalog
+    | RightX
+    | RightY
+    | RightTriggerAnalog
+
+
+type OneOrTwo a
+    = One a
+    | Two a a
+
+
+digitalToDestination : Digital -> RemapDestination
+digitalToDestination digital =
+    case digital of
+        A ->
+            RemapA
+
+        B ->
+            RemapB
+
+        X ->
+            RemapX
+
+        Y ->
+            RemapY
+
+        Start ->
+            RemapStart
+
+        Back ->
+            RemapBack
+
+        Home ->
+            RemapHome
+
+        LeftStickPress ->
+            RemapLeftStickPress
+
+        LeftTriggerDigital ->
+            RemapLeftTrigger
+
+        LeftBumper ->
+            RemapLeftBumper
+
+        RightStickPress ->
+            RemapRightStickPress
+
+        RightTriggerDigital ->
+            RemapRightTrigger
+
+        RightBumper ->
+            RemapRightBumper
+
+        DpadUp ->
+            RemapDpadUp
+
+        DpadDown ->
+            RemapDpadDown
+
+        DpadLeft ->
+            RemapDpadLeft
+
+        DpadRight ->
+            RemapDpadRight
+
+
+analogToDestination : Analog -> OneOrTwo RemapDestination
+analogToDestination analog =
+    case analog of
+        LeftX ->
+            Two RemapLeftStickPushLeft RemapLeftStickPushRight
+
+        LeftY ->
+            Two RemapLeftStickPushDown RemapLeftStickPushUp
+
+        LeftTriggerAnalog ->
+            One RemapLeftTrigger
+
+        RightX ->
+            Two RemapRightStickPushLeft RemapRightStickPushRight
+
+        RightY ->
+            Two RemapRightStickPushDown RemapRightStickPushUp
+
+        RightTriggerAnalog ->
+            One RemapRightTrigger
+
+
+{-| TODO
+-}
+animationFrameDelta : Blob -> Float
+animationFrameDelta blob =
+    case blob of
+        frameA :: frameB :: fs ->
+            frameA.timestamp - frameB.timestamp
+
+        _ ->
+            17
 
 
 destinationToString : RemapDestination -> String
@@ -755,188 +853,33 @@ getIndex (Gamepad string raw) =
     raw.index
 
 
-{-| -}
-aIsPressed : Gamepad -> Bool
-aIsPressed =
-    buttonIsPressed RemapA
+isPressed : Digital -> Gamepad -> Bool
+isPressed digital pad =
+    buttonIsPressed (digitalToDestination digital) pad
 
 
-{-| -}
-bIsPressed : Gamepad -> Bool
-bIsPressed =
-    buttonIsPressed RemapB
+axisValue : Analog -> Gamepad -> Float
+axisValue analog pad =
+    case analogToDestination analog of
+        One positive ->
+            getValue positive pad
+
+        Two negative positive ->
+            getAxis negative positive pad
 
 
-{-| -}
-xIsPressed : Gamepad -> Bool
-xIsPressed =
-    buttonIsPressed RemapX
+leftPosition : Gamepad -> { x : Float, y : Float }
+leftPosition pad =
+    { x = axisValue LeftX pad
+    , y = axisValue LeftY pad
+    }
 
 
-{-| -}
-yIsPressed : Gamepad -> Bool
-yIsPressed =
-    buttonIsPressed RemapY
-
-
-
--- utility
-
-
-{-| -}
-startIsPressed : Gamepad -> Bool
-startIsPressed =
-    buttonIsPressed RemapStart
-
-
-{-| -}
-backIsPressed : Gamepad -> Bool
-backIsPressed =
-    buttonIsPressed RemapBack
-
-
-{-| -}
-homeIsPressed : Gamepad -> Bool
-homeIsPressed =
-    buttonIsPressed RemapHome
-
-
-
--- dpad
-
-
-{-| -}
-dpadUpIsPressed : Gamepad -> Bool
-dpadUpIsPressed =
-    buttonIsPressed RemapDpadUp
-
-
-{-| -}
-dpadDownIsPressed : Gamepad -> Bool
-dpadDownIsPressed =
-    buttonIsPressed RemapDpadDown
-
-
-{-| -}
-dpadLeftIsPressed : Gamepad -> Bool
-dpadLeftIsPressed =
-    buttonIsPressed RemapDpadLeft
-
-
-{-| -}
-dpadRightIsPressed : Gamepad -> Bool
-dpadRightIsPressed =
-    buttonIsPressed RemapDpadRight
-
-
-{-| -1 means left, 0 means center, 1 means right
--}
-dpadX : Gamepad -> Int
-dpadX pad =
-    if dpadLeftIsPressed pad then
-        -1
-    else if dpadRightIsPressed pad then
-        1
-    else
-        0
-
-
-{-| -1 means down, 0 means center, 1 means up
--}
-dpadY : Gamepad -> Int
-dpadY pad =
-    if dpadUpIsPressed pad then
-        1
-    else if dpadDownIsPressed pad then
-        -1
-    else
-        0
-
-
-
--- left
-
-
-{-| -1.0 means full left, 1.0 means full right
--}
-leftX : Gamepad -> Float
-leftX =
-    getAxis RemapLeftStickPushLeft RemapLeftStickPushRight
-
-
-{-| -1.0 means full down, 1.0 means full up
--}
-leftY : Gamepad -> Float
-leftY =
-    getAxis RemapLeftStickPushDown RemapLeftStickPushUp
-
-
-{-| -}
-leftStickIsPressed : Gamepad -> Bool
-leftStickIsPressed =
-    buttonIsPressed RemapLeftStickPress
-
-
-{-| -}
-leftBumperIsPressed : Gamepad -> Bool
-leftBumperIsPressed =
-    buttonIsPressed RemapLeftBumper
-
-
-{-| -}
-leftTriggerIsPressed : Gamepad -> Bool
-leftTriggerIsPressed =
-    buttonIsPressed RemapLeftTrigger
-
-
-{-| 0.0 means not pressed, 1.0 means fully pressed
--}
-leftTriggerValue : Gamepad -> Float
-leftTriggerValue =
-    getValue RemapLeftTrigger
-
-
-
--- right
-
-
-{-| -1.0 means full left, 1.0 means full right
--}
-rightX : Gamepad -> Float
-rightX =
-    getAxis RemapRightStickPushLeft RemapRightStickPushRight
-
-
-{-| -1.0 means full down, 1.0 means full up
--}
-rightY : Gamepad -> Float
-rightY =
-    getAxis RemapRightStickPushDown RemapRightStickPushUp
-
-
-{-| -}
-rightStickIsPressed : Gamepad -> Bool
-rightStickIsPressed =
-    buttonIsPressed RemapRightStickPress
-
-
-{-| -}
-rightBumperIsPressed : Gamepad -> Bool
-rightBumperIsPressed =
-    buttonIsPressed RemapRightBumper
-
-
-{-| -}
-rightTriggerIsPressed : Gamepad -> Bool
-rightTriggerIsPressed =
-    buttonIsPressed RemapRightTrigger
-
-
-{-| 0.0 means not pressed, 1.0 means fully pressed
--}
-rightTriggerValue : Gamepad -> Float
-rightTriggerValue =
-    getValue RemapRightTrigger
+rightPosition : Gamepad -> { x : Float, y : Float }
+rightPosition pad =
+    { x = axisValue RightX pad
+    , y = axisValue RightY pad
+    }
 
 
 
@@ -964,8 +907,8 @@ boolToNumber bool =
 
 
 buttonToEstimate : Int -> ( Bool, Float ) -> ( Origin, Float )
-buttonToEstimate originIndex ( isPressed, value ) =
-    ( Origin False Button originIndex, boolToNumber isPressed )
+buttonToEstimate originIndex ( pressed, value ) =
+    ( Origin False Button originIndex, boolToNumber pressed )
 
 
 axisToEstimate : Int -> Float -> ( Origin, Float )

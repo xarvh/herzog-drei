@@ -106,6 +106,8 @@ type Getter
 
 getters : List ( RemapDestination, Getter )
 getters =
+    []
+    {- TODO
     [ ( RemapA, Bin aIsPressed )
     , ( RemapB, Bin bIsPressed )
     , ( RemapX, Bin xIsPressed )
@@ -132,6 +134,7 @@ getters =
     , ( RemapDpadLeft, DpadNeg dpadLeftIsPressed dpadX )
     , ( RemapDpadRight, DpadPos dpadRightIsPressed dpadX )
     ]
+    -}
 
 
 getterToState : Gamepad -> Getter -> Bool
