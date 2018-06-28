@@ -607,22 +607,22 @@ menuSelectPrevButton model =
 
 
 gamepadButtonMap =
-    [ ( Gamepad.LeftLeft, "Move LEFT" )
-    , ( Gamepad.LeftRight, "Move RIGHT" )
-    , ( Gamepad.LeftUp, "Move UP" )
-    , ( Gamepad.LeftDown, "Move DOWN" )
+    [ ( Gamepad.RemapLeftStickPushLeft, "Move LEFT" )
+    , ( Gamepad.RemapLeftStickPushRight, "Move RIGHT" )
+    , ( Gamepad.RemapLeftStickPushUp, "Move UP" )
+    , ( Gamepad.RemapLeftStickPushDown, "Move DOWN" )
 
     --
-    , ( Gamepad.RightLeft, "Aim LEFT" )
-    , ( Gamepad.RightRight, "Aim RIGHT" )
-    , ( Gamepad.RightUp, "Aim UP" )
-    , ( Gamepad.RightDown, "Aim DOWN" )
+    , ( Gamepad.RemapRightStickPushLeft, "Aim LEFT" )
+    , ( Gamepad.RemapRightStickPushRight, "Aim RIGHT" )
+    , ( Gamepad.RemapRightStickPushUp, "Aim UP" )
+    , ( Gamepad.RemapRightStickPushDown, "Aim DOWN" )
 
     --
-    , ( Gamepad.RightTrigger, "FIRE" )
-    , ( Gamepad.RightBumper, "Alt FIRE" )
-    , ( Gamepad.A, "Transform" )
-    , ( Gamepad.B, "Rally" )
+    , ( Gamepad.RemapRightTrigger, "FIRE" )
+    , ( Gamepad.RemapRightBumper, "Alt FIRE" )
+    , ( Gamepad.RemapA, "Transform" )
+    , ( Gamepad.RemapB, "Rally" )
     ]
 
 

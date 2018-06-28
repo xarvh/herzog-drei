@@ -24,13 +24,13 @@ type Msg
 
 
 type alias Model =
-    { buttons : List ( Destination, String )
+    { buttons : List ( RemapDestination, String )
     , maybeBlob : Maybe Blob
     , maybeRemap : Maybe (Gamepad.Remap.Model String)
     }
 
 
-init : List ( Destination, String ) -> Model
+init : List ( RemapDestination, String ) -> Model
 init buttons =
     -- TODO: keep buttons out of the Model?
     { buttons = buttons
@@ -104,33 +104,33 @@ type Getter
     | DpadPos (Gamepad -> Bool) (Gamepad -> Int)
 
 
-getters : List ( Destination, Getter )
+getters : List ( RemapDestination, Getter )
 getters =
-    [ ( A, Bin aIsPressed )
-    , ( B, Bin bIsPressed )
-    , ( X, Bin xIsPressed )
-    , ( Y, Bin yIsPressed )
-    , ( Start, Bin startIsPressed )
-    , ( Back, Bin backIsPressed )
-    , ( Home, Bin homeIsPressed )
-    , ( LeftLeft, Neg leftX )
-    , ( LeftRight, Pos leftX )
-    , ( LeftUp, Pos leftY )
-    , ( LeftDown, Neg leftY )
-    , ( LeftStick, Bin leftStickIsPressed )
-    , ( LeftBumper, Bin leftBumperIsPressed )
-    , ( LeftTrigger, Pos leftTriggerValue )
-    , ( RightLeft, Neg rightX )
-    , ( RightRight, Pos rightX )
-    , ( RightUp, Pos rightY )
-    , ( RightDown, Neg rightY )
-    , ( RightStick, Bin rightStickIsPressed )
-    , ( RightBumper, Bin rightBumperIsPressed )
-    , ( RightTrigger, Pos rightTriggerValue )
-    , ( DpadUp, DpadPos dpadUpIsPressed dpadY )
-    , ( DpadDown, DpadNeg dpadDownIsPressed dpadY )
-    , ( DpadLeft, DpadNeg dpadLeftIsPressed dpadX )
-    , ( DpadRight, DpadPos dpadRightIsPressed dpadX )
+    [ ( RemapA, Bin aIsPressed )
+    , ( RemapB, Bin bIsPressed )
+    , ( RemapX, Bin xIsPressed )
+    , ( RemapY, Bin yIsPressed )
+    , ( RemapStart, Bin startIsPressed )
+    , ( RemapBack, Bin backIsPressed )
+    , ( RemapHome, Bin homeIsPressed )
+    , ( RemapLeftStickPushLeft, Neg leftX )
+    , ( RemapLeftStickPushRight, Pos leftX )
+    , ( RemapLeftStickPushUp, Pos leftY )
+    , ( RemapLeftStickPushDown, Neg leftY )
+    , ( RemapLeftStickPress, Bin leftStickIsPressed )
+    , ( RemapLeftBumper, Bin leftBumperIsPressed )
+    , ( RemapLeftTrigger, Pos leftTriggerValue )
+    , ( RemapRightStickPushLeft, Neg rightX )
+    , ( RemapRightStickPushRight, Pos rightX )
+    , ( RemapRightStickPushUp, Pos rightY )
+    , ( RemapRightStickPushDown, Neg rightY )
+    , ( RemapRightStickPress, Bin rightStickIsPressed )
+    , ( RemapRightBumper, Bin rightBumperIsPressed )
+    , ( RemapRightTrigger, Pos rightTriggerValue )
+    , ( RemapDpadUp, DpadPos dpadUpIsPressed dpadY )
+    , ( RemapDpadDown, DpadNeg dpadDownIsPressed dpadY )
+    , ( RemapDpadLeft, DpadNeg dpadLeftIsPressed dpadX )
+    , ( RemapDpadRight, DpadPos dpadRightIsPressed dpadX )
     ]
 
 
@@ -153,7 +153,7 @@ getterToState gamepad getter =
             getBinary gamepad || getValue gamepad > 0
 
 
-destinationState : Gamepad -> Destination -> Bool
+destinationState : Gamepad -> RemapDestination -> Bool
 destinationState gamepad d =
     case List.Extra.find (\( dest, getter ) -> dest == d) getters of
         Nothing ->
@@ -163,7 +163,7 @@ destinationState gamepad d =
             getterToState gamepad getter
 
 
-firstPadControl : Gamepad -> List ( Destination, String ) -> String
+firstPadControl : Gamepad -> List ( RemapDestination, String ) -> String
 firstPadControl gamepad destinations =
     case List.Extra.find (\( dest, name ) -> destinationState gamepad dest) destinations of
         Just ( destination, name ) ->

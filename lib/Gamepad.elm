@@ -2,9 +2,9 @@ module Gamepad
     exposing
         ( Blob
         , Database
-        , Destination(..)
         , Gamepad
         , Origin
+        , RemapDestination(..)
         , UnknownGamepad
         , aIsPressed
         , animationFrameDelta
@@ -129,18 +129,18 @@ You need them only if instead of [Gamepad.Remap](#Gamepad-Remap) you want to
 write your own remapping tool.
 
 A button map associates a raw gamepad input, the [Origin](#Origin), with a
-button name, the [Destination](#Destination).
+button name, the [RemapDestination](#RemapDestination).
 
 The steps to create a button map are roughly:
 
-1.  For every [Destination](#Destination) your application requires, you should:
+1.  For every [RemapDestination](#RemapDestination) your application requires, you should:
       - Ask the user to press/push it.
       - Use [estimateOrigin](#estimateOrigin) to know which [Origin](#Origin) is being activated.
-      - Store this [Origin](#Origin) in a tuple together with its [Destination](#Destination).
-2.  Pass the list of `(Destination, Origin)` tuples to [buttonMapToUpdateDatabase](#buttonMapToUpdateDatabase)
+      - Store this [Origin](#Origin) in a tuple together with its [RemapDestination](#RemapDestination).
+2.  Pass the list of `(RemapDestination, Origin)` tuples to [buttonMapToUpdateDatabase](#buttonMapToUpdateDatabase)
     to add the new mapping to your [Database](#Database).
 
-@docs getAllGamepadsAsUnknown, Origin, Destination, estimateOrigin, buttonMapToUpdateDatabase
+@docs getAllGamepadsAsUnknown, Origin, RemapDestination, estimateOrigin, buttonMapToUpdateDatabase
 
 -}
 
@@ -216,112 +216,117 @@ animationFrameDelta blob =
             17
 
 
-{-| A Destination is just a way to reference a gamepad input that is understandable for the user.
+{-| Gamepads seem to have very different opinions on how to represent directions.
+Because of that, to create a reliable button map we can't just ask the user to
+"move the stick horizontally", we actually need to test left and right separately.
+
+TODO
+
 -}
-type Destination
-    = A
-    | B
-    | X
-    | Y
-    | Start
-    | Back
-    | Home
-    | LeftLeft
-    | LeftRight
-    | LeftUp
-    | LeftDown
-    | LeftStick
-    | LeftBumper
-    | LeftTrigger
-    | RightLeft
-    | RightRight
-    | RightUp
-    | RightDown
-    | RightStick
-    | RightBumper
-    | RightTrigger
-    | DpadUp
-    | DpadDown
-    | DpadLeft
-    | DpadRight
+type RemapDestination
+    = RemapA
+    | RemapB
+    | RemapX
+    | RemapY
+    | RemapStart
+    | RemapBack
+    | RemapHome
+    | RemapLeftStickPushLeft
+    | RemapLeftStickPushRight
+    | RemapLeftStickPushUp
+    | RemapLeftStickPushDown
+    | RemapLeftStickPress
+    | RemapLeftBumper
+    | RemapLeftTrigger
+    | RemapRightStickPushLeft
+    | RemapRightStickPushRight
+    | RemapRightStickPushUp
+    | RemapRightStickPushDown
+    | RemapRightStickPress
+    | RemapRightBumper
+    | RemapRightTrigger
+    | RemapDpadUp
+    | RemapDpadDown
+    | RemapDpadLeft
+    | RemapDpadRight
 
 
-destinationToString : Destination -> String
+destinationToString : RemapDestination -> String
 destinationToString destination =
     case destination of
-        A ->
+        RemapA ->
             "a"
 
-        B ->
+        RemapB ->
             "b"
 
-        X ->
+        RemapX ->
             "x"
 
-        Y ->
+        RemapY ->
             "y"
 
-        Start ->
+        RemapStart ->
             "start"
 
-        Back ->
+        RemapBack ->
             "back"
 
-        Home ->
+        RemapHome ->
             "home"
 
-        LeftLeft ->
+        RemapLeftStickPushLeft ->
             "leftleft"
 
-        LeftRight ->
+        RemapLeftStickPushRight ->
             "leftright"
 
-        LeftUp ->
+        RemapLeftStickPushUp ->
             "leftup"
 
-        LeftDown ->
+        RemapLeftStickPushDown ->
             "leftdown"
 
-        LeftStick ->
+        RemapLeftStickPress ->
             "leftstick"
 
-        LeftBumper ->
+        RemapLeftBumper ->
             "leftbumper"
 
-        LeftTrigger ->
+        RemapLeftTrigger ->
             "lefttrigger"
 
-        RightLeft ->
+        RemapRightStickPushLeft ->
             "rightleft"
 
-        RightRight ->
+        RemapRightStickPushRight ->
             "rightright"
 
-        RightUp ->
+        RemapRightStickPushUp ->
             "rightup"
 
-        RightDown ->
+        RemapRightStickPushDown ->
             "rightdown"
 
-        RightStick ->
+        RemapRightStickPress ->
             "rightstick"
 
-        RightBumper ->
+        RemapRightBumper ->
             "rightbumper"
 
-        RightTrigger ->
+        RemapRightTrigger ->
             "righttrigger"
 
-        DpadUp ->
+        RemapDpadUp ->
             "dpadup"
 
-        DpadDown ->
+        RemapDpadDown ->
             "dpaddown"
 
-        DpadLeft ->
+        RemapDpadLeft ->
             "dpadleft"
 
-        DpadRight ->
+        RemapDpadRight ->
             "dpadright"
 
 
@@ -342,7 +347,7 @@ map.
         leftUp
 
 -}
-fixAxisCoupling : ( Destination, Destination ) -> Dict String Origin -> Dict String Origin
+fixAxisCoupling : ( RemapDestination, RemapDestination ) -> Dict String Origin -> Dict String Origin
 fixAxisCoupling ( destination1, destination2 ) map =
     case ( Dict.get (destinationToString destination1) map, Dict.get (destinationToString destination2) map ) of
         ( Just (Origin isReverse1 Axis index1), Just (Origin isReverse2 Axis index2) ) ->
@@ -357,16 +362,16 @@ fixAxisCoupling ( destination1, destination2 ) map =
 
 fixAllAxesCoupling : List ( String, Origin ) -> List ( String, Origin )
 fixAllAxesCoupling map =
-    [ ( LeftLeft, LeftRight )
-    , ( LeftUp, LeftDown )
-    , ( RightLeft, RightRight )
-    , ( RightUp, RightDown )
+    [ ( RemapLeftStickPushLeft, RemapLeftStickPushRight )
+    , ( RemapLeftStickPushUp, RemapLeftStickPushDown )
+    , ( RemapRightStickPushLeft, RemapRightStickPushRight )
+    , ( RemapRightStickPushUp, RemapRightStickPushDown )
     ]
         |> List.foldr fixAxisCoupling (Dict.fromList map)
         |> Dict.toList
 
 
-listToButtonMap : List ( Destination, Origin ) -> ButtonMap
+listToButtonMap : List ( RemapDestination, Origin ) -> ButtonMap
 listToButtonMap map =
     let
         hasMinus isReverse =
@@ -405,13 +410,13 @@ replacing any previous mapping for that gamepad Id.
 
 The first argument is the gamepad the map is for.
 
-The second argument is the map itself: a List of [Destination](#Destination)s vs
+The second argument is the map itself: a List of [RemapDestination](#RemapDestination)s vs
 [Origin](#Origin)s.
 
 The third argument is the [Database](#Database) to update.
 
 -}
-buttonMapToUpdateDatabase : UnknownGamepad -> List ( Destination, Origin ) -> Database -> Database
+buttonMapToUpdateDatabase : UnknownGamepad -> List ( RemapDestination, Origin ) -> Database -> Database
 buttonMapToUpdateDatabase unknownGamepad map (Database database) =
     Dict.insert (unknownGetId unknownGamepad) (listToButtonMap map) database |> Database
 
@@ -491,27 +496,27 @@ standardButtonMaps =
     [ ( "standard"
       , listToButtonMap
             -- https://www.w3.org/TR/gamepad/#remapping
-            [ ( A, Origin False Button 0 )
-            , ( B, Origin False Button 1 )
-            , ( X, Origin False Button 2 )
-            , ( Y, Origin False Button 3 )
-            , ( Start, Origin False Button 9 )
-            , ( Back, Origin False Button 8 )
-            , ( Home, Origin False Button 16 )
-            , ( LeftRight, Origin False Axis 0 )
-            , ( LeftDown, Origin False Axis 1 )
-            , ( LeftStick, Origin False Button 10 )
-            , ( LeftBumper, Origin False Button 4 )
-            , ( LeftTrigger, Origin False Button 6 )
-            , ( RightRight, Origin False Axis 2 )
-            , ( RightDown, Origin False Axis 3 )
-            , ( RightStick, Origin False Button 11 )
-            , ( RightBumper, Origin False Button 5 )
-            , ( RightTrigger, Origin False Button 7 )
-            , ( DpadUp, Origin False Button 12 )
-            , ( DpadDown, Origin False Button 13 )
-            , ( DpadLeft, Origin False Button 14 )
-            , ( DpadRight, Origin False Button 15 )
+            [ ( RemapA, Origin False Button 0 )
+            , ( RemapB, Origin False Button 1 )
+            , ( RemapX, Origin False Button 2 )
+            , ( RemapY, Origin False Button 3 )
+            , ( RemapStart, Origin False Button 9 )
+            , ( RemapBack, Origin False Button 8 )
+            , ( RemapHome, Origin False Button 16 )
+            , ( RemapLeftStickPushRight, Origin False Axis 0 )
+            , ( RemapLeftStickPushDown, Origin False Axis 1 )
+            , ( RemapLeftStickPress, Origin False Button 10 )
+            , ( RemapLeftBumper, Origin False Button 4 )
+            , ( RemapLeftTrigger, Origin False Button 6 )
+            , ( RemapRightStickPushRight, Origin False Axis 2 )
+            , ( RemapRightStickPushDown, Origin False Axis 3 )
+            , ( RemapRightStickPress, Origin False Button 11 )
+            , ( RemapRightBumper, Origin False Button 5 )
+            , ( RemapRightTrigger, Origin False Button 7 )
+            , ( RemapDpadUp, Origin False Button 12 )
+            , ( RemapDpadDown, Origin False Button 13 )
+            , ( RemapDpadLeft, Origin False Button 14 )
+            , ( RemapDpadRight, Origin False Button 15 )
             ]
       )
     ]
@@ -636,7 +641,7 @@ regexMatchToInputTuple match =
             Nothing
 
 
-mappingToRawIndex : Destination -> String -> Maybe ( OriginType, Int, Bool )
+mappingToRawIndex : RemapDestination -> String -> Maybe ( OriginType, Int, Bool )
 mappingToRawIndex destination mapping =
     let
         regex =
@@ -669,7 +674,7 @@ reverseAxis isReverse n =
         n
 
 
-buttonIsPressed : Destination -> Gamepad -> Bool
+buttonIsPressed : RemapDestination -> Gamepad -> Bool
 buttonIsPressed destination (Gamepad mapping rawGamepad) =
     case mappingToRawIndex destination mapping of
         Nothing ->
@@ -687,7 +692,7 @@ buttonIsPressed destination (Gamepad mapping rawGamepad) =
                 |> Maybe.withDefault False
 
 
-getValue : Destination -> Gamepad -> Float
+getValue : RemapDestination -> Gamepad -> Float
 getValue destination (Gamepad mapping rawGamepad) =
     case mappingToRawIndex destination mapping of
         Nothing ->
@@ -704,7 +709,7 @@ getValue destination (Gamepad mapping rawGamepad) =
                 |> Maybe.withDefault 0
 
 
-getAxis : Destination -> Destination -> Gamepad -> Float
+getAxis : RemapDestination -> RemapDestination -> Gamepad -> Float
 getAxis negativeDestination positiveDestination pad =
     (getValue positiveDestination pad - getValue negativeDestination pad)
         |> clamp -1 1
@@ -753,25 +758,25 @@ getIndex (Gamepad string raw) =
 {-| -}
 aIsPressed : Gamepad -> Bool
 aIsPressed =
-    buttonIsPressed A
+    buttonIsPressed RemapA
 
 
 {-| -}
 bIsPressed : Gamepad -> Bool
 bIsPressed =
-    buttonIsPressed B
+    buttonIsPressed RemapB
 
 
 {-| -}
 xIsPressed : Gamepad -> Bool
 xIsPressed =
-    buttonIsPressed X
+    buttonIsPressed RemapX
 
 
 {-| -}
 yIsPressed : Gamepad -> Bool
 yIsPressed =
-    buttonIsPressed Y
+    buttonIsPressed RemapY
 
 
 
@@ -781,19 +786,19 @@ yIsPressed =
 {-| -}
 startIsPressed : Gamepad -> Bool
 startIsPressed =
-    buttonIsPressed Start
+    buttonIsPressed RemapStart
 
 
 {-| -}
 backIsPressed : Gamepad -> Bool
 backIsPressed =
-    buttonIsPressed Back
+    buttonIsPressed RemapBack
 
 
 {-| -}
 homeIsPressed : Gamepad -> Bool
 homeIsPressed =
-    buttonIsPressed Home
+    buttonIsPressed RemapHome
 
 
 
@@ -803,25 +808,25 @@ homeIsPressed =
 {-| -}
 dpadUpIsPressed : Gamepad -> Bool
 dpadUpIsPressed =
-    buttonIsPressed DpadUp
+    buttonIsPressed RemapDpadUp
 
 
 {-| -}
 dpadDownIsPressed : Gamepad -> Bool
 dpadDownIsPressed =
-    buttonIsPressed DpadDown
+    buttonIsPressed RemapDpadDown
 
 
 {-| -}
 dpadLeftIsPressed : Gamepad -> Bool
 dpadLeftIsPressed =
-    buttonIsPressed DpadLeft
+    buttonIsPressed RemapDpadLeft
 
 
 {-| -}
 dpadRightIsPressed : Gamepad -> Bool
 dpadRightIsPressed =
-    buttonIsPressed DpadRight
+    buttonIsPressed RemapDpadRight
 
 
 {-| -1 means left, 0 means center, 1 means right
@@ -856,39 +861,39 @@ dpadY pad =
 -}
 leftX : Gamepad -> Float
 leftX =
-    getAxis LeftLeft LeftRight
+    getAxis RemapLeftStickPushLeft RemapLeftStickPushRight
 
 
 {-| -1.0 means full down, 1.0 means full up
 -}
 leftY : Gamepad -> Float
 leftY =
-    getAxis LeftDown LeftUp
+    getAxis RemapLeftStickPushDown RemapLeftStickPushUp
 
 
 {-| -}
 leftStickIsPressed : Gamepad -> Bool
 leftStickIsPressed =
-    buttonIsPressed LeftStick
+    buttonIsPressed RemapLeftStickPress
 
 
 {-| -}
 leftBumperIsPressed : Gamepad -> Bool
 leftBumperIsPressed =
-    buttonIsPressed LeftBumper
+    buttonIsPressed RemapLeftBumper
 
 
 {-| -}
 leftTriggerIsPressed : Gamepad -> Bool
 leftTriggerIsPressed =
-    buttonIsPressed LeftTrigger
+    buttonIsPressed RemapLeftTrigger
 
 
 {-| 0.0 means not pressed, 1.0 means fully pressed
 -}
 leftTriggerValue : Gamepad -> Float
 leftTriggerValue =
-    getValue LeftTrigger
+    getValue RemapLeftTrigger
 
 
 
@@ -899,39 +904,39 @@ leftTriggerValue =
 -}
 rightX : Gamepad -> Float
 rightX =
-    getAxis RightLeft RightRight
+    getAxis RemapRightStickPushLeft RemapRightStickPushRight
 
 
 {-| -1.0 means full down, 1.0 means full up
 -}
 rightY : Gamepad -> Float
 rightY =
-    getAxis RightDown RightUp
+    getAxis RemapRightStickPushDown RemapRightStickPushUp
 
 
 {-| -}
 rightStickIsPressed : Gamepad -> Bool
 rightStickIsPressed =
-    buttonIsPressed RightStick
+    buttonIsPressed RemapRightStickPress
 
 
 {-| -}
 rightBumperIsPressed : Gamepad -> Bool
 rightBumperIsPressed =
-    buttonIsPressed RightBumper
+    buttonIsPressed RemapRightBumper
 
 
 {-| -}
 rightTriggerIsPressed : Gamepad -> Bool
 rightTriggerIsPressed =
-    buttonIsPressed RightTrigger
+    buttonIsPressed RemapRightTrigger
 
 
 {-| 0.0 means not pressed, 1.0 means fully pressed
 -}
 rightTriggerValue : Gamepad -> Float
 rightTriggerValue =
-    getValue RightTrigger
+    getValue RemapRightTrigger
 
 
 

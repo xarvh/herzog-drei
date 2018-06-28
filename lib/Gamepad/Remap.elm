@@ -21,7 +21,7 @@ remapping capabilities to your app.
 
 If you prefer to write your own remapping tool, you can use this as a guide.
 
-You give the tool the list of `Gamepad.Destination`s your application needs
+You give the tool the list of `Gamepad.RemapDestination`s your application needs
 and the index of the gamepad to remap: the tool will then show the destinations
 one by one, and associate each with whatever button/stick the user moves.
 
@@ -43,7 +43,7 @@ type (ie, with the same id).
 -}
 
 import Dict exposing (Dict)
-import Gamepad exposing (Destination, UnknownGamepad)
+import Gamepad exposing (RemapDestination, UnknownGamepad)
 
 
 {-| This describes the outcome of a change in the Model.
@@ -80,7 +80,7 @@ type Outcome presentation
 
 
 type alias ConfiguredEntry =
-    { destination : Destination
+    { destination : RemapDestination
     , origin : Gamepad.Origin
     }
 
@@ -91,7 +91,7 @@ type InputState
 
 
 type alias UnconfiguredButtons presentation =
-    List ( Destination, presentation )
+    List ( RemapDestination, presentation )
 
 
 type alias ModelRecord presentation =
@@ -104,7 +104,7 @@ type alias ModelRecord presentation =
 
 {-| This describes the state of the tool.
 `presentation` is whatever type you want to use to present a
-`Gamepad.Destination` to the user.
+`Gamepad.RemapDestination` to the user.
 -}
 type Model presentation
     = Ready (ModelRecord presentation)
@@ -147,12 +147,12 @@ notConnectedError gamepadIndex =
 {-| The first argument is the index of the gamepad you want to remap.
 
 The second is a list of the inputs you app needs: each is a tuple with
-a `Gamepad.Destination` and any object you want to use to present
+a `Gamepad.RemapDestination` and any object you want to use to present
 that destination to the user, such as a String or Svg or an animation
 that explains to the user what that button is used for in your app.
 
 -}
-init : Int -> List ( Destination, presentation ) -> Model presentation
+init : Int -> List ( RemapDestination, presentation ) -> Model presentation
 init gamepadIndex buttonsToConfigure =
     WaitingForGamepad gamepadIndex buttonsToConfigure
 
