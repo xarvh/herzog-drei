@@ -120,7 +120,7 @@ gamepadToInput gamepad =
     , { aim = Gamepad.rightPosition gamepad |> Vec2.fromRecord |> threshold |> AimAbsolute
       , fire =
             Gamepad.isPressed Gamepad.RightBumper gamepad
-                || Gamepad.isPressed Gamepad.RightTriggerDigital gamepad
+                || Gamepad.isPressed Gamepad.RightTrigger gamepad
                 || Gamepad.isPressed Gamepad.RightStickPress gamepad
       , transform = Gamepad.isPressed Gamepad.A gamepad
       , switchUnit = False

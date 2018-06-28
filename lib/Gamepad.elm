@@ -1,30 +1,4 @@
-module Gamepad
-    exposing
-        ( Analog(..)
-        , Blob
-        , Database
-        , Digital(..)
-        , Gamepad
-        , Origin
-        , RemapDestination(..)
-        , UnknownGamepad
-        , animationFrameDelta
-        , axisValue
-        , buttonMapToUpdateDatabase
-        , databaseFromString
-        , databaseToString
-        , emptyDatabase
-        , estimateOrigin
-        , getAllGamepadsAsUnknown
-        , getGamepads
-        , getIndex
-        , getUnknownGamepads
-        , isPressed
-        , leftPosition
-        , rightPosition
-        , unknownGetId
-        , unknownGetIndex
-        )
+module Gamepad exposing (..)
 
 {-| A library to make sense of
 [navigator.getGamepads()](https://developer.mozilla.org/en-US/docs/Web/API/Navigator/getGamepads)
@@ -127,29 +101,20 @@ The steps to create a button map are roughly:
 
 import Array exposing (Array)
 import Dict exposing (Dict)
-import Gamepad.Private exposing (RawGamepad)
+import Gamepad.Private exposing (GamepadFrame)
 import Regex
 import Set exposing (Set)
 import Time
+
+
+-- Types ---------------------------------------------------------------------
 
 
 {-| A recognised gamepad, whose buttons mapping was found in the Database.
 You can use all control getters to query its state.
 -}
 type Gamepad
-    = Gamepad String RawGamepad
-
-
-{-| A gamepad that was not found in the Database.
-Because of the sheer diversity of gamepads in the wild, there isn't much that
-you can reliably do with it.
-
-However, you can remap it and add its entry to the database, so that next time
-it will be recognised!
-
--}
-type UnknownGamepad
-    = UnknownGamepad RawGamepad
+    = Gamepad Int Mapping (List GamepadFrame)
 
 
 {-| A collection of button maps, by gamepad Id.
@@ -159,7 +124,7 @@ gamepads of that type (ie, all the gamepads that share that Id).
 
 -}
 type Database
-    = Database (Dict String ButtonMap)
+    = Database (Dict String Mapping)
 
 
 {-| An Origin references an input in the javascript [gamepad](https://w3c.github.io/gamepad/)
@@ -174,7 +139,7 @@ type OriginType
     | Button
 
 
-type alias ButtonMap =
+type alias Mapping =
     String
 
 
@@ -188,39 +153,8 @@ type alias Blob =
     Gamepad.Private.Blob
 
 
-{-| Gamepads seem to have very different opinions on how to represent directions.
-Because of that, to create a reliable button map we can't just ask the user to
-"move the stick horizontally", we actually need to test left and right separately.
-
-TODO
-
--}
-type RemapDestination
-    = RemapA
-    | RemapB
-    | RemapX
-    | RemapY
-    | RemapStart
-    | RemapBack
-    | RemapHome
-    | RemapLeftStickPushLeft
-    | RemapLeftStickPushRight
-    | RemapLeftStickPushUp
-    | RemapLeftStickPushDown
-    | RemapLeftStickPress
-    | RemapLeftBumper
-    | RemapLeftTrigger
-    | RemapRightStickPushLeft
-    | RemapRightStickPushRight
-    | RemapRightStickPushUp
-    | RemapRightStickPushDown
-    | RemapRightStickPress
-    | RemapRightBumper
-    | RemapRightTrigger
-    | RemapDpadUp
-    | RemapDpadDown
-    | RemapDpadLeft
-    | RemapDpadRight
+type alias Destination =
+    Digital
 
 
 {-| TODO
@@ -234,10 +168,18 @@ type Digital
     | Back
     | Home
     | LeftStickPress
-    | LeftTriggerDigital
+    | LeftStickUp
+    | LeftStickDown
+    | LeftStickLeft
+    | LeftStickRight
+    | LeftTrigger
     | LeftBumper
     | RightStickPress
-    | RightTriggerDigital
+    | RightStickUp
+    | RightStickDown
+    | RightStickLeft
+    | RightStickRight
+    | RightTrigger
     | RightBumper
     | DpadUp
     | DpadDown
@@ -261,81 +203,113 @@ type OneOrTwo a
     | Two a a
 
 
-digitalToDestination : Digital -> RemapDestination
-digitalToDestination digital =
-    case digital of
-        A ->
-            RemapA
 
-        B ->
-            RemapB
-
-        X ->
-            RemapX
-
-        Y ->
-            RemapY
-
-        Start ->
-            RemapStart
-
-        Back ->
-            RemapBack
-
-        Home ->
-            RemapHome
-
-        LeftStickPress ->
-            RemapLeftStickPress
-
-        LeftTriggerDigital ->
-            RemapLeftTrigger
-
-        LeftBumper ->
-            RemapLeftBumper
-
-        RightStickPress ->
-            RemapRightStickPress
-
-        RightTriggerDigital ->
-            RemapRightTrigger
-
-        RightBumper ->
-            RemapRightBumper
-
-        DpadUp ->
-            RemapDpadUp
-
-        DpadDown ->
-            RemapDpadDown
-
-        DpadLeft ->
-            RemapDpadLeft
-
-        DpadRight ->
-            RemapDpadRight
+-- Type conversions ----------------------------------------------------------
 
 
-analogToDestination : Analog -> OneOrTwo RemapDestination
+analogToDestination : Analog -> OneOrTwo Destination
 analogToDestination analog =
     case analog of
         LeftX ->
-            Two RemapLeftStickPushLeft RemapLeftStickPushRight
+            Two LeftStickLeft LeftStickRight
 
         LeftY ->
-            Two RemapLeftStickPushDown RemapLeftStickPushUp
+            Two LeftStickDown LeftStickUp
 
         LeftTriggerAnalog ->
-            One RemapLeftTrigger
+            One LeftTrigger
 
         RightX ->
-            Two RemapRightStickPushLeft RemapRightStickPushRight
+            Two RightStickLeft RightStickRight
 
         RightY ->
-            Two RemapRightStickPushDown RemapRightStickPushUp
+            Two RightStickDown RightStickUp
 
         RightTriggerAnalog ->
-            One RemapRightTrigger
+            One RightTrigger
+
+
+destinationToString : Destination -> String
+destinationToString destination =
+    case destination of
+        A ->
+            "a"
+
+        B ->
+            "b"
+
+        X ->
+            "x"
+
+        Y ->
+            "y"
+
+        Start ->
+            "start"
+
+        Back ->
+            "back"
+
+        Home ->
+            "home"
+
+        LeftStickLeft ->
+            "leftleft"
+
+        LeftStickRight ->
+            "leftright"
+
+        LeftStickUp ->
+            "leftup"
+
+        LeftStickDown ->
+            "leftdown"
+
+        LeftStickPress ->
+            "leftstick"
+
+        LeftBumper ->
+            "leftbumper"
+
+        LeftTrigger ->
+            "lefttrigger"
+
+        RightStickLeft ->
+            "rightleft"
+
+        RightStickRight ->
+            "rightright"
+
+        RightStickUp ->
+            "rightup"
+
+        RightStickDown ->
+            "rightdown"
+
+        RightStickPress ->
+            "rightstick"
+
+        RightBumper ->
+            "rightbumper"
+
+        RightTrigger ->
+            "righttrigger"
+
+        DpadUp ->
+            "dpadup"
+
+        DpadDown ->
+            "dpaddown"
+
+        DpadLeft ->
+            "dpadleft"
+
+        DpadRight ->
+            "dpadright"
+
+
+
+-- Blob ----------------------------------------------------------------------
 
 
 {-| TODO
@@ -364,127 +338,13 @@ animationFrameTimestamp blob =
                 floor frame.timestamp
 
 
-destinationToString : RemapDestination -> String
-destinationToString destination =
-    case destination of
-        RemapA ->
-            "a"
 
-        RemapB ->
-            "b"
-
-        RemapX ->
-            "x"
-
-        RemapY ->
-            "y"
-
-        RemapStart ->
-            "start"
-
-        RemapBack ->
-            "back"
-
-        RemapHome ->
-            "home"
-
-        RemapLeftStickPushLeft ->
-            "leftleft"
-
-        RemapLeftStickPushRight ->
-            "leftright"
-
-        RemapLeftStickPushUp ->
-            "leftup"
-
-        RemapLeftStickPushDown ->
-            "leftdown"
-
-        RemapLeftStickPress ->
-            "leftstick"
-
-        RemapLeftBumper ->
-            "leftbumper"
-
-        RemapLeftTrigger ->
-            "lefttrigger"
-
-        RemapRightStickPushLeft ->
-            "rightleft"
-
-        RemapRightStickPushRight ->
-            "rightright"
-
-        RemapRightStickPushUp ->
-            "rightup"
-
-        RemapRightStickPushDown ->
-            "rightdown"
-
-        RemapRightStickPress ->
-            "rightstick"
-
-        RemapRightBumper ->
-            "rightbumper"
-
-        RemapRightTrigger ->
-            "righttrigger"
-
-        RemapDpadUp ->
-            "dpadup"
-
-        RemapDpadDown ->
-            "dpaddown"
-
-        RemapDpadLeft ->
-            "dpadleft"
-
-        RemapDpadRight ->
-            "dpadright"
+-- Mapping -------------------------------------------------------------------
 
 
-{-| If leftUp and leftDown point to different origins, then the normal
-
-    leftY =
-        leftUp - leftDown
-
-is perfectly valid.
-
-However if they are on the same origin and that origin is a -1 to +1 axis, the
-equality above will yield values between -2 and +2.
-
-This function detects such cases and removes one of the two origins from the
-map.
-
-    leftY =
-        leftUp
-
--}
-fixAxisCoupling : ( RemapDestination, RemapDestination ) -> Dict String Origin -> Dict String Origin
-fixAxisCoupling ( destination1, destination2 ) map =
-    case ( Dict.get (destinationToString destination1) map, Dict.get (destinationToString destination2) map ) of
-        ( Just (Origin isReverse1 Axis index1), Just (Origin isReverse2 Axis index2) ) ->
-            if index1 == index2 then
-                Dict.remove (destinationToString destination1) map
-            else
-                map
-
-        ( _, _ ) ->
-            map
 
 
-fixAllAxesCoupling : List ( String, Origin ) -> List ( String, Origin )
-fixAllAxesCoupling map =
-    [ ( RemapLeftStickPushLeft, RemapLeftStickPushRight )
-    , ( RemapLeftStickPushUp, RemapLeftStickPushDown )
-    , ( RemapRightStickPushLeft, RemapRightStickPushRight )
-    , ( RemapRightStickPushUp, RemapRightStickPushDown )
-    ]
-        |> List.foldr fixAxisCoupling (Dict.fromList map)
-        |> Dict.toList
-
-
-listToButtonMap : List ( RemapDestination, Origin ) -> ButtonMap
+listToButtonMap : List ( Destination, Origin ) -> Mapping
 listToButtonMap map =
     let
         hasMinus isReverse =
@@ -512,29 +372,29 @@ listToButtonMap map =
     in
     map
         |> List.map tupleDestinationToString
-        |> fixAllAxesCoupling
         |> List.map tupleToString
         |> List.sortBy identity
         |> String.join ","
 
 
-{-| This function inserts a button map for a given gamepad Id in a [Database](#Database),
-replacing any previous mapping for that gamepad Id.
 
-The first argument is the gamepad the map is for.
+-- Database ------------------------------------------------------------------
+{-
+   {-| This function inserts a button map for a given gamepad Id in a [Database](#Database),
+   replacing any previous mapping for that gamepad Id.
 
-The second argument is the map itself: a List of [RemapDestination](#RemapDestination)s vs
-[Origin](#Origin)s.
+   The first argument is the gamepad the map is for.
 
-The third argument is the [Database](#Database) to update.
+   The second argument is the map itself: a List of [RemapDestination](#RemapDestination)s vs
+   [Origin](#Origin)s.
 
+   The third argument is the [Database](#Database) to update.
+
+   -}
+   buttonMapToUpdateDatabase : UnknownGamepad -> List ( RemapDestination, Origin ) -> Database -> Database
+   buttonMapToUpdateDatabase unknownGamepad map (Database database) =
+       Dict.insert (unknownGetId unknownGamepad) (listToButtonMap map) database |> Database
 -}
-buttonMapToUpdateDatabase : UnknownGamepad -> List ( RemapDestination, Origin ) -> Database -> Database
-buttonMapToUpdateDatabase unknownGamepad map (Database database) =
-    Dict.insert (unknownGetId unknownGamepad) (listToButtonMap map) database |> Database
-
-
-
 -- Encoding and decoding Databases
 
 
@@ -604,32 +464,32 @@ databaseFromString databaseAsString =
 -- Standard button maps
 
 
-standardButtonMaps : Dict String ButtonMap
+standardButtonMaps : Dict String Mapping
 standardButtonMaps =
     [ ( "standard"
       , listToButtonMap
             -- https://www.w3.org/TR/gamepad/#remapping
-            [ ( RemapA, Origin False Button 0 )
-            , ( RemapB, Origin False Button 1 )
-            , ( RemapX, Origin False Button 2 )
-            , ( RemapY, Origin False Button 3 )
-            , ( RemapStart, Origin False Button 9 )
-            , ( RemapBack, Origin False Button 8 )
-            , ( RemapHome, Origin False Button 16 )
-            , ( RemapLeftStickPushRight, Origin False Axis 0 )
-            , ( RemapLeftStickPushDown, Origin False Axis 1 )
-            , ( RemapLeftStickPress, Origin False Button 10 )
-            , ( RemapLeftBumper, Origin False Button 4 )
-            , ( RemapLeftTrigger, Origin False Button 6 )
-            , ( RemapRightStickPushRight, Origin False Axis 2 )
-            , ( RemapRightStickPushDown, Origin False Axis 3 )
-            , ( RemapRightStickPress, Origin False Button 11 )
-            , ( RemapRightBumper, Origin False Button 5 )
-            , ( RemapRightTrigger, Origin False Button 7 )
-            , ( RemapDpadUp, Origin False Button 12 )
-            , ( RemapDpadDown, Origin False Button 13 )
-            , ( RemapDpadLeft, Origin False Button 14 )
-            , ( RemapDpadRight, Origin False Button 15 )
+            [ ( A, Origin False Button 0 )
+            , ( B, Origin False Button 1 )
+            , ( X, Origin False Button 2 )
+            , ( Y, Origin False Button 3 )
+            , ( Start, Origin False Button 9 )
+            , ( Back, Origin False Button 8 )
+            , ( Home, Origin False Button 16 )
+            , ( LeftStickRight, Origin False Axis 0 )
+            , ( LeftStickDown, Origin False Axis 1 )
+            , ( LeftStickPress, Origin False Button 10 )
+            , ( LeftBumper, Origin False Button 4 )
+            , ( LeftTrigger, Origin False Button 6 )
+            , ( RightStickRight, Origin False Axis 2 )
+            , ( RightStickDown, Origin False Axis 3 )
+            , ( RightStickPress, Origin False Button 11 )
+            , ( RightBumper, Origin False Button 5 )
+            , ( RightTrigger, Origin False Button 7 )
+            , ( DpadUp, Origin False Button 12 )
+            , ( DpadDown, Origin False Button 13 )
+            , ( DpadLeft, Origin False Button 14 )
+            , ( DpadRight, Origin False Button 15 )
             ]
       )
     ]
@@ -640,78 +500,47 @@ standardButtonMaps =
 -- Get gamepads
 
 
-isConnected : RawGamepad -> Bool
-isConnected rawGamepad =
-    -- All browsers running under Windows 10 will sometimes throw in a zombie gamepad
-    -- object, unrelated to any physical gamepad and never updated.
-    -- Since this gamepad has always timestamp == 0, we use this to discard it.
-    rawGamepad.connected && rawGamepad.timestamp > 0
-
-
-getRawGamepads : Blob -> List RawGamepad
-getRawGamepads blob =
+getGamepads : Database -> Blob -> List Gamepad
+getGamepads database blob =
     case blob of
         [] ->
             []
 
-        frame :: fs ->
-            frame.gamepads
-                |> List.filterMap identity
-                |> List.filter isConnected
+        frame :: fx ->
+            List.filterMap (maybeGamepad database blob) frame.gamepads
 
 
-getGamepadButtonMap : Database -> RawGamepad -> Maybe ButtonMap
-getGamepadButtonMap (Database database) rawGamepad =
-    case Dict.get rawGamepad.id database of
-        Just buttonMap ->
-            Just buttonMap
+maybeGamepad : Database -> Blob -> GamepadFrame -> Maybe Gamepad
+maybeGamepad database blob frame =
+    case getGamepadMapping database frame of
+        Nothing ->
+            Nothing
+
+        Just mapping ->
+            Just <| Gamepad frame.index mapping (List.foldr (addBlobFrame frame.index) [] blob)
+
+
+addBlobFrame : Int -> Gamepad.Private.BlobFrame -> List GamepadFrame -> List GamepadFrame
+addBlobFrame index blobFrame gamepadFrames =
+    List.foldl (addGamepadFrame index) gamepadFrames blobFrame.gamepads
+
+
+addGamepadFrame : Int -> GamepadFrame -> List GamepadFrame -> List GamepadFrame
+addGamepadFrame index frame frames =
+    if frame.index == index then
+        frame :: frames
+    else
+        frames
+
+
+getGamepadMapping : Database -> GamepadFrame -> Maybe Mapping
+getGamepadMapping (Database database) frame =
+    case Dict.get frame.id database of
+        Just mapping ->
+            Just mapping
 
         Nothing ->
-            Dict.get rawGamepad.mapping standardButtonMaps
-
-
-getKnownAndUnknownGamepads : Database -> Blob -> ( List Gamepad, List UnknownGamepad )
-getKnownAndUnknownGamepads database blob =
-    let
-        foldRawGamepad rawGamepad ( known, unknown ) =
-            case getGamepadButtonMap database rawGamepad of
-                Nothing ->
-                    ( known
-                    , UnknownGamepad rawGamepad :: unknown
-                    )
-
-                Just buttonMap ->
-                    -- TODO: it might be faster to parse the button maps here, rather than running a regex at every getter
-                    ( Gamepad buttonMap rawGamepad :: known
-                    , unknown
-                    )
-    in
-    blob
-        |> getRawGamepads
-        |> List.foldr foldRawGamepad ( [], [] )
-
-
-{-| Get a List of all recognised Gamepads (ie, those that can be found in the Database).
--}
-getGamepads : Database -> Blob -> List Gamepad
-getGamepads database blob =
-    getKnownAndUnknownGamepads database blob |> Tuple.first
-
-
-{-| Get a List of all gamepads that do not have a mapping.
-If there are any, you need to run the remapping tool to create a Database
-entry for them, otherwise the user won't be able to use them.
--}
-getUnknownGamepads : Database -> Blob -> List UnknownGamepad
-getUnknownGamepads database blob =
-    getKnownAndUnknownGamepads database blob |> Tuple.second
-
-
-{-| Get a List of all connected gamepads, whether they are recognised or not.
--}
-getAllGamepadsAsUnknown : Blob -> List UnknownGamepad
-getAllGamepadsAsUnknown blob =
-    getRawGamepads blob |> List.map UnknownGamepad
+            Dict.get frame.mapping standardButtonMaps
 
 
 
@@ -754,7 +583,7 @@ regexMatchToInputTuple match =
             Nothing
 
 
-mappingToRawIndex : RemapDestination -> String -> Maybe ( OriginType, Int, Bool )
+mappingToRawIndex : Destination -> String -> Maybe ( OriginType, Int, Bool )
 mappingToRawIndex destination mapping =
     let
         regex =
@@ -787,70 +616,79 @@ reverseAxis isReverse n =
         n
 
 
-buttonIsPressed : RemapDestination -> Gamepad -> Bool
-buttonIsPressed destination (Gamepad mapping rawGamepad) =
+buttonIsPressed : Destination -> Mapping -> GamepadFrame -> Bool
+buttonIsPressed destination mapping frame =
     case mappingToRawIndex destination mapping of
         Nothing ->
             False
 
         Just ( Axis, index, isReverse ) ->
-            Array.get index rawGamepad.axes
+            Array.get index frame.axes
                 |> Maybe.withDefault 0
                 |> reverseAxis isReverse
                 |> axisToButton
 
         Just ( Button, index, isReverse ) ->
-            Array.get index rawGamepad.buttons
+            Array.get index frame.buttons
                 |> Maybe.map Tuple.first
                 |> Maybe.withDefault False
 
 
-getValue : RemapDestination -> Gamepad -> Float
-getValue destination (Gamepad mapping rawGamepad) =
+buttonWasReleased : Destination -> Mapping -> GamepadFrame -> GamepadFrame -> Bool
+buttonWasReleased destination mapping currentFrame previousFrame =
+    buttonIsPressed destination mapping previousFrame && not (buttonIsPressed destination mapping currentFrame)
+
+
+getValue : Destination -> Mapping -> GamepadFrame -> Float
+getValue destination mapping frame =
     case mappingToRawIndex destination mapping of
         Nothing ->
             0
 
         Just ( Axis, index, isReverse ) ->
-            Array.get index rawGamepad.axes
+            Array.get index frame.axes
                 |> Maybe.withDefault 0
                 |> reverseAxis isReverse
 
         Just ( Button, index, isReverse ) ->
-            Array.get index rawGamepad.buttons
+            Array.get index frame.buttons
                 |> Maybe.map Tuple.second
                 |> Maybe.withDefault 0
 
 
-getAxis : RemapDestination -> RemapDestination -> Gamepad -> Float
-getAxis negativeDestination positiveDestination pad =
-    (getValue positiveDestination pad - getValue negativeDestination pad)
-        |> clamp -1 1
+getAxis : Destination -> Destination -> Mapping -> GamepadFrame -> Float
+getAxis negativeDestination positiveDestination mapping frame =
+    let
+        {- TODO: test and fix docs
 
+           If leftUp and leftDown point to different Origins, then the normal
 
+               leftY =
+                   leftUp - leftDown
 
--- Unknown Gamepad getters
+           is perfectly valid.
 
+           However if they are on the same origin and that origin is a -1 to +1 axis, the
+           equality above will yield values between -2 and +2.
 
-{-| Get the identifier String of an unknown gamepad, as provided by the browser
+           This function detects such cases and removes one of the two origins from the
+           map.
 
-    unknownGetId unknownGamepad == "Microsoft Corporation. Controller (STANDARD GAMEPAD Vendor: 045e Product: 028e)"
+               leftY =
+                   leftUp
 
--}
-unknownGetId : UnknownGamepad -> String
-unknownGetId (UnknownGamepad raw) =
-    raw.id
+        -}
+        negative =
+            getValue negativeDestination mapping frame
 
-
-{-| Get the index of an unknown gamepad.
-Indexes start from 0.
-
-    unknownGetIndex unknownGamepad == 0
-
--}
-unknownGetIndex : UnknownGamepad -> Int
-unknownGetIndex (UnknownGamepad raw) =
-    raw.index
+        positive =
+            getValue positiveDestination mapping frame
+    in
+    -- if both are non-zero and have the same sign
+    if positive * negative > 0 then
+        positive
+    else
+        positive - negative
 
 
 
@@ -864,23 +702,43 @@ Indexes start from 0.
 
 -}
 getIndex : Gamepad -> Int
-getIndex (Gamepad string raw) =
-    raw.index
+getIndex (Gamepad index mapping frames) =
+    index
 
 
 isPressed : Digital -> Gamepad -> Bool
-isPressed digital pad =
-    buttonIsPressed (digitalToDestination digital) pad
+isPressed digital (Gamepad index mapping frames) =
+    case frames of
+        [] ->
+            False
+
+        frame :: fs ->
+            buttonIsPressed digital mapping frame
+
+
+wasReleased : Digital -> Gamepad -> Bool
+wasReleased digital (Gamepad index mapping frames) =
+    case frames of
+        frameA :: frameB :: fs ->
+            buttonWasReleased digital mapping frameA frameB
+
+        _ ->
+            False
 
 
 axisValue : Analog -> Gamepad -> Float
-axisValue analog pad =
-    case analogToDestination analog of
-        One positive ->
-            getValue positive pad
+axisValue analog (Gamepad index mapping frames) =
+    case frames of
+        [] ->
+            0
 
-        Two negative positive ->
-            getAxis negative positive pad
+        frame :: fs ->
+            case analogToDestination analog of
+                One positive ->
+                    getValue positive mapping frame
+
+                Two negative positive ->
+                    getAxis negative positive mapping frame
 
 
 leftPosition : Gamepad -> { x : Float, y : Float }
@@ -897,62 +755,9 @@ rightPosition pad =
     }
 
 
-
---
--- Mapping helpers
---
--- This code is used to get an estimate of the buttons/sticks the user is
--- moving given a time series of RawGamepad states
---
-
-
-{-| Buttons are always provided as a (isPressed, value) tuple.
-This function ignores one and uses only and always the other.
-
-Is this a good assumption?
-Are there cases where both should be considered?
-
--}
-boolToNumber : Bool -> number
-boolToNumber bool =
-    if bool then
-        1
-    else
-        0
-
-
-buttonToEstimate : Int -> ( Bool, Float ) -> ( Origin, Float )
-buttonToEstimate originIndex ( pressed, value ) =
-    ( Origin False Button originIndex, boolToNumber pressed )
-
-
-axisToEstimate : Int -> Float -> ( Origin, Float )
-axisToEstimate originIndex value =
-    ( Origin (value < 0) Axis originIndex, abs value )
-
-
-estimateThreshold : ( Origin, Float ) -> Maybe Origin
-estimateThreshold ( origin, confidence ) =
-    if confidence < 0.5 then
-        Nothing
-    else
-        Just origin
-
-
-{-| This function guesses the Origin currently activated by the user.
--}
-estimateOrigin : UnknownGamepad -> Maybe Origin
-estimateOrigin (UnknownGamepad rawGamepad) =
-    let
-        axesEstimates =
-            Array.indexedMap axisToEstimate rawGamepad.axes
-
-        buttonsEstimates =
-            Array.indexedMap buttonToEstimate rawGamepad.buttons
-    in
-    Array.append axesEstimates buttonsEstimates
-        |> Array.toList
-        |> List.sortBy Tuple.second
-        |> List.reverse
-        |> List.head
-        |> Maybe.andThen estimateThreshold
+dpadPosition : Gamepad -> { x : Int, y : Int }
+dpadPosition pad =
+    -- TODO
+    { x = 0
+    , y = 0
+    }

@@ -4,19 +4,18 @@ import Array exposing (Array)
 
 
 type alias Blob =
-    List Frame
+    List BlobFrame
 
 
-type alias Frame =
-    { gamepads : List (Maybe RawGamepad)
+type alias BlobFrame =
+    { gamepads : List GamepadFrame
     , timestamp : Float
     }
 
 
-type alias RawGamepad =
+type alias GamepadFrame =
     { axes : Array Float
     , buttons : Array ( Bool, Float )
-    , connected : Bool
     , id : String
     , index : Int
     , mapping : String
