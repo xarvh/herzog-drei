@@ -23,7 +23,7 @@ import View.Game
 
 
 type Msg
-    = OnGamepad ( Float, Gamepad.Blob )
+    = OnGamepad Gamepad.Blob
 
 
 type alias Model =
@@ -253,13 +253,16 @@ noCmd model =
 update : Msg -> Shell -> Model -> ( Model, Cmd Msg )
 update msg shell model =
     case msg of
-        OnGamepad timeAndGamepadBlob ->
-            updateOnGamepad timeAndGamepadBlob shell model
+        OnGamepad gamepadBlob ->
+            updateOnGamepad gamepadBlob shell model
 
 
-updateOnGamepad : ( Float, Gamepad.Blob ) -> Shell -> Model -> ( Model, Cmd Msg )
-updateOnGamepad ( dtInMilliseconds, gamepadBlob ) shell model =
+updateOnGamepad : Gamepad.Blob -> Shell -> Model -> ( Model, Cmd Msg )
+updateOnGamepad gamepadBlob shell model =
     let
+        dtInMilliseconds =
+            Gamepad.animationFrameDelta gamepadBlob
+
         gamepadsInputByKey =
             gamepadBlob
                 |> Gamepad.getGamepads shell.config.gamepadDatabase

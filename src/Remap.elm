@@ -14,7 +14,7 @@ import List.Extra
 
 type Msg
     = Noop
-    | OnGamepad ( Float, Blob )
+    | OnGamepad Blob
     | OnRemapMsg Gamepad.Remap.Msg
     | OnStartRemapping Int
 
@@ -69,7 +69,7 @@ update msg model =
         Noop ->
             noCmd model
 
-        OnGamepad ( time, blob ) ->
+        OnGamepad blob ->
             noCmd { model | maybeBlob = Just blob }
 
         OnStartRemapping index ->
@@ -293,7 +293,7 @@ view db model =
 
 
 type alias PortSubscription msg =
-    (( Float, Blob ) -> msg) -> Sub msg
+    (Blob -> msg) -> Sub msg
 
 
 subscriptions : PortSubscription Msg -> Sub Msg

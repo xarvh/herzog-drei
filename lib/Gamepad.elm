@@ -5,15 +5,13 @@ module Gamepad
         , Destination(..)
         , Gamepad
         , Origin
-        , RawGamepad
-          -- database
         , UnknownGamepad
         , aIsPressed
+        , animationFrameDelta
         , bIsPressed
         , backIsPressed
         , buttonMapToUpdateDatabase
         , databaseFromString
-          -- unknown gamepads
         , databaseToString
         , dpadDownIsPressed
         , dpadLeftIsPressed
@@ -38,13 +36,11 @@ module Gamepad
         , rightStickIsPressed
         , rightTriggerIsPressed
         , rightTriggerValue
-          -- mapping
         , rightX
         , rightY
         , startIsPressed
         , unknownGetId
         , unknownGetIndex
-          -- known gamepads
         , xIsPressed
         , yIsPressed
         )
@@ -146,15 +142,11 @@ The steps to create a button map are roughly:
 
 @docs getAllGamepadsAsUnknown, Origin, Destination, estimateOrigin, buttonMapToUpdateDatabase
 
-
-# Test
-
-@docs RawGamepad
-
 -}
 
 import Array exposing (Array)
 import Dict exposing (Dict)
+import Gamepad.Private exposing (RawGamepad)
 import Regex
 import Set exposing (Set)
 
@@ -211,20 +203,17 @@ that is nice to use with Elm.
 
 -}
 type alias Blob =
-    List (Maybe RawGamepad)
+    Gamepad.Private.Blob
 
 
-{-| This type is exposed only for testing purposes. Don't use it.
--}
-type alias RawGamepad =
-    { axes : Array Float
-    , buttons : Array ( Bool, Float )
-    , connected : Bool
-    , id : String
-    , index : Int
-    , mapping : String
-    , timestamp : Float
-    }
+animationFrameDelta : Blob -> Float
+animationFrameDelta blob =
+    case blob of
+        frameA :: frameB :: fs ->
+            frameA.timestamp - frameB.timestamp
+
+        _ ->
+            17
 
 
 {-| A Destination is just a way to reference a gamepad input that is understandable for the user.
@@ -543,9 +532,14 @@ isConnected rawGamepad =
 
 getRawGamepads : Blob -> List RawGamepad
 getRawGamepads blob =
-    blob
-        |> List.filterMap identity
-        |> List.filter isConnected
+    case blob of
+        [] ->
+            []
+
+        frame :: fs ->
+            frame.gamepads
+                |> List.filterMap identity
+                |> List.filter isConnected
 
 
 getGamepadButtonMap : Database -> RawGamepad -> Maybe ButtonMap

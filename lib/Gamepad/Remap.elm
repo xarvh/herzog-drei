@@ -113,14 +113,14 @@ type Model presentation
 
 {-| -}
 type Msg
-    = OnGamepad ( Float, Gamepad.Blob )
+    = OnGamepad Gamepad.Blob
 
 
 {-| This is for testing only. Don't use it.
 -}
 testMsg : Gamepad.Blob -> Msg
 testMsg blob =
-    OnGamepad ( 16.6, blob )
+    OnGamepad blob
 
 
 
@@ -276,7 +276,7 @@ onMaybePressedButton maybeOrigin model =
 update : Msg -> Model presentation -> Outcome presentation
 update msg unionModel =
     case msg of
-        OnGamepad ( dt, blob ) ->
+        OnGamepad blob ->
             case unionModel of
                 WaitingForGamepad index unconfiguredButtons ->
                     actuallyInit blob index unconfiguredButtons
@@ -342,7 +342,7 @@ view model =
 It matches the one you will find in [port/GamepadPort.elm](https://github.com/xarvh/elm-gamepad/blob/master/port/GamepadPort.elm)
 -}
 type alias PortSubscription msg =
-    (( Float, Gamepad.Blob ) -> msg) -> Sub msg
+    (Gamepad.Blob -> msg) -> Sub msg
 
 
 {-| -}
