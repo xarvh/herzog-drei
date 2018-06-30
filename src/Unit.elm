@@ -1,6 +1,8 @@
 module Unit exposing (..)
 
+import Dict exposing (Dict)
 import Game exposing (..)
+import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Stats
 
 
@@ -106,6 +108,15 @@ takeDamage rawDamage game unit =
             (rawDamage - armor) / healthPoints |> max 0
     in
     removeIntegrity damage game unit
+
+
+splashDamage : Game -> Maybe TeamId -> Vec2 -> Float -> Float -> Delta
+splashDamage game maybeTeamId position damage radius =
+    game.unitById
+        |> Dict.values
+        |> List.filter (\u -> u.maybeTeamId /= maybeTeamId && Vec2.distanceSquared u.position position < radius)
+        |> List.map (\u -> deltaUnit u.id (takeDamage damage))
+        |> deltaList
 
 
 

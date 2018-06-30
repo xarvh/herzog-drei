@@ -73,5 +73,13 @@ thinkExplode game class projectile position =
     -- TODO: different classes have different explosions
     deltaList
         [ Projectile.deltaRemove projectile.id
-        , View.Gfx.deltaAddExplosion position 0.2
+        , case class.effect of
+            ProjectileSplashDamage { radius, damage } ->
+                deltaList
+                    [ View.Gfx.deltaAddExplosion position radius
+                    , Unit.splashDamage game projectile.maybeTeamId position damage radius
+                    ]
+
+            _ ->
+                View.Gfx.deltaAddExplosion position 0.2
         ]
