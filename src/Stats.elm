@@ -74,7 +74,9 @@ heli =
     { walkReload = 0.5
     , flyReload = 0.75
     , chargeTime = 2
-    , stretchTime = 3
+    , stretchTime = 0.5
+    , salvoSize = 6
+    , cooldown = 0.5
     }
 
 

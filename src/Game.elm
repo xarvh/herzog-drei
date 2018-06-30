@@ -219,8 +219,8 @@ type UnitComponent
 
 type Charge
     = Charging Seconds
-    | Stretching Seconds
-    | Discharging Seconds
+    | Stretching Int Seconds
+    | Cooldown Seconds
 
 
 type alias Unit =

@@ -1,5 +1,6 @@
 module Unit exposing (..)
 
+import ColorPattern exposing (ColorPattern)
 import Dict exposing (Dict)
 import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
@@ -169,3 +170,8 @@ isSub unit =
 
         _ ->
             False
+
+
+colorPattern : Game -> Unit -> ColorPattern
+colorPattern game unit =
+    teamColorPattern game unit.maybeTeamId

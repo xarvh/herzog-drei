@@ -214,19 +214,21 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
 
 
 
----
+{-
+   ---
 
 
-toDoNow : { startTime : Seconds, totalDuration : Seconds, totalEvents : Int, currentTime : Seconds, elapsedSinceLastUpdate : Seconds } -> Int
-toDoNow { startTime, totalDuration, totalEvents, currentTime, elapsedSinceLastUpdate } =
-    let
-        alreadyDone =
-            (currentTime - startTime) * toFloat totalEvents / totalDuration |> floor
+   toDoNow : { startTime : Seconds, totalDuration : Seconds, totalEvents : Int, currentTime : Seconds, elapsedSinceLastUpdate : Seconds } -> Int
+   toDoNow { startTime, totalDuration, totalEvents, currentTime, elapsedSinceLastUpdate } =
+       let
+           alreadyDone =
+               (currentTime - startTime) * toFloat totalEvents / totalDuration |> floor
 
-        toBeDoneByNow =
-            (currentTime - startTime + elapsedSinceLastUpdate) * toFloat totalEvents / totalDuration |> floor |> min totalEvents
-    in
-    toBeDoneByNow - alreadyDone
+           toBeDoneByNow =
+               (currentTime - startTime + elapsedSinceLastUpdate) * toFloat totalEvents / totalDuration |> floor |> min totalEvents
+       in
+       toBeDoneByNow - alreadyDone
+-}
 
 
 chargeDelta : Seconds -> Game -> Unit -> MechComponent -> Bool -> Bool -> Delta
@@ -234,7 +236,7 @@ chargeDelta dt game unit mech isMoving isFiring =
     let
         canMove =
             case unit.maybeCharge of
-                Just (Discharging _) ->
+                Just (Cooldown _) ->
                     True
 
                 _ ->
@@ -243,9 +245,13 @@ chargeDelta dt game unit mech isMoving isFiring =
         reset =
             deltaUnit unit.id (\g u -> { u | maybeCharge = Nothing })
 
+        setCharge : Maybe Charge -> Delta
+        setCharge maybeCharge =
+            deltaUnit unit.id (\g u -> { u | maybeCharge = maybeCharge })
+
         switchTo : (Seconds -> Charge) -> Delta
         switchTo chargeConstructor =
-            deltaUnit unit.id (\g u -> { u | maybeCharge = Just (chargeConstructor game.time) |> Debug.log "charge" })
+            game.time |> chargeConstructor |> Just |> setCharge
     in
     if not canMove && isMoving then
         deltaList
@@ -269,40 +275,56 @@ chargeDelta dt game unit mech isMoving isFiring =
                 else if game.time - startTime < Stats.heli.chargeTime then
                     deltaNone
                 else
-                    switchTo Stretching
+                    deltaList
+                        [ switchTo (Stretching 0)
+                        , spawnUpwardRocket game unit
+                        ]
 
-            Just (Stretching startTime) ->
-                if isFiring && game.time - startTime < Stats.heli.stretchTime then
-                    deltaNone
+            Just (Stretching rocketsActuallyFiredSoFar startTime) ->
+                deltaList
+                    [ let
+                        intervalBetweenRockets =
+                            0.1
+
+                        rocketsToBeFiredSoFar =
+                            (game.time - startTime + dt) / intervalBetweenRockets |> floor |> min Stats.heli.salvoSize
+
+                        rocketsToBeFiredNow =
+                            rocketsToBeFiredSoFar - rocketsActuallyFiredSoFar
+                      in
+                      if rocketsToBeFiredNow < 1 then
+                        deltaNone
+                      else
+                        deltaList
+                            [ spawnUpwardRocket game unit
+                            , setCharge <| Just <| Stretching rocketsToBeFiredSoFar startTime
+                            ]
+
+                    --
+                    , if isFiring && game.time - startTime < Stats.heli.stretchTime then
+                        deltaNone
+                      else
+                        deltaList
+                            [ switchTo Cooldown
+                            , spawnDownwardSalvo game unit (game.time - startTime)
+                            ]
+                    ]
+
+            Just (Cooldown startTime) ->
+                if game.time - startTime > Stats.heli.cooldown then
+                    setCharge Nothing
                 else
-                    -- TODO : spawn missiles-flying-out-of-screen GFX
-                    switchTo Discharging
-
-            Just (Discharging startTime) ->
-                let
-                    totalDuration =
-                        0.6
-
-                    explosionsToSpawn =
-                        toDoNow
-                            { totalDuration = 0.6
-                            , totalEvents = 6
-                            , startTime = startTime
-                            , currentTime = game.time
-                            , elapsedSinceLastUpdate = dt
-                            }
-
-                    q =
-                        if explosionsToSpawn > 0 then
-                            Debug.log "" explosionsToSpawn
-                        else
-                            0
-                in
-                -- TODO : spawn explosions
-                if game.time - startTime > totalDuration then
-                    switchTo Charging
-                else
                     deltaNone
+
+
+spawnUpwardRocket : Game -> Unit -> Delta
+spawnUpwardRocket game unit =
+    View.Gfx.deltaAddFlyingHead unit.position (Vec2.add unit.position (vec2 10 30)) (Unit.colorPattern game unit)
+
+
+spawnDownwardSalvo : Game -> Unit -> Seconds -> Delta
+spawnDownwardSalvo game unit stretchTime =
+    deltaNone
 
 
 repairSelf : Seconds -> Unit -> Delta
