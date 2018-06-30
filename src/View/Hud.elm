@@ -1,9 +1,33 @@
 module View.Hud exposing (..)
 
-import Game
+import ColorPattern exposing (ColorPattern)
+import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Svg exposing (..)
 import View exposing (..)
+
+
+salvoMark : Seconds -> ColorPattern -> Vec2 -> Svg a
+salvoMark time { bright, dark } position =
+    let
+        ( fillColor, strokeColor ) =
+            if periodLinear time 0 0.1 > 0.5 then
+                ( bright, dark )
+            else
+                ( dark, bright )
+
+        p =
+            Vec2.toRecord position
+    in
+    Svg.circle
+        [ cx p.x
+        , cy p.y
+        , r 0.1
+        , fill fillColor
+        , stroke strokeColor
+        , strokeWidth 0.03
+        ]
+        []
 
 
 chargeBar : Vec2 -> Float -> Svg a

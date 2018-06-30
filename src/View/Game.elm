@@ -14,6 +14,7 @@ import Stats
 import Svg exposing (..)
 import Svg.Attributes
 import Svg.Lazy
+import Unit
 import Update
 import View exposing (..)
 import View.Background
@@ -74,17 +75,6 @@ checkersBackground game =
             ]
             []
         ]
-
-
-circle : Vec2 -> String -> Float -> Svg a
-circle pos color size =
-    Svg.circle
-        [ cx <| Vec2.getX pos
-        , cy <| Vec2.getY pos
-        , r size
-        , fill color
-        ]
-        []
 
 
 viewBase : Game -> Base -> Svg a
@@ -294,11 +284,23 @@ viewHealthbar unit =
         View.Hud.healthBar unit.position unit.integrity
 
 
-viewChargeBar : Seconds -> Unit -> Svg a
-viewChargeBar time unit =
+viewCharge : Game -> Unit -> Svg a
+viewCharge game unit =
     case unit.maybeCharge of
         Just (Charging startTime) ->
-            View.Hud.chargeBar unit.position ((time - startTime) / Stats.heli.chargeTime)
+            let
+                charge =
+                    (game.time - startTime) / Stats.heli.chargeTime
+            in
+            if charge < 0.1 then
+                text ""
+            else
+                View.Hud.chargeBar unit.position charge
+
+        Just (Stretching _ startTime) ->
+            Unit.heliSalvoPositions (game.time - startTime) unit
+                |> List.map (View.Hud.salvoMark game.time (Unit.colorPattern game unit))
+                |> g []
 
         _ ->
             Svg.text ""
@@ -454,7 +456,7 @@ view terrain viewport game =
                     |> List.map viewHealthbar
                     |> g []
                 , units
-                    |> List.map (viewChargeBar game.time)
+                    |> List.map (viewCharge game)
                     |> g []
                 ]
             ]

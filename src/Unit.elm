@@ -7,6 +7,36 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Stats
 
 
+--
+
+
+heliSalvoPositions : Seconds -> Unit -> List Vec2
+heliSalvoPositions stretchTime unit =
+    let
+        maxRange =
+            20
+
+        minimumSpacing =
+            0.5
+
+        maximumSpacing =
+            maxRange / Stats.heli.salvoSize
+
+        spacing =
+            minimumSpacing + (maximumSpacing - minimumSpacing) * (stretchTime / Stats.heli.stretchTime)
+
+        distanceFromMech =
+            2
+
+        direction =
+            angleToVector unit.lookAngle
+
+        indexToVec index =
+            Vec2.add unit.position (Vec2.scale (distanceFromMech + spacing * toFloat index) direction)
+    in
+    List.range 1 Stats.heli.salvoSize |> List.map indexToVec
+
+
 mechReloadTime : MechComponent -> Seconds
 mechReloadTime mech =
     case mech.class of

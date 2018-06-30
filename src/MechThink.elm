@@ -281,8 +281,7 @@ chargeDelta dt game unit mech isMoving isFiring =
                         ]
 
             Just (Stretching rocketsActuallyFiredSoFar startTime) ->
-                deltaList
-                    [ let
+                     let
                         intervalBetweenRockets =
                             0.1
 
@@ -292,6 +291,8 @@ chargeDelta dt game unit mech isMoving isFiring =
                         rocketsToBeFiredNow =
                             rocketsToBeFiredSoFar - rocketsActuallyFiredSoFar
                       in
+                deltaList
+                [
                       if rocketsToBeFiredNow < 1 then
                         deltaNone
                       else
@@ -300,8 +301,8 @@ chargeDelta dt game unit mech isMoving isFiring =
                             , setCharge <| Just <| Stretching rocketsToBeFiredSoFar startTime
                             ]
 
-                    --
-                    , if isFiring && game.time - startTime < Stats.heli.stretchTime then
+                    -- Can't start cooldown until all salvo has been fired
+                    , if rocketsToBeFiredSoFar < Stats.heli.salvoSize || (isFiring && game.time - startTime < Stats.heli.stretchTime) then
                         deltaNone
                       else
                         deltaList
