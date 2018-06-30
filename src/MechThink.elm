@@ -8,6 +8,7 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Pathfinding
 import Random
 import Set exposing (Set)
+import Stats
 import Unit
 import UnitCollision
 import View.Gfx
@@ -391,14 +392,18 @@ attackDelta game unit mech =
                 , beamAttackDelta game unit mech rightOrigin
                 ]
 
-        _ ->
+        Heli ->
+            -- TODO
+            deltaNone
+
+        Plane ->
             let
                 deltaFire origin =
                     Game.deltaAddProjectile
                         { maybeTeamId = unit.maybeTeamId
                         , position = origin
                         , angle = unit.fireAngle
-                        , damage = Unit.mechShootDamage
+                        , classId = PlaneBullet
                         }
             in
             deltaList
@@ -412,19 +417,11 @@ attackDelta game unit mech =
 beamAttackDelta : Game -> Unit -> MechComponent -> Vec2 -> Delta
 beamAttackDelta game unit mech start =
     let
-        maxLength =
-            case Unit.transformMode mech of
-                ToMech ->
-                    Unit.mechShootRange + 2
-
-                ToFlyer ->
-                    Unit.mechShootRange
-
         direction =
             vec2 0 1 |> rotateVector unit.fireAngle
 
         end =
-            Vec2.add start (Vec2.scale maxLength direction)
+            Vec2.add start (Vec2.scale Stats.blimp.beamRange direction)
     in
     case UnitCollision.closestEnemyToVectorOrigin start end unit.maybeTeamId game of
         Nothing ->
@@ -440,7 +437,7 @@ beamAttackDelta game unit mech start =
             in
             deltaList
                 [ View.Gfx.deltaAddBeam start newEnd (teamColorPattern game unit.maybeTeamId)
-                , deltaUnit target.id (Unit.takeDamage Unit.blimpBeamDamage)
+                , deltaUnit target.id (Unit.takeDamage Stats.blimp.beamDamage)
                 ]
 
 

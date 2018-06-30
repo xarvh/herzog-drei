@@ -140,7 +140,7 @@ type alias ProjectileSeed =
     { maybeTeamId : Maybe TeamId
     , position : Vec2
     , angle : Angle
-    , damage : Int
+    , classId : ProjectileClassId
     }
 
 
@@ -150,12 +150,31 @@ type alias Projectile =
     , position : Vec2
     , spawnPosition : Vec2
     , angle : Angle
-    , damage : Int
+    , classId : ProjectileClassId
+    }
+
+
+type ProjectileClassId
+    = PlaneBullet
+    | BigSubBullet
+    | HeliRocket
+
+
+type ProjectileEffect
+    = ProjectileDamage Float
+    | ProjectileSplashDamage { radius : Float, damage : Float }
+
+
+type alias ProjectileClass =
+    { speed : Float
+    , range : Float
+    , effect : ProjectileEffect
+    , trail : Bool
     }
 
 
 addProjectile : ProjectileSeed -> Game -> Game
-addProjectile { maybeTeamId, position, angle, damage } game =
+addProjectile { maybeTeamId, position, angle, classId } game =
     let
         projectile =
             { id = game.lastId + 1
@@ -163,7 +182,7 @@ addProjectile { maybeTeamId, position, angle, damage } game =
             , position = position
             , spawnPosition = position
             , angle = angle
-            , damage = damage
+            , classId = classId
             }
 
         projectileById =

@@ -1,63 +1,30 @@
 module Unit exposing (..)
 
 import Game exposing (..)
+import Stats
 
 
--- Subs constants
-
-
-subReloadTime : SubComponent -> Seconds
-subReloadTime sub =
-    if sub.isBig then
-        0.4
-    else
-        4.0
-
-
-subShootRange : SubComponent -> Float
-subShootRange sub =
-    if sub.isBig then
-        8.0
-    else
-        7.0
-
-
-subShootDamage : SubComponent -> number
-subShootDamage sub =
-    if sub.isBig then
-        4
-    else
-        11
-
-
-
--- Mech constants
-
-
-mechShootRange =
-    8.0
-
-
-mechShootDamage =
-    4
-
-
-blimpBeamDamage =
-    40
-
-
+mechReloadTime : MechComponent -> Seconds
 mechReloadTime mech =
     case mech.class of
         Blimp ->
-            1.0
+            Stats.blimp.reload
 
-        _ ->
+        Heli ->
             case transformMode mech of
                 ToMech ->
-                    0.05
+                    Stats.heli.walkReload
 
                 ToFlyer ->
-                    0.075
+                    Stats.heli.flyReload
+
+        Plane ->
+            case transformMode mech of
+                ToMech ->
+                    Stats.plane.walkReload
+
+                ToFlyer ->
+                    Stats.plane.flyReload
 
 
 
@@ -84,7 +51,7 @@ transformMode mech =
 -- Damage
 
 
-hitPointsAndArmor : Unit -> ( Float, Int )
+hitPointsAndArmor : Unit -> ( Float, Float )
 hitPointsAndArmor unit =
     case unit.component of
         UnitMech mech ->
@@ -129,14 +96,14 @@ takePiercingDamage rawDamage game unit =
     removeIntegrity damage game unit
 
 
-takeDamage : Int -> Game -> Unit -> Unit
+takeDamage : Float -> Game -> Unit -> Unit
 takeDamage rawDamage game unit =
     let
         ( healthPoints, armor ) =
             hitPointsAndArmor unit
 
         damage =
-            toFloat (rawDamage - armor) / healthPoints |> max 0
+            (rawDamage - armor) / healthPoints |> max 0
     in
     removeIntegrity damage game unit
 
