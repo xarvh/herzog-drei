@@ -57,6 +57,9 @@ nextClass class =
 mechThink : ( InputState, InputState ) -> Seconds -> Game -> Unit -> MechComponent -> Delta
 mechThink ( previousInput, currentInput ) dt game unit mech =
     let
+        mode =
+            Unit.transformMode mech
+
         isAiming =
             Vec2.length aimDirection > aimControlThreshold
 
@@ -64,7 +67,7 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
             Vec2.length currentInput.move > aimControlThreshold
 
         speed =
-            case Unit.transformMode mech of
+            case mode of
                 ToMech ->
                     5.0
 
@@ -113,7 +116,7 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
                 deltaNone
 
         updatePosition =
-            case Unit.transformMode mech of
+            case mode of
                 ToMech ->
                     walk
 
@@ -124,7 +127,10 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
             updatePosition dx game unit |> Game.clampToGameSize game 1
 
         moveMech =
-            deltaUnit unit.id (\g u -> { u | position = newPosition })
+            if isMoving then
+                deltaUnit unit.id (\g u -> { u | position = newPosition })
+            else
+                deltaNone
 
         hasFreeGround u =
             Set.member (vec2Tile newPosition) game.staticObstacles |> not
@@ -191,18 +197,30 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
                 |> deltaUnit unit.id
 
         fire =
-            if mech.class == Blimp && Unit.transformMode mech == ToFlyer then
-                if currentInput.fire then
-                    vampireDelta dt game unit mech newPosition
-                else
-                    deltaNone
-            else if currentInput.fire && game.time >= unit.reloadEndTime then
-                deltaList
-                    [ deltaUnit unit.id (\g u -> { u | reloadEndTime = game.time + Unit.mechReloadTime mech })
-                    , attackDelta game unit mech
-                    ]
-            else
+            if mech.class == Heli && mode == ToMech then
+                chargeDelta dt game unit mech isMoving currentInput.fire
+            else if not currentInput.fire then
                 deltaNone
+            else if mech.class == Blimp && mode == ToFlyer then
+                vampireDelta dt game unit mech newPosition
+            else
+                attackDelta game unit mech
+
+        deltaPassive =
+            case mech.class of
+                Plane ->
+                    case mode of
+                        ToFlyer ->
+                            repairAllies dt game unit
+
+                        ToMech ->
+                            repairSelf dt unit
+
+                Heli ->
+                    deltaNone
+
+                Blimp ->
+                    deltaNone
     in
     deltaList
         [ rally
@@ -211,21 +229,109 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
         , fire
         , transform
         , repairDelta dt game unit mech
-        , case mech.class of
-            Plane ->
-                case Unit.transformMode mech of
-                    ToFlyer ->
-                        repairAllies dt game unit
-
-                    ToMech ->
-                        repairSelf dt unit
-
-            Heli ->
-                deltaNone
-
-            Blimp ->
-                deltaNone
+        , deltaPassive
         ]
+
+
+
+---
+
+
+toDoNow : { startTime : Seconds, period : Seconds, currentTime : Seconds, elapsedSinceLastUpdate : Seconds } -> Int
+toDoNow { period, startTime, currentTime, elapsedSinceLastUpdate } =
+    let
+        alreadyDone =
+            (currentTime - startTime) / period |> floor
+
+        toBeDoneByNow =
+            (currentTime - startTime + elapsedSinceLastUpdate) / period |> floor
+    in
+    toBeDoneByNow - alreadyDone
+
+
+chargeTime =
+    2
+
+stretchTime = 3
+
+
+chargeDelta : Seconds -> Game -> Unit -> MechComponent -> Bool -> Bool -> Delta
+chargeDelta dt game unit mech isMoving isFiring =
+    let
+        canMove =
+            case unit.maybeCharge of
+                Just (Discharging _) ->
+                    True
+
+                _ ->
+                    False
+
+        reset =deltaUnit unit.id (\g u -> { u | maybeCharge = Nothing })
+
+        switchTo : (Seconds -> Charge) -> Delta
+        switchTo chargeConstructor =
+          deltaUnit unit.id (\g u -> { u | maybeCharge = Just (chargeConstructor game.time) |> Debug.log "charge"})
+
+
+    in
+    if not canMove && isMoving then
+        deltaList
+            [ reset
+            , if isFiring then
+                attackDelta game unit mech
+              else
+                deltaNone
+            ]
+    else
+        case unit.maybeCharge of
+            Nothing ->
+              if isFiring then
+                switchTo Charging
+              else
+                deltaNone
+
+            Just (Charging startTime) ->
+                if not isFiring then
+                  reset
+                else if game.time - startTime < chargeTime then
+                    deltaNone
+                else
+                    switchTo Stretching
+
+            Just (Stretching startTime) ->
+              if isFiring && game.time - startTime < stretchTime then
+                deltaNone
+              else
+                -- TODO : spawn missiles-flying-out-of-screen GFX
+                switchTo Discharging
+
+            Just (Discharging startTime) ->
+                let
+                    totalDuration =
+                        0.060
+
+                    totalExplosions =
+                        6
+
+                    explosionsToSpawn =
+                        toDoNow
+                            { period = totalDuration / totalExplosions
+                            , startTime = startTime
+                            , currentTime = game.time
+                            , elapsedSinceLastUpdate = dt
+                            }
+
+                    q =
+                        if explosionsToSpawn > 0 then
+                            Debug.log "" explosionsToSpawn
+                        else
+                            0
+                in
+                      -- TODO : spawn explosions
+                    if game.time - startTime > totalDuration then
+                      switchTo Charging
+                    else
+                      deltaNone
 
 
 repairSelf : Seconds -> Unit -> Delta
@@ -379,41 +485,47 @@ vampireTargetDelta dt attacker target =
 
 attackDelta : Game -> Unit -> MechComponent -> Delta
 attackDelta game unit mech =
-    let
-        leftOrigin =
-            View.Mech.leftGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
+    if game.time < unit.reloadEndTime then
+        deltaNone
+    else
+        let
+            leftOrigin =
+                View.Mech.leftGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
 
-        rightOrigin =
-            View.Mech.rightGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
+            rightOrigin =
+                View.Mech.rightGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
 
-        deltaFire classId origin =
-            Projectile.deltaAdd
-                { maybeTeamId = unit.maybeTeamId
-                , position = origin
-                , angle = unit.fireAngle
-                , classId = classId
-                }
-    in
-    case mech.class of
-        Blimp ->
-            deltaList
-                [ beamAttackDelta game unit mech leftOrigin
-                , beamAttackDelta game unit mech rightOrigin
-                ]
+            deltaFire classId origin =
+                Projectile.deltaAdd
+                    { maybeTeamId = unit.maybeTeamId
+                    , position = origin
+                    , angle = unit.fireAngle
+                    , classId = classId
+                    }
+        in
+        deltaList
+            [ deltaUnit unit.id (\g u -> { u | reloadEndTime = game.time + Unit.mechReloadTime mech })
+            , case mech.class of
+                Blimp ->
+                    deltaList
+                        [ beamAttackDelta game unit mech leftOrigin
+                        , beamAttackDelta game unit mech rightOrigin
+                        ]
 
-        Heli ->
-            deltaList
-                [ deltaFire HeliRocket leftOrigin
-                , deltaFire HeliRocket rightOrigin
-                ]
+                Heli ->
+                    deltaList
+                        [ deltaFire HeliRocket leftOrigin
+                        , deltaFire HeliRocket rightOrigin
+                        ]
 
-        Plane ->
-            deltaList
-                [ deltaFire PlaneBullet leftOrigin
-                , View.Gfx.deltaAddProjectileCase leftOrigin (unit.fireAngle - pi - pi / 12)
-                , deltaFire PlaneBullet rightOrigin
-                , View.Gfx.deltaAddProjectileCase rightOrigin (unit.fireAngle + pi / 12)
-                ]
+                Plane ->
+                    deltaList
+                        [ deltaFire PlaneBullet leftOrigin
+                        , View.Gfx.deltaAddProjectileCase leftOrigin (unit.fireAngle - pi - pi / 12)
+                        , deltaFire PlaneBullet rightOrigin
+                        , View.Gfx.deltaAddProjectileCase rightOrigin (unit.fireAngle + pi / 12)
+                        ]
+            ]
 
 
 beamAttackDelta : Game -> Unit -> MechComponent -> Vec2 -> Delta

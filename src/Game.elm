@@ -217,6 +217,12 @@ type UnitComponent
     | UnitSub SubComponent
 
 
+type Charge
+    = Charging Seconds
+    | Stretching Seconds
+    | Discharging Seconds
+
+
 type alias Unit =
     { id : Id
     , component : UnitComponent
@@ -224,6 +230,7 @@ type alias Unit =
     , integrity : Float
     , position : Vec2
     , reloadEndTime : Seconds
+    , maybeCharge : Maybe Charge
 
     --
     , fireAngle : Float
@@ -246,11 +253,12 @@ addUnit component maybeTeamId position startAngle game =
 
         unit =
             { id = id
-            , maybeTeamId = maybeTeamId
-            , position = position
-            , integrity = 1
-            , reloadEndTime = game.time
             , component = component
+            , maybeTeamId = maybeTeamId
+            , integrity = 1
+            , position = position
+            , reloadEndTime = game.time
+            , maybeCharge = Nothing
 
             --
             , lookAngle = startAngle
