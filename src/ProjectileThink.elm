@@ -27,7 +27,7 @@ think dt game projectile =
 
         a =
             if class.accelerates then
-                50
+                30
             else
                 0
 
@@ -70,7 +70,6 @@ think dt game projectile =
 
 thinkExplode : Game -> ProjectileClass -> Projectile -> Vec2 -> Delta
 thinkExplode game class projectile position =
-    -- TODO: different classes have different explosions
     deltaList
         [ Projectile.deltaRemove projectile.id
         , case class.effect of

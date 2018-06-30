@@ -238,10 +238,10 @@ viewMarker game team =
             team.colorPattern.bright
 
         distance =
-            2 + 1 * periodHarmonic game 0 1.2
+            2 + 1 * periodHarmonic game.time 0 1.2
 
         an =
-            periodHarmonic game 0.1 20 * 180
+            periodHarmonic game.time 0.1 20 * 180
 
         arrow angle =
             g
@@ -280,9 +280,9 @@ viewMarker game team =
         ]
 
 
-viewProjectile : Projectile -> Svg a
-viewProjectile projectile =
-    View.Projectile.projectile projectile.position projectile.angle
+viewProjectile : Seconds -> Projectile -> Svg a
+viewProjectile t projectile =
+    View.Projectile.projectile projectile.classId projectile.position projectile.angle t
 
 
 viewHealthbar : Unit -> Svg a
@@ -434,7 +434,7 @@ view terrain viewport game =
                         |> g []
                 , game.projectileById
                     |> Dict.values
-                    |> List.map viewProjectile
+                    |> List.map (viewProjectile game.time)
                     |> g []
                 , game.cosmetics
                     |> List.map View.Gfx.render

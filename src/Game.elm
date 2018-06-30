@@ -17,6 +17,8 @@ type alias Seconds =
     Float
 
 
+{-| TODO rename to Radians, Degrees
+-}
 type alias Angle =
     Float
 
@@ -593,11 +595,11 @@ addStaticObstacles tiles game =
 -- Seconds helpers
 
 
-periodLinear : Game -> Float -> Seconds -> Float
-periodLinear game phase period =
+periodLinear : Seconds -> Float -> Seconds -> Float
+periodLinear time phase period =
     let
         t =
-            game.time + phase * period
+            time + phase * period
 
         n =
             t / period |> floor |> toFloat
@@ -605,9 +607,9 @@ periodLinear game phase period =
     t / period - n
 
 
-periodHarmonic : Game -> Angle -> Seconds -> Float
-periodHarmonic game phase period =
-    periodLinear game phase period * pi |> sin
+periodHarmonic : Seconds -> Angle -> Seconds -> Float
+periodHarmonic time phase period =
+    periodLinear time phase period * pi |> sin
 
 
 
