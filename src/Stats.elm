@@ -27,6 +27,7 @@ rocket =
     , travelsAlongZ = False
     }
 
+
 upwardSalvo : ProjectileClass
 upwardSalvo =
     { speed = 40

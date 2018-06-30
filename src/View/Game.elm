@@ -289,14 +289,10 @@ viewCharge : Game -> Unit -> Svg a
 viewCharge game unit =
     case unit.maybeCharge of
         Just (Charging startTime) ->
-            let
-                charge =
-                    (game.time - startTime) / Stats.heli.chargeTime
-            in
-            if charge < 0.1 then
+            if game.time - startTime < 0.3 then
                 text ""
             else
-                View.Hud.chargeBar unit.position charge
+                View.Hud.chargeBar unit.position ((game.time - startTime) / Stats.heli.chargeTime)
 
         Just (Stretching _ startTime) ->
             Mech.heliSalvoPositions (game.time - startTime) unit

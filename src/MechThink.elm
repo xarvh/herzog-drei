@@ -266,7 +266,10 @@ chargeDelta dt game unit mech isMoving isFiring =
         case unit.maybeCharge of
             Nothing ->
                 if isFiring then
-                    switchTo Charging
+                    deltaList
+                        [ switchTo Charging
+                        , attackDelta game unit mech
+                        ]
                 else
                     deltaNone
 
@@ -340,8 +343,9 @@ spawnUpwardRocket game unit salvoIndex =
 spawnDownwardRocket : Game -> Unit -> Int -> Vec2 -> Delta
 spawnDownwardRocket game unit index destination =
     let
+        --TODO + 2 * toFloat index
         range =
-            Stats.downwardSalvo.range --+ 2 * toFloat index
+            Stats.downwardSalvo.range
 
         angle =
             degrees 160
@@ -351,7 +355,6 @@ spawnDownwardRocket game unit index destination =
 
         origin =
             Vec2.sub destination (Vec2.scale range direction)
-
     in
     { maybeTeamId = unit.maybeTeamId
     , position = origin
