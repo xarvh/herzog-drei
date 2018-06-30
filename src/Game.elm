@@ -432,6 +432,9 @@ type alias Game =
     , subBuildMultiplier : Float
     , wallTiles : Set Tile2
 
+    -- deferred deltas
+    , laters : List ( Seconds, SerialisedDelta )
+
     -- entities
     , baseById : Dict Id Base
     , projectileById : Dict Id Projectile
@@ -454,16 +457,21 @@ type alias Game =
 -- Deltas
 
 
+type Delta
+    = DeltaNone
+    | DeltaList (List Delta)
+    | DeltaLater Seconds SerialisedDelta
+    | DeltaGame (Game -> Game)
+    | DeltaOutcome Outcome
+
+
 type Outcome
     = OutcomeCanAddBots
     | OutcomeCanInitBots
 
 
-type Delta
-    = DeltaNone
-    | DeltaList (List Delta)
-    | DeltaGame (Game -> Game)
-    | DeltaOutcome Outcome
+type SerialisedDelta
+    = SpawnDownwardRocket { maybeTeamId : Maybe TeamId, target : Vec2 }
 
 
 deltaNone : Delta
@@ -474,6 +482,11 @@ deltaNone =
 deltaList : List Delta -> Delta
 deltaList =
     DeltaList
+
+
+deltaLater : Seconds -> SerialisedDelta -> Delta
+deltaLater =
+    DeltaLater
 
 
 deltaGame : (Game -> Game) -> Delta

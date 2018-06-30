@@ -30,6 +30,7 @@ asTeamSelection seed map =
     , leftTeam = newTeam TeamLeft leftTeamColor Dict.empty
     , rightTeam = newTeam TeamRight rightTeamColor Dict.empty
     , maybeWinnerTeamId = Nothing
+    , laters = []
 
     --
     , halfWidth = map.halfWidth
@@ -71,6 +72,7 @@ asVersus randomSeed time leftTeam rightTeam map =
     , leftTeam = team TeamLeft leftTeam
     , rightTeam = team TeamRight rightTeam
     , maybeWinnerTeamId = Nothing
+    , laters = []
 
     --
     , halfWidth = map.halfWidth

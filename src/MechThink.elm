@@ -340,13 +340,18 @@ spawnUpwardRocket game unit salvoIndex =
         }
 
 
-spawnDownwardRocket : Game -> Unit -> Int -> Vec2 -> Delta
-spawnDownwardRocket game unit index destination =
+spawnDownwardRocketLater : Unit -> Int -> Vec2 -> Delta
+spawnDownwardRocketLater unit index destination =
     let
-        --TODO + 2 * toFloat index
-        range =
-            Stats.downwardSalvo.range
+        delay =
+            toFloat index * 0.06
+    in
+    deltaLater delay (SpawnDownwardRocket { target = destination, maybeTeamId = unit.maybeTeamId })
 
+
+spawnDownwardRocket : { target : Vec2, maybeTeamId : Maybe TeamId } -> Delta
+spawnDownwardRocket { target, maybeTeamId } =
+    let
         angle =
             degrees 160
 
@@ -354,21 +359,20 @@ spawnDownwardRocket game unit index destination =
             angleToVector angle
 
         origin =
-            Vec2.sub destination (Vec2.scale range direction)
+            Vec2.sub target (Vec2.scale Stats.downwardSalvo.range direction)
     in
-    { maybeTeamId = unit.maybeTeamId
-    , position = origin
-    , angle = angle
-    , classId = DownwardSalvo
-    }
-        |> Projectile.addSpecial origin
-        |> deltaGame
+    Projectile.deltaAdd
+        { maybeTeamId = maybeTeamId
+        , position = origin
+        , angle = angle
+        , classId = DownwardSalvo
+        }
 
 
 spawnDownwardSalvo : Game -> Unit -> Seconds -> Delta
 spawnDownwardSalvo game unit stretchTime =
     Mech.heliSalvoPositions stretchTime unit
-        |> List.indexedMap (spawnDownwardRocket game unit)
+        |> List.indexedMap (spawnDownwardRocketLater unit)
         |> deltaList
 
 
