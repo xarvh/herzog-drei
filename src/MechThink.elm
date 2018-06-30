@@ -237,14 +237,14 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
 ---
 
 
-toDoNow : { startTime : Seconds, period : Seconds, currentTime : Seconds, elapsedSinceLastUpdate : Seconds } -> Int
-toDoNow { period, startTime, currentTime, elapsedSinceLastUpdate } =
+toDoNow : { startTime : Seconds, totalDuration : Seconds, totalEvents : Int, currentTime : Seconds, elapsedSinceLastUpdate : Seconds } -> Int
+toDoNow { startTime, totalDuration, totalEvents, currentTime, elapsedSinceLastUpdate } =
     let
         alreadyDone =
-            (currentTime - startTime) / period |> floor
+            (currentTime - startTime) * toFloat totalEvents / totalDuration |> floor
 
         toBeDoneByNow =
-            (currentTime - startTime + elapsedSinceLastUpdate) / period |> floor
+            (currentTime - startTime + elapsedSinceLastUpdate) * toFloat totalEvents / totalDuration |> floor |> min totalEvents
     in
     toBeDoneByNow - alreadyDone
 
@@ -252,7 +252,9 @@ toDoNow { period, startTime, currentTime, elapsedSinceLastUpdate } =
 chargeTime =
     2
 
-stretchTime = 3
+
+stretchTime =
+    3
 
 
 chargeDelta : Seconds -> Game -> Unit -> MechComponent -> Bool -> Bool -> Delta
@@ -266,13 +268,12 @@ chargeDelta dt game unit mech isMoving isFiring =
                 _ ->
                     False
 
-        reset =deltaUnit unit.id (\g u -> { u | maybeCharge = Nothing })
+        reset =
+            deltaUnit unit.id (\g u -> { u | maybeCharge = Nothing })
 
         switchTo : (Seconds -> Charge) -> Delta
         switchTo chargeConstructor =
-          deltaUnit unit.id (\g u -> { u | maybeCharge = Just (chargeConstructor game.time) |> Debug.log "charge"})
-
-
+            deltaUnit unit.id (\g u -> { u | maybeCharge = Just (chargeConstructor game.time) |> Debug.log "charge" })
     in
     if not canMove && isMoving then
         deltaList
@@ -285,37 +286,35 @@ chargeDelta dt game unit mech isMoving isFiring =
     else
         case unit.maybeCharge of
             Nothing ->
-              if isFiring then
-                switchTo Charging
-              else
-                deltaNone
+                if isFiring then
+                    switchTo Charging
+                else
+                    deltaNone
 
             Just (Charging startTime) ->
                 if not isFiring then
-                  reset
+                    reset
                 else if game.time - startTime < chargeTime then
                     deltaNone
                 else
                     switchTo Stretching
 
             Just (Stretching startTime) ->
-              if isFiring && game.time - startTime < stretchTime then
-                deltaNone
-              else
-                -- TODO : spawn missiles-flying-out-of-screen GFX
-                switchTo Discharging
+                if isFiring && game.time - startTime < stretchTime then
+                    deltaNone
+                else
+                    -- TODO : spawn missiles-flying-out-of-screen GFX
+                    switchTo Discharging
 
             Just (Discharging startTime) ->
                 let
                     totalDuration =
-                        0.060
-
-                    totalExplosions =
-                        6
+                        0.6
 
                     explosionsToSpawn =
                         toDoNow
-                            { period = totalDuration / totalExplosions
+                            { totalDuration = 0.6
+                            , totalEvents = 6
                             , startTime = startTime
                             , currentTime = game.time
                             , elapsedSinceLastUpdate = dt
@@ -327,11 +326,11 @@ chargeDelta dt game unit mech isMoving isFiring =
                         else
                             0
                 in
-                      -- TODO : spawn explosions
-                    if game.time - startTime > totalDuration then
-                      switchTo Charging
-                    else
-                      deltaNone
+                -- TODO : spawn explosions
+                if game.time - startTime > totalDuration then
+                    switchTo Charging
+                else
+                    deltaNone
 
 
 repairSelf : Seconds -> Unit -> Delta
