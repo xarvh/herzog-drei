@@ -273,7 +273,7 @@ viewMarker game team =
 
 viewProjectile : Seconds -> Projectile -> Svg a
 viewProjectile t projectile =
-    View.Projectile.projectile projectile.classId projectile.position projectile.angle t
+    View.Projectile.projectile projectile.classId projectile.position projectile.angle (t - projectile.spawnTime)
 
 
 viewHealthbar : Unit -> Svg a

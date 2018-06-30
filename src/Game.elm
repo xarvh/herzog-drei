@@ -161,6 +161,8 @@ type ProjectileClassId
     = PlaneBullet
     | BigSubBullet
     | HeliRocket
+    | UpwardSalvo
+    | DownwardSalvo
 
 
 type ProjectileEffect
@@ -174,6 +176,7 @@ type alias ProjectileClass =
     , effect : ProjectileEffect
     , trail : Bool
     , accelerates : Bool
+    , travelsAlongZ : Bool
     }
 
 

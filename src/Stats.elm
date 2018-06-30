@@ -13,6 +13,7 @@ bullet =
     , effect = ProjectileDamage 4
     , trail = False
     , accelerates = False
+    , travelsAlongZ = False
     }
 
 
@@ -23,6 +24,28 @@ rocket =
     , effect = ProjectileSplashDamage { radius = 3, damage = 10 }
     , trail = True
     , accelerates = True
+    , travelsAlongZ = False
+    }
+
+upwardSalvo : ProjectileClass
+upwardSalvo =
+    { speed = 0
+    , range = 40
+    , effect = ProjectileDamage 0
+    , trail = True
+    , accelerates = True
+    , travelsAlongZ = True
+    }
+
+
+downwardSalvo : ProjectileClass
+downwardSalvo =
+    { speed = 0
+    , range = 8
+    , effect = ProjectileSplashDamage { radius = 3, damage = 10 }
+    , trail = True
+    , accelerates = True
+    , travelsAlongZ = True
     }
 
 
@@ -75,7 +98,7 @@ heli =
     , flyReload = 0.75
     , chargeTime = 2
     , stretchTime = 5.5
-    , salvoSize = 6
+    , salvoSize = 20
     , cooldown = 0.5
     }
 

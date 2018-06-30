@@ -38,34 +38,47 @@ think dt game projectile =
             angleToVector projectile.angle
                 |> Vec2.scale (min traveledDistance class.range)
                 |> Vec2.add projectile.spawnPosition
-    in
-    case UnitCollision.closestEnemyToVectorOrigin oldPosition newPosition projectile.maybeTeamId game of
-        Just unit ->
-            deltaList
-                [ thinkExplode game class projectile (Vec2.add newPosition oldPosition |> Vec2.scale 0.5)
-                , case class.effect of
-                    ProjectileDamage damage ->
-                        deltaUnit unit.id (Unit.takeDamage damage)
 
-                    ProjectileSplashDamage _ ->
-                        deltaNone
-                ]
-
-        Nothing ->
+        thinkNoCollision _ =
             if traveledDistance > class.range then
                 thinkExplode game class projectile newPosition
             else
                 deltaList
                     [ deltaProjectile projectile.id (\g p -> { p | position = newPosition })
                     , if class.trail then
+                        let
+                            sizeMultiplier =
+                                if class.travelsAlongZ then
+                                    Projectile.perspective age
+                                else
+                                    1
+                        in
                         View.Gfx.deltaAddTrail
                             { position = oldPosition
                             , angle = projectile.angle
-                            , stretch = (class.speed + a * age) * dt
+                            , stretch = sizeMultiplier * (class.speed + a * age) * dt
                             }
                       else
                         deltaNone
                     ]
+    in
+    if class.travelsAlongZ then
+        thinkNoCollision ()
+    else
+        case UnitCollision.closestEnemyToVectorOrigin oldPosition newPosition projectile.maybeTeamId game of
+            Just unit ->
+                deltaList
+                    [ thinkExplode game class projectile (Vec2.add newPosition oldPosition |> Vec2.scale 0.5)
+                    , case class.effect of
+                        ProjectileDamage damage ->
+                            deltaUnit unit.id (Unit.takeDamage damage)
+
+                        ProjectileSplashDamage _ ->
+                            deltaNone
+                    ]
+
+            Nothing ->
+                thinkNoCollision ()
 
 
 thinkExplode : Game -> ProjectileClass -> Projectile -> Vec2 -> Delta

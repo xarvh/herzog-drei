@@ -2,6 +2,7 @@ module View.Projectile exposing (..)
 
 import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Projectile
 import Svg exposing (..)
 import View exposing (..)
 
@@ -28,8 +29,8 @@ bullet position angle =
         []
 
 
-rocket : Vec2 -> Angle -> String -> String -> Seconds -> Svg a
-rocket position angle primary secondary time =
+rocket : Vec2 -> Angle -> String -> String -> Seconds -> Float -> Svg a
+rocket position angle primary secondary time scaleF =
     let
         w =
             0.15
@@ -47,7 +48,7 @@ rocket position angle primary secondary time =
             0.5 * (1 + periodLinear time 0 0.1)
     in
     g
-        [ transform [ translate position, rotateRad angle ] ]
+        [ transform [ translate position, rotateRad angle, scale scaleF ] ]
         [ ellipse
             [ cy -hh
             , rx hw
@@ -82,4 +83,10 @@ projectile classId position angle t =
             bullet position angle
 
         HeliRocket ->
-            rocket position angle "#bbb" "red" t
+            rocket position angle "#bbb" "red" t 1
+
+        UpwardSalvo ->
+            rocket position angle "#bbb" "red" t (Projectile.perspective t)
+
+        DownwardSalvo ->
+            rocket position angle "#bbb" "red" t (Projectile.perspective t)

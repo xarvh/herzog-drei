@@ -275,29 +275,25 @@ chargeDelta dt game unit mech isMoving isFiring =
                 else if game.time - startTime < Stats.heli.chargeTime then
                     deltaNone
                 else
-                    deltaList
-                        [ switchTo (Stretching 0)
-                        , spawnUpwardRocket game unit
-                        ]
+                    switchTo (Stretching 0)
 
             Just (Stretching rocketsActuallyFiredSoFar startTime) ->
-                     let
-                        intervalBetweenRockets =
-                            0.1
+                let
+                    intervalBetweenRockets =
+                        0.1
 
-                        rocketsToBeFiredSoFar =
-                            (game.time - startTime + dt) / intervalBetweenRockets |> floor |> min Stats.heli.salvoSize
+                    rocketsToBeFiredSoFar =
+                        (game.time - startTime + dt) / intervalBetweenRockets |> floor |> min Stats.heli.salvoSize
 
-                        rocketsToBeFiredNow =
-                            rocketsToBeFiredSoFar - rocketsActuallyFiredSoFar
-                      in
+                    rocketsToBeFiredNow =
+                        rocketsToBeFiredSoFar - rocketsActuallyFiredSoFar
+                in
                 deltaList
-                [
-                      if rocketsToBeFiredNow < 1 then
+                    [ if rocketsToBeFiredNow < 1 then
                         deltaNone
                       else
                         deltaList
-                            [ spawnUpwardRocket game unit
+                            [ spawnUpwardRocket game unit rocketsActuallyFiredSoFar
                             , setCharge <| Just <| Stretching rocketsToBeFiredSoFar startTime
                             ]
 
@@ -318,9 +314,26 @@ chargeDelta dt game unit mech isMoving isFiring =
                     deltaNone
 
 
-spawnUpwardRocket : Game -> Unit -> Delta
-spawnUpwardRocket game unit =
-    View.Gfx.deltaAddFlyingHead unit.position (Vec2.add unit.position (vec2 10 30)) (Unit.colorPattern game unit)
+spawnUpwardRocket : Game -> Unit -> Int -> Delta
+spawnUpwardRocket game unit salvoIndex =
+    let
+        (da, dp) =
+            case modBy 3 salvoIndex of
+                0 ->
+                    (-1, vec2 0 0)
+
+                1 ->
+                    (0, vec2 0.1 0)
+
+                _ ->
+                    (1, vec2 0.2 0)
+    in
+    Projectile.deltaAdd
+        { maybeTeamId = unit.maybeTeamId
+        , position = Vec2.add dp unit.position
+        , angle = degrees (da + 0.7 * toFloat salvoIndex)
+        , classId = UpwardSalvo
+        }
 
 
 spawnDownwardSalvo : Game -> Unit -> Seconds -> Delta

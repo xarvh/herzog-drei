@@ -17,6 +17,17 @@ idToClass id =
         HeliRocket ->
             Stats.rocket
 
+        UpwardSalvo ->
+            Stats.upwardSalvo
+
+        DownwardSalvo ->
+            Stats.downwardSalvo
+
+
+perspective : Seconds -> Float
+perspective age =
+    1 --+ 0.4 * age
+
 
 add : ProjectileSeed -> Game -> Game
 add { maybeTeamId, position, angle, classId } game =
