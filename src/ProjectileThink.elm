@@ -62,7 +62,6 @@ think dt game projectile =
                             { position = oldPosition
                             , angle = projectile.angle
                             , stretch = (class.speed + a * age) * dt
-                            , density = 0
                             }
                       else
                         deltaNone
