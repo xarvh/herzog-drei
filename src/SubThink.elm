@@ -10,6 +10,7 @@ import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Pathfinding
+import Projectile
 import Set exposing (Set)
 import Stats
 import Unit
@@ -220,7 +221,7 @@ thinkTarget dt game unit sub =
                                         ]
 
                                 True ->
-                                    Game.deltaAddProjectile
+                                    Projectile.deltaAdd
                                         { maybeTeamId = unit.maybeTeamId
                                         , position = origin
                                         , angle = unit.fireAngle

@@ -12,15 +12,17 @@ bullet =
     , range = 8
     , effect = ProjectileDamage 4
     , trail = False
+    , accelerates = False
     }
 
 
 rocket : ProjectileClass
 rocket =
-    { speed = 10
+    { speed = 0
     , range = 8
     , effect = ProjectileSplashDamage { radius = 3, damage = 10 }
     , trail = True
+    , accelerates = True
     }
 
 

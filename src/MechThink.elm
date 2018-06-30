@@ -6,6 +6,7 @@ import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Pathfinding
+import Projectile
 import Random
 import Set exposing (Set)
 import Stats
@@ -384,6 +385,14 @@ attackDelta game unit mech =
 
         rightOrigin =
             View.Mech.rightGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
+
+        deltaFire classId origin =
+            Projectile.deltaAdd
+                { maybeTeamId = unit.maybeTeamId
+                , position = origin
+                , angle = unit.fireAngle
+                , classId = classId
+                }
     in
     case mech.class of
         Blimp ->
@@ -393,23 +402,16 @@ attackDelta game unit mech =
                 ]
 
         Heli ->
-            -- TODO
-            deltaNone
+            deltaList
+                [ deltaFire HeliRocket leftOrigin
+                , deltaFire HeliRocket rightOrigin
+                ]
 
         Plane ->
-            let
-                deltaFire origin =
-                    Game.deltaAddProjectile
-                        { maybeTeamId = unit.maybeTeamId
-                        , position = origin
-                        , angle = unit.fireAngle
-                        , classId = PlaneBullet
-                        }
-            in
             deltaList
-                [ deltaFire leftOrigin
+                [ deltaFire PlaneBullet leftOrigin
                 , View.Gfx.deltaAddProjectileCase leftOrigin (unit.fireAngle - pi - pi / 12)
-                , deltaFire rightOrigin
+                , deltaFire PlaneBullet rightOrigin
                 , View.Gfx.deltaAddProjectileCase rightOrigin (unit.fireAngle + pi / 12)
                 ]
 

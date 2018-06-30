@@ -149,6 +149,7 @@ type alias Projectile =
     , maybeTeamId : Maybe TeamId
     , position : Vec2
     , spawnPosition : Vec2
+    , spawnTime : Seconds
     , angle : Angle
     , classId : ProjectileClassId
     }
@@ -170,40 +171,8 @@ type alias ProjectileClass =
     , range : Float
     , effect : ProjectileEffect
     , trail : Bool
+    , accelerates : Bool
     }
-
-
-addProjectile : ProjectileSeed -> Game -> Game
-addProjectile { maybeTeamId, position, angle, classId } game =
-    let
-        projectile =
-            { id = game.lastId + 1
-            , maybeTeamId = maybeTeamId
-            , position = position
-            , spawnPosition = position
-            , angle = angle
-            , classId = classId
-            }
-
-        projectileById =
-            Dict.insert projectile.id projectile game.projectileById
-    in
-    { game | projectileById = projectileById, lastId = projectile.id }
-
-
-deltaAddProjectile : ProjectileSeed -> Delta
-deltaAddProjectile p =
-    addProjectile p |> deltaGame
-
-
-removeProjectile : Id -> Game -> Game
-removeProjectile id game =
-    { game | projectileById = Dict.remove id game.projectileById }
-
-
-deltaRemoveProjectile : Id -> Delta
-deltaRemoveProjectile id =
-    removeProjectile id |> deltaGame
 
 
 
