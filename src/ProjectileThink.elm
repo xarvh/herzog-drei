@@ -27,7 +27,7 @@ think dt game projectile =
 
         a =
             if class.accelerates then
-                1
+                50
             else
                 0
 
@@ -58,7 +58,12 @@ think dt game projectile =
                 deltaList
                     [ deltaProjectile projectile.id (\g p -> { p | position = newPosition })
                     , if class.trail then
-                        View.Gfx.deltaAddExplosion oldPosition 0.2
+                        View.Gfx.deltaAddTrail
+                            { position = oldPosition
+                            , angle = projectile.angle
+                            , stretch = (class.speed + a * age) * dt
+                            , density = 0
+                            }
                       else
                         deltaNone
                     ]

@@ -381,6 +381,7 @@ type GfxRender
     | GfxFractalBeam Vec2 Vec2 ColorPattern
     | GfxFlyingHead Vec2 Vec2 ColorPattern
     | GfxRepairBubble Vec2
+    | GfxTrail Vec2 Angle Float Float
 
 
 type alias Gfx =

@@ -147,6 +147,15 @@ deltaAddRepairBubbles bubblesPerSecond dt position =
     deltaGame upd
 
 
+deltaAddTrail : { position : Vec2, angle : Angle, stretch : Float, density : Float } -> Delta
+deltaAddTrail { position, angle, stretch, density } =
+    deltaAddGfx
+        { age = 0
+        , maxAge = 1
+        , render = GfxTrail position angle stretch density
+        }
+
+
 
 -- Update
 
@@ -336,3 +345,19 @@ render cosmetic =
                 , stroke healingGreen.dark
                 , strokeWidth 0.5
                 ]
+
+        GfxTrail position angle stretch density ->
+            let
+                op =
+                    0.05 * (1 - t * t)
+            in
+            ellipse
+                [ transform [ translate position, rotateRad angle ]
+                , opacity op
+
+                --
+                , rx 0.1
+                , ry (2 * stretch)
+                , fill "#666"
+                ]
+                []
