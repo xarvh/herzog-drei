@@ -16,29 +16,9 @@ import View.Gfx
 import View.Mech
 
 
--- globals
-
-
-transformTime : Float
-transformTime =
-    0.5
-
-
-aimControlThreshold : Float
-aimControlThreshold =
+controlThreshold : Float
+controlThreshold =
     0.1
-
-
-vampireRange =
-    3
-
-
-repairRange =
-    5
-
-
-
---
 
 
 nextClass : MechClass -> MechClass
@@ -61,10 +41,10 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
             Unit.transformMode mech
 
         isAiming =
-            Vec2.length aimDirection > aimControlThreshold
+            Vec2.length aimDirection > controlThreshold
 
         isMoving =
-            Vec2.length currentInput.move > aimControlThreshold
+            Vec2.length currentInput.move > controlThreshold
 
         speed =
             case mode of
@@ -164,7 +144,7 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
             (\m ->
                 { m
                     | transformingTo = transformingTo
-                    , transformState = clamp 0 1 (transformDirection mech.transformState (dt / transformTime))
+                    , transformState = clamp 0 1 (transformDirection mech.transformState (dt / Stats.transformTime))
                 }
             )
                 |> Game.updateMech
@@ -249,14 +229,6 @@ toDoNow { startTime, totalDuration, totalEvents, currentTime, elapsedSinceLastUp
     toBeDoneByNow - alreadyDone
 
 
-chargeTime =
-    2
-
-
-stretchTime =
-    3
-
-
 chargeDelta : Seconds -> Game -> Unit -> MechComponent -> Bool -> Bool -> Delta
 chargeDelta dt game unit mech isMoving isFiring =
     let
@@ -294,13 +266,13 @@ chargeDelta dt game unit mech isMoving isFiring =
             Just (Charging startTime) ->
                 if not isFiring then
                     reset
-                else if game.time - startTime < chargeTime then
+                else if game.time - startTime < Stats.heli.chargeTime then
                     deltaNone
                 else
                     switchTo Stretching
 
             Just (Stretching startTime) ->
-                if isFiring && game.time - startTime < stretchTime then
+                if isFiring && game.time - startTime < Stats.heli.stretchTime then
                     deltaNone
                 else
                     -- TODO : spawn missiles-flying-out-of-screen GFX
@@ -355,7 +327,7 @@ repairAllies : Seconds -> Game -> Unit -> Delta
 repairAllies dt game unit =
     game.unitById
         |> Dict.values
-        |> List.filter (\u -> u.maybeTeamId == unit.maybeTeamId && Vec2.distance u.position unit.position < repairRange)
+        |> List.filter (\u -> u.maybeTeamId == unit.maybeTeamId && Vec2.distance u.position unit.position < Stats.plane.repairRange)
         |> List.map (repairTargetDelta dt unit)
         |> deltaList
 
@@ -388,7 +360,7 @@ vampireDelta dt game unit mech newPosition =
             deltas =
                 game.unitById
                     |> Dict.values
-                    |> List.filter (\u -> u.maybeTeamId /= unit.maybeTeamId && Vec2.distance u.position unit.position < vampireRange)
+                    |> List.filter (\u -> u.maybeTeamId /= unit.maybeTeamId && Vec2.distance u.position unit.position < Stats.blimp.vampireRange)
                     |> List.map (vampireTargetDelta dt unit)
         in
         if deltas /= [] then
@@ -407,7 +379,7 @@ emptyVampire dt unit newPosition game =
             newPosition
 
         end =
-            Vec2.add start (vec2 0 vampireRange |> rotateVector angle)
+            Vec2.add start (vec2 0 Stats.blimp.vampireRange |> rotateVector angle)
     in
     View.Gfx.deltaAddVampireBeam start end
 
@@ -443,7 +415,7 @@ randomVampire dt unit game angle =
             unit.position
 
         end =
-            Vec2.add start (vec2 0 vampireRange |> rotateVector angle)
+            Vec2.add start (vec2 0 Stats.blimp.vampireRange |> rotateVector angle)
 
         gfx =
             { age = 0

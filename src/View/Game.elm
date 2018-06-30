@@ -10,6 +10,7 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Set exposing (Set)
 import SetupPhase
 import SplitScreen exposing (Viewport)
+import Stats
 import Svg exposing (..)
 import Svg.Attributes
 import Svg.Lazy
@@ -293,6 +294,16 @@ viewHealthbar unit =
         View.Hud.healthBar unit.position unit.integrity
 
 
+viewChargeBar : Seconds -> Unit -> Svg a
+viewChargeBar time unit =
+    case unit.maybeCharge of
+        Just (Charging startTime) ->
+            View.Hud.chargeBar unit.position ((time - startTime) / Stats.heli.chargeTime)
+
+        _ ->
+            Svg.text ""
+
+
 wall : Tile2 -> Svg a
 wall ( xi, yi ) =
     let
@@ -441,6 +452,9 @@ view terrain viewport game =
                     |> g []
                 , units
                     |> List.map viewHealthbar
+                    |> g []
+                , units
+                    |> List.map (viewChargeBar game.time)
                     |> g []
                 ]
             ]

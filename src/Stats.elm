@@ -58,20 +58,28 @@ subShootDamage sub =
 -- Mech constants
 
 
+transformTime =
+    0.5
+
+
 blimp =
     { beamDamage = 40
     , beamRange = 10
     , reload = 1.0
+    , vampireRange = 3
     }
 
 
 heli =
     { walkReload = 0.5
     , flyReload = 0.75
+    , chargeTime = 2
+    , stretchTime = 3
     }
 
 
 plane =
     { walkReload = 0.05
     , flyReload = 0.075
+    , repairRange = 5
     }
