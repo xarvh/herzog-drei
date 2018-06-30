@@ -5,6 +5,7 @@ import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Mech
 import Pathfinding
 import Projectile
 import Random
@@ -38,7 +39,7 @@ mechThink : ( InputState, InputState ) -> Seconds -> Game -> Unit -> MechCompone
 mechThink ( previousInput, currentInput ) dt game unit mech =
     let
         mode =
-            Unit.transformMode mech
+            Mech.transformMode mech
 
         isAiming =
             Vec2.length aimDirection > controlThreshold
@@ -317,16 +318,16 @@ chargeDelta dt game unit mech isMoving isFiring =
 spawnUpwardRocket : Game -> Unit -> Int -> Delta
 spawnUpwardRocket game unit salvoIndex =
     let
-        (da, dp) =
+        ( da, dp ) =
             case modBy 3 salvoIndex of
                 0 ->
-                    (-1, vec2 0 0)
+                    ( -1, vec2 0 0 )
 
                 1 ->
-                    (0, vec2 0.1 0)
+                    ( 0, vec2 0.1 0 )
 
                 _ ->
-                    (1, vec2 0.2 0)
+                    ( 1, vec2 0.2 0 )
     in
     Projectile.deltaAdd
         { maybeTeamId = unit.maybeTeamId
@@ -336,9 +337,36 @@ spawnUpwardRocket game unit salvoIndex =
         }
 
 
+spawnDownwardRocket : Game -> Unit -> Int -> Vec2 -> Delta
+spawnDownwardRocket game unit index destination =
+    let
+        range =
+            Stats.downwardSalvo.range --+ 2 * toFloat index
+
+        angle =
+            degrees 160
+
+        direction =
+            angleToVector angle
+
+        origin =
+            Vec2.sub destination (Vec2.scale range direction)
+
+    in
+    { maybeTeamId = unit.maybeTeamId
+    , position = origin
+    , angle = angle
+    , classId = DownwardSalvo
+    }
+        |> Projectile.addSpecial origin
+        |> deltaGame
+
+
 spawnDownwardSalvo : Game -> Unit -> Seconds -> Delta
 spawnDownwardSalvo game unit stretchTime =
-    deltaNone
+    Mech.heliSalvoPositions stretchTime unit
+        |> List.indexedMap (spawnDownwardRocket game unit)
+        |> deltaList
 
 
 repairSelf : Seconds -> Unit -> Delta
@@ -389,7 +417,7 @@ repairTargetDelta dt healer target =
 
 vampireDelta : Seconds -> Game -> Unit -> MechComponent -> Vec2 -> Delta
 vampireDelta dt game unit mech newPosition =
-    if Unit.transformMode mech == ToMech then
+    if Mech.transformMode mech == ToMech then
         deltaNone
     else
         let
@@ -511,7 +539,7 @@ attackDelta game unit mech =
                     }
         in
         deltaList
-            [ deltaUnit unit.id (\g u -> { u | reloadEndTime = game.time + Unit.mechReloadTime mech })
+            [ deltaUnit unit.id (\g u -> { u | reloadEndTime = game.time + Mech.reloadTime mech })
             , case mech.class of
                 Blimp ->
                     deltaList

@@ -29,7 +29,7 @@ rocket =
 
 upwardSalvo : ProjectileClass
 upwardSalvo =
-    { speed = 0
+    { speed = 40
     , range = 40
     , effect = ProjectileDamage 0
     , trail = True
@@ -40,9 +40,9 @@ upwardSalvo =
 
 downwardSalvo : ProjectileClass
 downwardSalvo =
-    { speed = 0
-    , range = 8
-    , effect = ProjectileSplashDamage { radius = 3, damage = 10 }
+    { speed = 20
+    , range = 20
+    , effect = ProjectileSplashDamage { radius = 4, damage = 20 }
     , trail = True
     , accelerates = True
     , travelsAlongZ = True
@@ -97,8 +97,8 @@ heli =
     { walkReload = 0.5
     , flyReload = 0.75
     , chargeTime = 2
-    , stretchTime = 5.5
-    , salvoSize = 20
+    , stretchTime = 1.5
+    , salvoSize = 10
     , cooldown = 0.5
     }
 

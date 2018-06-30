@@ -7,6 +7,7 @@ import Game exposing (..)
 import List.Extra
 import Map exposing (Map)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Mech
 import Set exposing (Set)
 import SetupPhase
 import SplitScreen exposing (Viewport)
@@ -298,7 +299,7 @@ viewCharge game unit =
                 View.Hud.chargeBar unit.position charge
 
         Just (Stretching _ startTime) ->
-            Unit.heliSalvoPositions (game.time - startTime) unit
+            Mech.heliSalvoPositions (game.time - startTime) unit
                 |> List.map (View.Hud.salvoMark game.time (Unit.colorPattern game unit))
                 |> g []
 
