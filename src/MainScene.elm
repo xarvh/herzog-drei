@@ -116,15 +116,16 @@ threshold v =
 
 gamepadToInput : Gamepad -> ( String, InputState )
 gamepadToInput gamepad =
+    let
+        isPressed =
+            Gamepad.isPressed gamepad
+    in
     ( "gamepad " ++ String.fromInt (Gamepad.getIndex gamepad)
     , { aim = Gamepad.rightPosition gamepad |> Vec2.fromRecord |> threshold |> AimAbsolute
-      , fire =
-            Gamepad.isPressed Gamepad.RightBumper gamepad
-                || Gamepad.isPressed Gamepad.RightTrigger gamepad
-                || Gamepad.isPressed Gamepad.RightStickPress gamepad
-      , transform = Gamepad.isPressed Gamepad.A gamepad
+      , fire = isPressed Gamepad.RightBumper || isPressed Gamepad.RightTrigger || isPressed Gamepad.RightStickPress
+      , transform = isPressed Gamepad.A
       , switchUnit = False
-      , rally = Gamepad.isPressed Gamepad.B gamepad
+      , rally = isPressed Gamepad.B
       , move = Gamepad.leftPosition gamepad |> Vec2.fromRecord |> threshold
       }
     )

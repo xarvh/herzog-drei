@@ -495,7 +495,9 @@ standardGamepadMapping =
     , ( LeftTrigger, Origin False Button 6 )
 
     --
+    , ( RightStickLeft, Origin True Axis 2 )
     , ( RightStickRight, Origin False Axis 2 )
+    , ( RightStickUp, Origin True Axis 3 )
     , ( RightStickDown, Origin False Axis 3 )
     , ( RightStickPress, Origin False Button 11 )
     , ( RightBumper, Origin False Button 5 )
@@ -700,8 +702,8 @@ getIndex (Gamepad index mapping frames) =
     index
 
 
-isPressed : Digital -> Gamepad -> Bool
-isPressed digital (Gamepad index mapping frames) =
+isPressed : Gamepad -> Digital -> Bool
+isPressed (Gamepad index mapping frames) digital =
     case frames of
         [] ->
             False
@@ -710,8 +712,8 @@ isPressed digital (Gamepad index mapping frames) =
             getAsBool digital mapping frame
 
 
-wasReleased : Digital -> Gamepad -> Bool
-wasReleased digital (Gamepad index mapping frames) =
+wasReleased : Gamepad -> Digital -> Bool
+wasReleased (Gamepad index mapping frames) digital =
     case frames of
         currentFrame :: previousFrame :: fs ->
             getAsBool digital mapping previousFrame && not (getAsBool digital mapping currentFrame)
@@ -720,8 +722,8 @@ wasReleased digital (Gamepad index mapping frames) =
             False
 
 
-wasClicked : Digital -> Gamepad -> Bool
-wasClicked digital (Gamepad index mapping frames) =
+wasClicked : Gamepad -> Digital -> Bool
+wasClicked (Gamepad index mapping frames) digital =
     case frames of
         currentFrame :: previousFrame :: fs ->
             not (getAsBool digital mapping previousFrame) && getAsBool digital mapping currentFrame
@@ -730,8 +732,8 @@ wasClicked digital (Gamepad index mapping frames) =
             False
 
 
-axisValue : Analog -> Gamepad -> Float
-axisValue analog (Gamepad index mapping frames) =
+axisValue : Gamepad -> Analog -> Float
+axisValue (Gamepad index mapping frames) analog =
     case frames of
         [] ->
             0
@@ -747,15 +749,15 @@ axisValue analog (Gamepad index mapping frames) =
 
 leftPosition : Gamepad -> { x : Float, y : Float }
 leftPosition pad =
-    { x = axisValue LeftX pad
-    , y = axisValue LeftY pad
+    { x = axisValue pad LeftX
+    , y = axisValue pad LeftY
     }
 
 
 rightPosition : Gamepad -> { x : Float, y : Float }
 rightPosition pad =
-    { x = axisValue RightX pad
-    , y = axisValue RightY pad
+    { x = axisValue pad RightX
+    , y = axisValue pad RightY
     }
 
 
