@@ -63,7 +63,7 @@ type Scene
 type alias Model =
     { scene : Scene
     , maybeMenu : Maybe Menu
-    , selectedButtonName : String
+    , selectedButton : SelectedButton
     , seed : Random.Seed
 
     -- env stuff
@@ -96,7 +96,7 @@ init flags =
     noCmd
         { scene = scene
         , maybeMenu = Just MenuMain
-        , selectedButtonName = "Play"
+        , selectedButton = SelectedButton ""
         , seed = seed
 
         -- env stuff
@@ -206,7 +206,7 @@ update msg model =
             updateOnButton buttonName model
 
         OnSelectButton name ->
-            noCmd { model | selectedButtonName = name }
+            noCmd (selectButtonByName name model)
 
         -- Env stuff
         OnMouseButton state ->
@@ -327,10 +327,10 @@ updateOnKeyUp keyName model =
 
         -- "updateOnButton"
         "Enter" ->
-            updateOnButton model.selectedButtonName model
+            updateOnButton (selectedButtonName model) model
 
         " " ->
-            updateOnButton model.selectedButtonName model
+            updateOnButton (selectedButtonName model) model
 
         -- ignore
         _ ->
@@ -516,17 +516,55 @@ mainMenuButtons model =
     ]
 
 
+
+-- Prevent other functions from accessing the selection directly
+
+
+type SelectedButton
+    = SelectedButton String
+
+
+selectedButton : Model -> MenuButton
+selectedButton model =
+    let
+        buttons =
+            menuButtons model |> List.filter .isVisible
+    in
+    case List.Extra.find (\b -> SelectedButton b.name == model.selectedButton) buttons of
+        Just button ->
+            button
+
+        Nothing ->
+            case List.head buttons of
+                Just button ->
+                    button
+
+                Nothing ->
+                    { name = "this shouldn't happen", view = MenuButtonLabel, isVisible = False, update = menuDemo }
+
+
+selectButtonByName : String -> Model -> Model
+selectButtonByName name model =
+    { model | selectedButton = SelectedButton name }
+
+
+
+-- Menu helpers
+
+
+selectButton : MenuButton -> Model -> Model
+selectButton button =
+    selectButtonByName button.name
+
+
+selectedButtonName : Model -> String
+selectedButtonName =
+    selectedButton >> .name
+
+
 menuNav : Menu -> Model -> ( Model, Cmd Msg )
 menuNav menu oldModel =
-    let
-        newModel =
-            { oldModel | maybeMenu = Just menu }
-    in
-    noCmd <|
-        if findButton newModel.selectedButtonName newModel == Nothing then
-            menuSelectFirstButton newModel
-        else
-            newModel
+    noCmd { oldModel | maybeMenu = Just menu }
 
 
 menuOpenMapEditor : Model -> ( Model, Cmd Msg )
@@ -571,11 +609,6 @@ updateOnButton buttonName model =
             button.update model
 
 
-selectButton : MenuButton -> Model -> Model
-selectButton button model =
-    { model | selectedButtonName = button.name }
-
-
 menuSelectFirstButton : Model -> Model
 menuSelectFirstButton model =
     case menuButtons model of
@@ -601,7 +634,7 @@ menuSelectNextButton model =
     let
         maybeButton =
             menuButtons model
-                |> List.Extra.dropWhile (\b -> b.name /= model.selectedButtonName)
+                |> List.Extra.dropWhile (\b -> b.name /= selectedButtonName model)
                 |> List.drop 1
                 |> List.head
     in
@@ -619,7 +652,7 @@ menuSelectPrevButton model =
         maybeButton =
             menuButtons model
                 |> List.reverse
-                |> List.Extra.dropWhile (\b -> b.name /= model.selectedButtonName)
+                |> List.Extra.dropWhile (\b -> b.name /= selectedButtonName model)
                 |> List.drop 1
                 |> List.head
     in
@@ -829,7 +862,7 @@ viewMenuButton : Model -> MenuButton -> Html Msg
 viewMenuButton model b =
     let
         isSelected =
-            b.name == model.selectedButtonName
+            b.name == selectedButtonName model
 
         borderColor =
             if isSelected then

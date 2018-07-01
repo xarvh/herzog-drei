@@ -604,7 +604,7 @@ mappingToRawIndex destination mapping =
 
 axisToButton : Float -> Bool
 axisToButton n =
-    n > 0.1
+    n > 0.2
 
 
 buttonToAxis : Bool -> Float
