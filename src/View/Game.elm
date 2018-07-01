@@ -7,12 +7,15 @@ import Game exposing (..)
 import List.Extra
 import Map exposing (Map)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Mech
 import Set exposing (Set)
 import SetupPhase
 import SplitScreen exposing (Viewport)
+import Stats
 import Svg exposing (..)
 import Svg.Attributes
 import Svg.Lazy
+import Unit
 import Update
 import View exposing (..)
 import View.Background
@@ -73,17 +76,6 @@ checkersBackground game =
             ]
             []
         ]
-
-
-circle : Vec2 -> String -> Float -> Svg a
-circle pos color size =
-    Svg.circle
-        [ cx <| Vec2.getX pos
-        , cy <| Vec2.getY pos
-        , r size
-        , fill color
-        ]
-        []
 
 
 viewBase : Game -> Base -> Svg a
@@ -238,10 +230,10 @@ viewMarker game team =
             team.colorPattern.bright
 
         distance =
-            2 + 1 * periodHarmonic game 0 1.2
+            2 + 1 * periodHarmonic game.time 0 1.2
 
         an =
-            periodHarmonic game 0.1 20 * 180
+            periodHarmonic game.time 0.1 20 * 180
 
         arrow angle =
             g
@@ -280,9 +272,9 @@ viewMarker game team =
         ]
 
 
-viewProjectile : Projectile -> Svg a
-viewProjectile projectile =
-    View.Projectile.projectile projectile.position projectile.angle
+viewProjectile : Seconds -> Projectile -> Svg a
+viewProjectile t projectile =
+    View.Projectile.projectile projectile.classId projectile.position projectile.angle (t - projectile.spawnTime)
 
 
 viewHealthbar : Unit -> Svg a
@@ -291,6 +283,24 @@ viewHealthbar unit =
         Svg.text ""
     else
         View.Hud.healthBar unit.position unit.integrity
+
+
+viewCharge : Game -> Unit -> Svg a
+viewCharge game unit =
+    case unit.maybeCharge of
+        Just (Charging startTime) ->
+            if game.time - startTime < 0.3 then
+                text ""
+            else
+                View.Hud.chargeBar unit.position ((game.time - startTime) / Stats.heli.chargeTime)
+
+        Just (Stretching _ startTime) ->
+            Mech.heliSalvoPositions (game.time - startTime) unit
+                |> List.map (View.Hud.salvoMark game.time (Unit.colorPattern game unit))
+                |> g []
+
+        _ ->
+            Svg.text ""
 
 
 wall : Tile2 -> Svg a
@@ -434,13 +444,16 @@ view terrain viewport game =
                         |> g []
                 , game.projectileById
                     |> Dict.values
-                    |> List.map viewProjectile
+                    |> List.map (viewProjectile game.time)
                     |> g []
                 , game.cosmetics
                     |> List.map View.Gfx.render
                     |> g []
                 , units
                     |> List.map viewHealthbar
+                    |> g []
+                , units
+                    |> List.map (viewCharge game)
                     |> g []
                 ]
             ]

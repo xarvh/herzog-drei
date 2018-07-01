@@ -17,6 +17,8 @@ type alias Seconds =
     Float
 
 
+{-| TODO rename to Radians, Degrees
+-}
 type alias Angle =
     Float
 
@@ -140,7 +142,7 @@ type alias ProjectileSeed =
     { maybeTeamId : Maybe TeamId
     , position : Vec2
     , angle : Angle
-    , damage : Int
+    , classId : ProjectileClassId
     }
 
 
@@ -149,42 +151,33 @@ type alias Projectile =
     , maybeTeamId : Maybe TeamId
     , position : Vec2
     , spawnPosition : Vec2
+    , spawnTime : Seconds
     , angle : Angle
-    , damage : Int
+    , classId : ProjectileClassId
     }
 
 
-addProjectile : ProjectileSeed -> Game -> Game
-addProjectile { maybeTeamId, position, angle, damage } game =
-    let
-        projectile =
-            { id = game.lastId + 1
-            , maybeTeamId = maybeTeamId
-            , position = position
-            , spawnPosition = position
-            , angle = angle
-            , damage = damage
-            }
-
-        projectileById =
-            Dict.insert projectile.id projectile game.projectileById
-    in
-    { game | projectileById = projectileById, lastId = projectile.id }
+type ProjectileClassId
+    = PlaneBullet
+    | BigSubBullet
+    | HeliRocket
+    | UpwardSalvo
+    | DownwardSalvo
 
 
-deltaAddProjectile : ProjectileSeed -> Delta
-deltaAddProjectile p =
-    addProjectile p |> deltaGame
+type ProjectileEffect
+    = ProjectileDamage Float
+    | ProjectileSplashDamage { radius : Float, damage : Float }
 
 
-removeProjectile : Id -> Game -> Game
-removeProjectile id game =
-    { game | projectileById = Dict.remove id game.projectileById }
-
-
-deltaRemoveProjectile : Id -> Delta
-deltaRemoveProjectile id =
-    removeProjectile id |> deltaGame
+type alias ProjectileClass =
+    { speed : Float
+    , range : Float
+    , effect : ProjectileEffect
+    , trail : Bool
+    , accelerates : Bool
+    , travelsAlongZ : Bool
+    }
 
 
 
@@ -227,6 +220,12 @@ type UnitComponent
     | UnitSub SubComponent
 
 
+type Charge
+    = Charging Seconds
+    | Stretching Int Seconds
+    | Cooldown Seconds
+
+
 type alias Unit =
     { id : Id
     , component : UnitComponent
@@ -234,6 +233,7 @@ type alias Unit =
     , integrity : Float
     , position : Vec2
     , reloadEndTime : Seconds
+    , maybeCharge : Maybe Charge
 
     --
     , fireAngle : Float
@@ -256,11 +256,12 @@ addUnit component maybeTeamId position startAngle game =
 
         unit =
             { id = id
-            , maybeTeamId = maybeTeamId
-            , position = position
-            , integrity = 1
-            , reloadEndTime = game.time
             , component = component
+            , maybeTeamId = maybeTeamId
+            , integrity = 1
+            , position = position
+            , reloadEndTime = game.time
+            , maybeCharge = Nothing
 
             --
             , lookAngle = startAngle
@@ -393,6 +394,7 @@ type GfxRender
     | GfxFractalBeam Vec2 Vec2 ColorPattern
     | GfxFlyingHead Vec2 Vec2 ColorPattern
     | GfxRepairBubble Vec2
+    | GfxTrail Vec2 Angle Float
 
 
 type alias Gfx =
@@ -430,6 +432,9 @@ type alias Game =
     , subBuildMultiplier : Float
     , wallTiles : Set Tile2
 
+    -- deferred deltas
+    , laters : List ( Seconds, SerialisedDelta )
+
     -- entities
     , baseById : Dict Id Base
     , projectileById : Dict Id Projectile
@@ -452,16 +457,21 @@ type alias Game =
 -- Deltas
 
 
+type Delta
+    = DeltaNone
+    | DeltaList (List Delta)
+    | DeltaLater Seconds SerialisedDelta
+    | DeltaGame (Game -> Game)
+    | DeltaOutcome Outcome
+
+
 type Outcome
     = OutcomeCanAddBots
     | OutcomeCanInitBots
 
 
-type Delta
-    = DeltaNone
-    | DeltaList (List Delta)
-    | DeltaGame (Game -> Game)
-    | DeltaOutcome Outcome
+type SerialisedDelta
+    = SpawnDownwardRocket { maybeTeamId : Maybe TeamId, target : Vec2 }
 
 
 deltaNone : Delta
@@ -472,6 +482,11 @@ deltaNone =
 deltaList : List Delta -> Delta
 deltaList =
     DeltaList
+
+
+deltaLater : Seconds -> SerialisedDelta -> Delta
+deltaLater =
+    DeltaLater
 
 
 deltaGame : (Game -> Game) -> Delta
@@ -604,11 +619,11 @@ addStaticObstacles tiles game =
 -- Seconds helpers
 
 
-periodLinear : Game -> Float -> Seconds -> Float
-periodLinear game phase period =
+periodLinear : Seconds -> Float -> Seconds -> Float
+periodLinear time phase period =
     let
         t =
-            game.time + phase * period
+            time + phase * period
 
         n =
             t / period |> floor |> toFloat
@@ -616,9 +631,9 @@ periodLinear game phase period =
     t / period - n
 
 
-periodHarmonic : Game -> Angle -> Seconds -> Float
-periodHarmonic game phase period =
-    periodLinear game phase period * pi |> sin
+periodHarmonic : Seconds -> Angle -> Seconds -> Float
+periodHarmonic time phase period =
+    periodLinear time phase period * pi |> sin
 
 
 

@@ -145,7 +145,8 @@ shootEnemies playerUnit game =
                 distance =
                     vectorDistance unit.position playerUnit.position
             in
-            if distance <= Unit.mechShootRange then
+            -- TODO this depends on the mech class!
+            if distance <= 8 then
                 Just ( unit, distance )
             else
                 Nothing

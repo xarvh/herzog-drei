@@ -302,10 +302,12 @@ updateOnKeyUp keyName model =
 
         -- ignore
         _ ->
-            let
-                _ =
-                    Debug.log "key" keyName
-            in
+            {-
+               let
+                   _ =
+                       Debug.log "key" keyName
+               in
+            -}
             noCmd model
 
 

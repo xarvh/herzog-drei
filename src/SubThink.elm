@@ -10,7 +10,9 @@ import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Pathfinding
+import Projectile
 import Set exposing (Set)
+import Stats
 import Unit
 import View.Gfx
 import View.Sub
@@ -94,7 +96,7 @@ searchForTargets : Game -> Unit -> SubComponent -> Maybe Delta
 searchForTargets game unit sub =
     let
         ifCloseEnough ( target, priority ) =
-            if vectorDistance unit.position target.position > Unit.subShootRange sub then
+            if vectorDistance unit.position target.position > Stats.subShootRange sub then
                 Nothing
             else
                 (\s -> { s | targetId = target.id })
@@ -136,7 +138,7 @@ searchForTargets game unit sub =
                     distance =
                         vectorDistance unit.position target.position
                 in
-                if distance > Unit.subShootRange sub then
+                if distance > Stats.subShootRange sub then
                     Nothing
                 else
                     Just ( target, targetPriority distance target )
@@ -181,7 +183,7 @@ thinkTarget dt game unit sub =
             searchForTargetOrAlignToMovement dt game unit sub
 
         Just target ->
-            if vectorDistance unit.position target.position > Unit.subShootRange sub then
+            if vectorDistance unit.position target.position > Stats.subShootRange sub then
                 searchForTargetOrAlignToMovement dt game unit sub
             else
                 let
@@ -197,16 +199,16 @@ thinkTarget dt game unit sub =
                             }
                         )
                     , deltaList <|
-                        if game.time < unit.reloadEndTime || Vec2.lengthSquared dp > Unit.subShootRange sub ^ 2 then
+                        if game.time < unit.reloadEndTime || Vec2.lengthSquared dp > Stats.subShootRange sub ^ 2 then
                             []
                         else
-                            [ deltaUnit unit.id (\g u -> { u | reloadEndTime = game.time + Unit.subReloadTime sub })
+                            [ deltaUnit unit.id (\g u -> { u | reloadEndTime = game.time + Stats.subReloadTime sub })
                             , let
                                 origin =
                                     Vec2.add unit.position (View.Sub.gunOffset unit.moveAngle)
 
                                 damage =
-                                    Unit.subShootDamage sub
+                                    Stats.subShootDamage sub
                               in
                               case sub.isBig of
                                 False ->
@@ -219,11 +221,11 @@ thinkTarget dt game unit sub =
                                         ]
 
                                 True ->
-                                    Game.deltaAddProjectile
+                                    Projectile.deltaAdd
                                         { maybeTeamId = unit.maybeTeamId
                                         , position = origin
                                         , angle = unit.fireAngle
-                                        , damage = damage
+                                        , classId = BigSubBullet
                                         }
                             ]
                     ]

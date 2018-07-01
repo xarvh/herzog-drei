@@ -1,90 +1,16 @@
 module Unit exposing (..)
 
+import ColorPattern exposing (ColorPattern)
+import Dict exposing (Dict)
 import Game exposing (..)
-
-
--- Subs constants
-
-
-subReloadTime : SubComponent -> Seconds
-subReloadTime sub =
-    if sub.isBig then
-        0.4
-    else
-        4.0
-
-
-subShootRange : SubComponent -> Float
-subShootRange sub =
-    if sub.isBig then
-        8.0
-    else
-        7.0
-
-
-subShootDamage : SubComponent -> number
-subShootDamage sub =
-    if sub.isBig then
-        4
-    else
-        11
-
-
-
--- Mech constants
-
-
-mechShootRange =
-    8.0
-
-
-mechShootDamage =
-    4
-
-
-blimpBeamDamage =
-    40
-
-
-mechReloadTime mech =
-    case mech.class of
-        Blimp ->
-            1.0
-
-        _ ->
-            case transformMode mech of
-                ToMech ->
-                    0.05
-
-                ToFlyer ->
-                    0.075
-
-
-
--- Mech mechanics
-
-
-transformMode : MechComponent -> TransformMode
-transformMode mech =
-    case mech.transformingTo of
-        ToMech ->
-            if mech.transformState < 1 then
-                ToMech
-            else
-                ToFlyer
-
-        ToFlyer ->
-            if mech.transformState > 0 then
-                ToFlyer
-            else
-                ToMech
-
+import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Stats
 
 
 -- Damage
 
 
-hitPointsAndArmor : Unit -> ( Float, Int )
+hitPointsAndArmor : Unit -> ( Float, Float )
 hitPointsAndArmor unit =
     case unit.component of
         UnitMech mech ->
@@ -129,16 +55,25 @@ takePiercingDamage rawDamage game unit =
     removeIntegrity damage game unit
 
 
-takeDamage : Int -> Game -> Unit -> Unit
+takeDamage : Float -> Game -> Unit -> Unit
 takeDamage rawDamage game unit =
     let
         ( healthPoints, armor ) =
             hitPointsAndArmor unit
 
         damage =
-            toFloat (rawDamage - armor) / healthPoints |> max 0
+            (rawDamage - armor) / healthPoints |> max 0
     in
     removeIntegrity damage game unit
+
+
+splashDamage : Game -> Maybe TeamId -> Vec2 -> Float -> Float -> Delta
+splashDamage game maybeTeamId position damage radius =
+    game.unitById
+        |> Dict.values
+        |> List.filter (\u -> u.maybeTeamId /= maybeTeamId && Vec2.distanceSquared u.position position < radius)
+        |> List.map (\u -> deltaUnit u.id (takeDamage damage))
+        |> deltaList
 
 
 
@@ -191,3 +126,8 @@ isSub unit =
 
         _ ->
             False
+
+
+colorPattern : Game -> Unit -> ColorPattern
+colorPattern game unit =
+    teamColorPattern game unit.maybeTeamId

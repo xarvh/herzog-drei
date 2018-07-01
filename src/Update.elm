@@ -6,6 +6,7 @@ import Game exposing (..)
 import Init
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import MechThink
 import ProjectileThink
 import Set exposing (Set)
 import SetupPhase
@@ -24,12 +25,19 @@ update uncappedDt pairedInputStatesByKey oldGame =
         dt =
             min 0.1 uncappedDt
 
+        newTime =
+            oldGame.time + dt
+
+        ( latersToExecute, latersToStore ) =
+            List.partition (\( scheduledTime, delta ) -> scheduledTime < newTime) oldGame.laters
+
         units =
             Dict.values oldGame.unitById
 
         tempGame =
             { oldGame
                 | time = oldGame.time + dt
+                , laters = latersToStore
                 , dynamicObstacles =
                     units
                         |> List.map (.position >> vec2Tile)
@@ -38,7 +46,12 @@ update uncappedDt pairedInputStatesByKey oldGame =
                 -- TODO: this should become a lot nicer once all GFX are using game time
                 |> updateGfxs dt
     in
-    [ units |> List.map (UnitThink.think dt pairedInputStatesByKey tempGame)
+    [ latersToExecute
+        |> List.map laterToDelta
+    , units
+        |> List.map (UnitThink.think dt pairedInputStatesByKey tempGame)
+
+    --
     , [ case tempGame.mode of
             GameModeTeamSelection _ ->
                 SetupPhase.think (Dict.keys pairedInputStatesByKey) tempGame
@@ -46,7 +59,11 @@ update uncappedDt pairedInputStatesByKey oldGame =
             GameModeVersus ->
                 VictoryThink.think dt tempGame
       ]
+
+    --
     , [ transitionThink tempGame ]
+
+    --
     , tempGame.baseById
         |> Dict.values
         |> List.map (BaseThink.think dt tempGame)
@@ -96,6 +113,17 @@ transitionThink game =
 
 
 
+-- Laters
+
+
+laterToDelta : ( Seconds, SerialisedDelta ) -> Delta
+laterToDelta ( scheduledTime, serialisedDelta ) =
+    case serialisedDelta of
+        SpawnDownwardRocket args ->
+            MechThink.spawnDownwardRocket args
+
+
+
 -- Gfxs
 
 
@@ -122,6 +150,9 @@ applyDelta delta gameAndOutcome =
 
         DeltaOutcome o ->
             Tuple.mapSecond ((::) o) gameAndOutcome
+
+        DeltaLater delay later ->
+            Tuple.mapFirst (\g -> { g | laters = ( g.time + delay, later ) :: g.laters }) gameAndOutcome
 
 
 applyGameDeltas : Game -> List Delta -> ( Game, List Outcome )
