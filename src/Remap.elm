@@ -68,16 +68,14 @@ view : List ( String, Destination ) -> Database -> Model -> Html Msg
 view actionNames db model =
     div
         [ class "elm-gamepad" ]
-        [ if getMappedAndUnmappedGamepads db model.blob == [] then
+        [ if getIndices model.blob == [] then
             div
                 [ class "elm-gamepad-no-gamepads" ]
                 [ text "No gamepads detected" ]
           else
-            List.map2 (viewGamepad actionNames)
-                -- first time with db
-                (getMappedAndUnmappedGamepads db model.blob)
-                -- second time without, so we can see which ones are auto configured
-                (getMappedAndUnmappedGamepads emptyDatabase model.blob)
+            model.blob
+                |> getIndices
+                |> List.map (viewGamepad actionNames db model.blob)
                 |> ul [ class "elm-gamepad-gamepad-list" ]
         , node "style"
             []
@@ -85,9 +83,20 @@ view actionNames db model =
         ]
 
 
-viewGamepad : List ( String, Destination ) -> MappedOrUnmapped -> MappedOrUnmapped -> Html Msg
-viewGamepad actions mappedOrUnmapped mappedOrUnmappedWithoutDatabase =
+findIndex : Int -> List Gamepad -> Maybe Gamepad
+findIndex index pads =
+    List.Extra.find (\pad -> getIndex pad == index) pads
+
+
+viewGamepad : List ( String, Destination ) -> Database -> Blob -> Int -> Html Msg
+viewGamepad actions db blob index =
     let
+        maybeGamepad =
+            findIndex index (getGamepads db blob)
+
+        maybeGamepadWithoutConfig =
+            findIndex index (getGamepads emptyDatabase blob)
+
         symbolNope =
             ( "✘", "elm-gamepad-mapping-unavailable" )
 
@@ -95,37 +104,37 @@ viewGamepad actions mappedOrUnmapped mappedOrUnmappedWithoutDatabase =
             ( "✔", "elm-gamepad-mapping-available" )
 
         ( ( symbolFace, symbolClass ), mapState ) =
-            case mappedOrUnmapped of
-                Unmapped unmappedGamepad ->
+            case maybeGamepad of
+                Nothing ->
                     ( symbolNope, "Needs mapping" )
 
-                Mapped gamepad ->
-                    if mappedOrUnmapped == mappedOrUnmappedWithoutDatabase then
+                Just gamepad ->
+                    if maybeGamepad == maybeGamepadWithoutConfig then
                         ( symbolYeah, "Standard mapping" )
                     else
                         ( symbolYeah, "Custom mapping" )
 
         action =
-            case mappedOrUnmapped of
-                Unmapped unmappedGamepad ->
-                    if True then
+            case maybeGamepad of
+                Nothing ->
+                    if estimateOrigin blob index == Nothing then
                         "idle"
                     else
                         "Receiving signal"
 
-                Mapped gamepad ->
+                Just gamepad ->
                     actions
                         |> List.Extra.find (Tuple.second >> isPressed gamepad)
                         |> Maybe.map Tuple.first
                         |> Maybe.withDefault "idle"
 
-        ( buttonLabel, index ) =
-            case mappedOrUnmapped of
-                Unmapped unmappedGamepad ->
-                    ( "Map", getIndexUnmapped unmappedGamepad )
+        buttonLabel =
+            case maybeGamepad of
+                Nothing ->
+                    "Map"
 
-                Mapped gamepad ->
-                    ( "Remap", getIndex gamepad )
+                Just gamepad ->
+                    "Remap"
     in
     li
         [ class "elm-gamepad-gamepad-list-item" ]

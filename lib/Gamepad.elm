@@ -102,6 +102,7 @@ The steps to create a button map are roughly:
 import Array exposing (Array)
 import Dict exposing (Dict)
 import Gamepad.Private exposing (GamepadFrame)
+import List.Extra
 import Regex
 import Set exposing (Set)
 import Time
@@ -770,38 +771,79 @@ dpadPosition pad =
 
 
 
--- Remap helpers
+--
+-- Mapping helpers
+--
+-- This code is used to get an estimate of the buttons/sticks the user is
+-- moving given a time series of RawGamepad states
+--
 
 
-type UnmappedGamepad
-    = UnmappedGamepad Int GamepadFrame
-
-
-getIndexUnmapped : UnmappedGamepad -> Int
-getIndexUnmapped (UnmappedGamepad index frames) =
-    index
-
-
-type MappedOrUnmapped
-    = Mapped Gamepad
-    | Unmapped UnmappedGamepad
-
-
-getMappedAndUnmappedGamepads : Database -> Blob -> List MappedOrUnmapped
-getMappedAndUnmappedGamepads db blob =
-    let
-        frameToMappedOrUnmapped : GamepadFrame -> MappedOrUnmapped
-        frameToMappedOrUnmapped gamepadFrame =
-            case maybeGamepad db blob gamepadFrame of
-                Just gamepad ->
-                    Mapped gamepad
-
-                Nothing ->
-                    Unmapped (UnmappedGamepad gamepadFrame.index gamepadFrame)
-    in
+getIndices : Blob -> List Int
+getIndices blob =
     case blob of
         [] ->
             []
 
-        frame :: fx ->
-            List.map frameToMappedOrUnmapped frame.gamepads
+        frame :: fs ->
+            List.map .index frame.gamepads
+
+
+{-| Buttons are always provided as a (isPressed, value) tuple.
+This function ignores one and uses only and always the other.
+
+Is this a good assumption?
+Are there cases where both should be considered?
+
+-}
+buttonToEstimate : Int -> ( Bool, Float ) -> ( Origin, Float )
+buttonToEstimate originIndex ( pressed, value ) =
+    ( Origin False Button originIndex, boolToNumber pressed )
+
+
+boolToNumber : Bool -> number
+boolToNumber bool =
+    if bool then
+        1
+    else
+        0
+
+
+axisToEstimate : Int -> Float -> ( Origin, Float )
+axisToEstimate originIndex value =
+    ( Origin (value < 0) Axis originIndex, abs value )
+
+
+estimateThreshold : ( Origin, Float ) -> Maybe Origin
+estimateThreshold ( origin, confidence ) =
+    if confidence < 0.5 then
+        Nothing
+    else
+        Just origin
+
+
+estimateOriginInFrame : GamepadFrame -> Maybe Origin
+estimateOriginInFrame frame =
+    let
+        axesEstimates =
+            Array.indexedMap axisToEstimate frame.axes
+
+        buttonsEstimates =
+            Array.indexedMap buttonToEstimate frame.buttons
+    in
+    Array.append axesEstimates buttonsEstimates
+        |> Array.toList
+        |> List.sortBy Tuple.second
+        |> List.reverse
+        |> List.head
+        |> Maybe.andThen estimateThreshold
+
+
+{-| This function guesses the Origin currently activated by the user.
+-}
+estimateOrigin : Blob -> Int -> Maybe Origin
+estimateOrigin blob index =
+    blob
+        |> List.head
+        |> Maybe.andThen (.gamepads >> List.Extra.find (\pad -> pad.index == index))
+        |> Maybe.andThen estimateOriginInFrame

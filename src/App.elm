@@ -808,7 +808,7 @@ viewMenu menu model =
         MenuGamepads remap ->
             div
                 [ class "flex flexColumn alignCenter" ]
-                [ div [ class "mb2" ] [ text "> Settings <" ]
+                [ div [ class "mb2" ] [ text "> Gamepads <" ]
                 , section
                     []
                     [ Remap.view
