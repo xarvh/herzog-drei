@@ -95,7 +95,8 @@ init flags =
     in
     noCmd
         { scene = scene
-        , maybeMenu = Just MenuMain
+        --, maybeMenu = Just MenuMain
+        , maybeMenu = Just (MenuGamepads Remap.init)
         , selectedButtonName = "Play"
         , seed = seed
 
@@ -158,6 +159,7 @@ makeViewport windowSize =
 
 type Msg
     = Noop
+    | OnGamepad Gamepad.Blob
       -- Menu buttons
     | OnStartGame ValidatedMap
     | OnMenuButton String
@@ -186,6 +188,9 @@ update msg model =
     case msg of
         Noop ->
             noCmd model
+
+        OnGamepad blob ->
+            updateOnGamepad blob model
 
         OnStartGame map ->
             updateStartGame map model
@@ -251,7 +256,7 @@ update msg model =
         OnRemapMsg remapMsg ->
             case model.maybeMenu of
                 Just (MenuGamepads remap) ->
-                    Remap.update remapMsg remap |> updateOnRemap model
+                    Remap.update gamepadButtonMap remapMsg remap |> updateOnRemap model
 
                 _ ->
                     noCmd model
@@ -270,6 +275,34 @@ updateOnImportString mapAsJson importModel model =
                 |> MenuImportMap
                 |> Just
     }
+
+
+updateOnGamepad : Gamepad.Blob -> Model -> ( Model, Cmd Msg )
+updateOnGamepad blob model =
+    let
+        pads =
+            Gamepad.getGamepads model.config.gamepadDatabase blob
+
+        buttonClick button =
+            List.any (\pad -> Gamepad.wasClicked pad button) pads
+
+        buttonToKey =
+            [ ( Gamepad.LeftStickUp, "ArrowUp" )
+            , ( Gamepad.LeftStickDown, "ArrowDown" )
+            , ( Gamepad.LeftStickLeft, "ArrowLeft" )
+            , ( Gamepad.LeftStickRight, "ArrowRight" )
+            , ( Gamepad.RightBumper, "Enter" )
+            , ( Gamepad.RightTrigger, "Enter" )
+            , ( Gamepad.A, "Enter" )
+            , ( Gamepad.B, "Escape" )
+            ]
+    in
+    case List.Extra.find (\( b, k ) -> buttonClick b) buttonToKey of
+        Nothing ->
+            noCmd model
+
+        Just ( button, key ) ->
+            updateOnKeyUp key model
 
 
 updateOnKeyUp : String -> Model -> ( Model, Cmd Msg )
@@ -477,7 +510,7 @@ mainMenuButtons model =
     , { name = "Gamepads"
       , view = MenuButtonLabel
       , isVisible = isDemo || isMapEditor
-      , update = menuNav <| MenuGamepads <| Remap.init <| gamepadButtonMap
+      , update = menuNav <| MenuGamepads <| Remap.init
       }
     , { name = "Quit"
       , view = MenuButtonLabel
@@ -607,16 +640,16 @@ menuSelectPrevButton model =
 
 
 gamepadButtonMap =
-    [ ( Gamepad.LeftLeft, "Move LEFT" )
-    , ( Gamepad.LeftRight, "Move RIGHT" )
-    , ( Gamepad.LeftUp, "Move UP" )
-    , ( Gamepad.LeftDown, "Move DOWN" )
+    [ ( Gamepad.LeftStickLeft, "Move LEFT" )
+    , ( Gamepad.LeftStickRight, "Move RIGHT" )
+    , ( Gamepad.LeftStickUp, "Move UP" )
+    , ( Gamepad.LeftStickDown, "Move DOWN" )
 
     --
-    , ( Gamepad.RightLeft, "Aim LEFT" )
-    , ( Gamepad.RightRight, "Aim RIGHT" )
-    , ( Gamepad.RightUp, "Aim UP" )
-    , ( Gamepad.RightDown, "Aim DOWN" )
+    , ( Gamepad.RightStickLeft, "Aim LEFT" )
+    , ( Gamepad.RightStickRight, "Aim RIGHT" )
+    , ( Gamepad.RightStickUp, "Aim UP" )
+    , ( Gamepad.RightStickDown, "Aim DOWN" )
 
     --
     , ( Gamepad.RightTrigger, "FIRE" )
@@ -624,6 +657,7 @@ gamepadButtonMap =
     , ( Gamepad.A, "Transform" )
     , ( Gamepad.B, "Rally" )
     ]
+      |> List.map (\(a, b) -> (b, a))
 
 
 updateOnRemap : Model -> ( Remap.Model, Maybe (Database -> Database) ) -> ( Model, Cmd Msg )
@@ -774,10 +808,14 @@ viewMenu menu model =
         MenuGamepads remap ->
             div
                 [ class "flex flexColumn alignCenter" ]
-                [ div [ class "mb2" ] [ text "> Settings <" ]
+                [ div [ class "mb2" ] [ text "> Gamepads <" ]
                 , section
                     []
-                    [ Remap.view model.config.gamepadDatabase remap |> Html.map OnRemapMsg
+                    [ Remap.view
+                        gamepadButtonMap
+                        model.config.gamepadDatabase
+                        remap
+                        |> Html.map OnRemapMsg
                     ]
                 ]
 
@@ -887,6 +925,10 @@ subscriptions model =
         , Browser.Events.onMouseUp (OnMouseButton False |> Input.always)
         , Browser.Events.onMouseMove (Input.mouseMoveDecoder OnMouseMoves)
         , Browser.Events.onResize OnWindowResizes
+        , if model.maybeMenu /= Nothing then
+            GamepadPort.gamepad OnGamepad
+          else
+            Sub.none
         , case model.maybeMenu of
             Just (MenuGamepads remap) ->
                 Remap.subscriptions GamepadPort.gamepad |> Sub.map OnRemapMsg
