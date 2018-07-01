@@ -342,8 +342,6 @@ animationFrameTimestamp blob =
 -- Mapping -------------------------------------------------------------------
 
 
-
-
 listToButtonMap : List ( Destination, Origin ) -> Mapping
 listToButtonMap map =
     let
@@ -473,19 +471,29 @@ standardButtonMaps =
             , ( B, Origin False Button 1 )
             , ( X, Origin False Button 2 )
             , ( Y, Origin False Button 3 )
+
+            --
             , ( Start, Origin False Button 9 )
             , ( Back, Origin False Button 8 )
             , ( Home, Origin False Button 16 )
+
+            --
+            , ( LeftStickLeft, Origin True Axis 0 )
             , ( LeftStickRight, Origin False Axis 0 )
+            , ( LeftStickUp, Origin True Axis 1 )
             , ( LeftStickDown, Origin False Axis 1 )
             , ( LeftStickPress, Origin False Button 10 )
             , ( LeftBumper, Origin False Button 4 )
             , ( LeftTrigger, Origin False Button 6 )
+
+            --
             , ( RightStickRight, Origin False Axis 2 )
             , ( RightStickDown, Origin False Axis 3 )
             , ( RightStickPress, Origin False Button 11 )
             , ( RightBumper, Origin False Button 5 )
             , ( RightTrigger, Origin False Button 7 )
+
+            --
             , ( DpadUp, Origin False Button 12 )
             , ( DpadDown, Origin False Button 13 )
             , ( DpadLeft, Origin False Button 14 )
@@ -659,33 +667,14 @@ getValue destination mapping frame =
 getAxis : Destination -> Destination -> Mapping -> GamepadFrame -> Float
 getAxis negativeDestination positiveDestination mapping frame =
     let
-        {- TODO: test and fix docs
-
-           If leftUp and leftDown point to different Origins, then the normal
-
-               leftY =
-                   leftUp - leftDown
-
-           is perfectly valid.
-
-           However if they are on the same origin and that origin is a -1 to +1 axis, the
-           equality above will yield values between -2 and +2.
-
-           This function detects such cases and removes one of the two origins from the
-           map.
-
-               leftY =
-                   leftUp
-
-        -}
         negative =
             getValue negativeDestination mapping frame
 
         positive =
             getValue positiveDestination mapping frame
     in
-    -- if both are non-zero and have the same sign
-    if positive * negative > 0 then
+    -- if both point to the same Origin, we need just one
+    if positive == -negative then
         positive
     else
         positive - negative
