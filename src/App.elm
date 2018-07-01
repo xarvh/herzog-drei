@@ -291,7 +291,7 @@ updateOnGamepad blob model =
             Gamepad.getGamepads model.config.gamepadDatabase blob
 
         buttonClick button =
-            List.any (\pad -> Gamepad.wasReleased button pad) pads
+            List.any (\pad -> Gamepad.wasClicked button pad) pads
 
         buttonToKey =
             [ ( Gamepad.LeftStickUp, "ArrowUp" )

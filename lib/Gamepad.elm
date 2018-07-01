@@ -624,8 +624,8 @@ reverseAxis isReverse n =
         n
 
 
-buttonIsPressed : Destination -> Mapping -> GamepadFrame -> Bool
-buttonIsPressed destination mapping frame =
+getAsBool : Destination -> Mapping -> GamepadFrame -> Bool
+getAsBool destination mapping frame =
     case mappingToRawIndex destination mapping of
         Nothing ->
             False
@@ -642,13 +642,8 @@ buttonIsPressed destination mapping frame =
                 |> Maybe.withDefault False
 
 
-buttonWasReleased : Destination -> Mapping -> GamepadFrame -> GamepadFrame -> Bool
-buttonWasReleased destination mapping currentFrame previousFrame =
-    buttonIsPressed destination mapping previousFrame && not (buttonIsPressed destination mapping currentFrame)
-
-
-getValue : Destination -> Mapping -> GamepadFrame -> Float
-getValue destination mapping frame =
+getAsFloat : Destination -> Mapping -> GamepadFrame -> Float
+getAsFloat destination mapping frame =
     case mappingToRawIndex destination mapping of
         Nothing ->
             0
@@ -668,10 +663,10 @@ getAxis : Destination -> Destination -> Mapping -> GamepadFrame -> Float
 getAxis negativeDestination positiveDestination mapping frame =
     let
         negative =
-            getValue negativeDestination mapping frame
+            getAsFloat negativeDestination mapping frame
 
         positive =
-            getValue positiveDestination mapping frame
+            getAsFloat positiveDestination mapping frame
     in
     -- if both point to the same Origin, we need just one
     if positive == -negative then
@@ -702,14 +697,24 @@ isPressed digital (Gamepad index mapping frames) =
             False
 
         frame :: fs ->
-            buttonIsPressed digital mapping frame
+            getAsBool digital mapping frame
 
 
 wasReleased : Digital -> Gamepad -> Bool
 wasReleased digital (Gamepad index mapping frames) =
     case frames of
-        frameA :: frameB :: fs ->
-            buttonWasReleased digital mapping frameA frameB
+        currentFrame :: previousFrame :: fs ->
+            getAsBool digital mapping previousFrame && not (getAsBool digital mapping currentFrame)
+
+        _ ->
+            False
+
+
+wasClicked : Digital -> Gamepad -> Bool
+wasClicked digital (Gamepad index mapping frames) =
+    case frames of
+        currentFrame :: previousFrame :: fs ->
+            not (getAsBool digital mapping previousFrame) && getAsBool digital mapping currentFrame
 
         _ ->
             False
@@ -724,7 +729,7 @@ axisValue analog (Gamepad index mapping frames) =
         frame :: fs ->
             case analogToDestination analog of
                 One positive ->
-                    getValue positive mapping frame
+                    getAsFloat positive mapping frame
 
                 Two negative positive ->
                     getAxis negative positive mapping frame
