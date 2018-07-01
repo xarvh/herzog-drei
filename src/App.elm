@@ -256,7 +256,7 @@ update msg model =
         OnRemapMsg remapMsg ->
             case model.maybeMenu of
                 Just (MenuGamepads remap) ->
-                    Remap.update remapMsg remap |> updateOnRemap model
+                    Remap.update gamepadButtonMap remapMsg remap |> updateOnRemap model
 
                 _ ->
                     noCmd model

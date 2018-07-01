@@ -349,7 +349,7 @@ animationFrameTimestamp blob =
 -- Mapping -------------------------------------------------------------------
 
 
-listToButtonMap : List ( Destination, Origin ) -> Mapping
+listToButtonMap : List ( Origin, Destination ) -> Mapping
 listToButtonMap map =
     let
         hasMinus isReverse =
@@ -369,7 +369,7 @@ listToButtonMap map =
         originToCode (Origin isReverse originType index) =
             hasMinus isReverse ++ typeToString originType ++ String.fromInt index
 
-        tupleDestinationToString ( destination, origin ) =
+        tupleDestinationToString ( origin, destination ) =
             ( destinationToString destination, origin )
 
         tupleToString ( destinationAsString, origin ) =
@@ -383,23 +383,6 @@ listToButtonMap map =
 
 
 
--- Database ------------------------------------------------------------------
-{-
-   {-| This function inserts a button map for a given gamepad Id in a [Database](#Database),
-   replacing any previous mapping for that gamepad Id.
-
-   The first argument is the gamepad the map is for.
-
-   The second argument is the map itself: a List of [RemapDestination](#RemapDestination)s vs
-   [Origin](#Origin)s.
-
-   The third argument is the [Database](#Database) to update.
-
-   -}
-   buttonMapToUpdateDatabase : UnknownGamepad -> List ( RemapDestination, Origin ) -> Database -> Database
-   buttonMapToUpdateDatabase unknownGamepad map (Database database) =
-       Dict.insert (unknownGetId unknownGamepad) (listToButtonMap map) database |> Database
--}
 -- Encoding and decoding Databases
 
 
@@ -510,17 +493,20 @@ standardGamepadMapping =
     , ( DpadLeft, Origin False Button 14 )
     , ( DpadRight, Origin False Button 15 )
     ]
+        |> List.map (\( a, b ) -> ( b, a ))
 
 
 allDigitals : List Digital
 allDigitals =
-    List.map Tuple.first standardGamepadMapping
+    List.map Tuple.second standardGamepadMapping
 
 
 
 -- Get gamepads
 
 
+{-| TODO
+-}
 getGamepads : Database -> Blob -> List Gamepad
 getGamepads database blob =
     case blob of
@@ -779,6 +765,8 @@ dpadPosition pad =
 --
 
 
+{-| TODO
+-}
 getIndices : Blob -> List Int
 getIndices blob =
     case blob of
@@ -847,3 +835,32 @@ estimateOrigin blob index =
         |> List.head
         |> Maybe.andThen (.gamepads >> List.Extra.find (\pad -> pad.index == index))
         |> Maybe.andThen estimateOriginInFrame
+
+
+{-| This function inserts a button map for a given gamepad Id in a [Database](#Database),
+replacing any previous mapping for that gamepad Id.
+
+The first argument is the gamepad the map is for.
+
+The second argument is the map itself: a List of [RemapDestination](#RemapDestination)s vs
+[Origin](#Origin)s.
+
+The third argument is the [Database](#Database) to update.
+
+-}
+buttonMapToUpdateDatabase : Blob -> Int -> List ( Origin, Destination ) -> Database -> Database
+buttonMapToUpdateDatabase blob index map (Database database) =
+    case blob of
+        -- TODO: Error: invalid blob!?
+        [] ->
+            Database database
+
+        frame :: xs ->
+            case List.Extra.find (\pad -> pad.index == index) frame.gamepads of
+                -- TODO: error: "invalid index. disconnected?" What if the user has just passed a wrong value?
+                -- TODO: need to find a way to wrap blob & index
+                Nothing ->
+                    Database database
+
+                Just gamepad ->
+                    Dict.insert gamepad.id (listToButtonMap map) database |> Database

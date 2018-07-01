@@ -27,15 +27,46 @@ type Msg
 -- Model
 
 
+type alias Action =
+    ( String, Destination )
+
+
+type WaitingFor
+    = AllButtonsUp
+    | SomeButtonDown
+
+
+type alias Remapping =
+    { index : Int
+    , map : List ( Origin, Destination )
+    , waitingFor : WaitingFor
+    }
+
+
 type alias Model =
     { blob : Blob
+    , maybeRemapping : Maybe Remapping
     }
 
 
 init : Model
 init =
     { blob = []
+    , maybeRemapping = Nothing
     }
+
+
+
+-- Stuff
+
+
+nextUnmappedAction : List Action -> List ( Origin, Destination ) -> Maybe Action
+nextUnmappedAction actions map =
+    let
+        isNotMapped ( name, destination ) =
+            List.all (\( origin, d ) -> d /= destination) map
+    in
+    List.Extra.find isNotMapped actions
 
 
 
@@ -47,40 +78,110 @@ noCmd model =
     ( model, Nothing )
 
 
-update : Msg -> Model -> ( Model, Maybe (Database -> Database) )
-update msg model =
+update : List Action -> Msg -> Model -> ( Model, Maybe (Database -> Database) )
+update actions msg model =
     case msg of
         Noop ->
             noCmd model
 
         OnGamepad blob ->
-            noCmd { model | blob = blob }
+            updateOnGamepad actions { model | blob = blob }
 
         OnStartRemapping index ->
+            noCmd
+                { model
+                    | maybeRemapping =
+                        Just
+                            { index = index
+                            , map = []
+                            , waitingFor = AllButtonsUp
+                            }
+                }
+
+
+updateOnGamepad : List Action -> Model -> ( Model, Maybe (Database -> Database) )
+updateOnGamepad actions model =
+    case model.maybeRemapping of
+        Nothing ->
             noCmd model
+
+        Just remapping ->
+            case ( remapping.waitingFor, estimateOrigin model.blob remapping.index ) of
+                ( AllButtonsUp, Nothing ) ->
+                    noCmd { model | maybeRemapping = Just { remapping | waitingFor = SomeButtonDown } }
+
+                ( SomeButtonDown, Just origin ) ->
+                    case nextUnmappedAction actions remapping.map of
+                        Nothing ->
+                            ( { model | maybeRemapping = Nothing }
+                            , Just (buttonMapToUpdateDatabase model.blob remapping.index remapping.map)
+                            )
+
+                        Just ( name, destination ) ->
+                            noCmd
+                                { model
+                                    | maybeRemapping =
+                                        Just
+                                            { remapping
+                                                | map = ( origin, destination ) :: remapping.map
+                                                , waitingFor = AllButtonsUp
+                                            }
+                                }
+
+                _ ->
+                    noCmd model
 
 
 
 -- View
 
 
-view : List ( String, Destination ) -> Database -> Model -> Html Msg
+view : List Action -> Database -> Model -> Html Msg
 view actionNames db model =
     div
         [ class "elm-gamepad" ]
-        [ if getIndices model.blob == [] then
-            div
-                [ class "elm-gamepad-no-gamepads" ]
-                [ text "No gamepads detected" ]
-          else
-            model.blob
-                |> getIndices
-                |> List.map (viewGamepad actionNames db model.blob)
-                |> ul [ class "elm-gamepad-gamepad-list" ]
+        [ case model.maybeRemapping of
+            Just remapping ->
+                viewRemapping actionNames remapping
+
+            Nothing ->
+                if getIndices model.blob == [] then
+                    div
+                        [ class "elm-gamepad-no-gamepads" ]
+                        [ text "No gamepads detected" ]
+                else
+                    model.blob
+                        |> getIndices
+                        |> List.map (viewGamepad actionNames db model.blob)
+                        |> ul [ class "elm-gamepad-gamepad-list" ]
         , node "style"
             []
             [ text cssStyle ]
         ]
+
+
+viewRemapping : List Action -> Remapping -> Html Msg
+viewRemapping actions remapping =
+    case nextUnmappedAction actions remapping.map of
+        Nothing ->
+            div
+                []
+                [ div [] [ text <| "Remapping Gamepad " ++ String.fromInt remapping.index ++ " complete." ]
+                , div [] [ text "Press any button to go back." ]
+
+                -- TODO, button [] [ text "Ok!" ]
+                ]
+
+        Just ( actionName, destination ) ->
+            div
+                []
+                [ div [] [ text <| "Remapping Gamepad " ++ String.fromInt remapping.index ]
+                , div [] [ text "press:" ]
+                , div [] [ text actionName ]
+
+                -- TODO, button [] [ text "skip" ]
+                -- TODO, button [] [ text "cancel" ]
+                ]
 
 
 findIndex : Int -> List Gamepad -> Maybe Gamepad
@@ -88,7 +189,7 @@ findIndex index pads =
     List.Extra.find (\pad -> getIndex pad == index) pads
 
 
-viewGamepad : List ( String, Destination ) -> Database -> Blob -> Int -> Html Msg
+viewGamepad : List Action -> Database -> Blob -> Int -> Html Msg
 viewGamepad actions db blob index =
     let
         maybeGamepad =
@@ -151,7 +252,9 @@ viewGamepad actions db blob index =
             [ class "elm-gamepad-current-action-text" ]
             [ text action ]
         , button
-            [ class "elm-gamepad-remap-button" ]
+            [ class "elm-gamepad-remap-button"
+            , onClick (OnStartRemapping index)
+            ]
             [ text buttonLabel ]
         ]
 
