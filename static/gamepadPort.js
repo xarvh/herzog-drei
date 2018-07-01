@@ -23,7 +23,7 @@ function addGamepadPort(elmApp) {
         axes: g.axes,
         buttons: g.buttons.map(function (b) { return [ b.pressed, b.value ]; }),
         id: g.id,
-        index: g.index,
+        index: g.index + 1,
         mapping: g.mapping,
         timestamp: g.timestamp,
       });

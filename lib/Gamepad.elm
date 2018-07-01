@@ -157,7 +157,10 @@ type alias Destination =
     Digital
 
 
-{-| TODO
+{-| All controls are available in digital
+
+TODO
+
 -}
 type Digital
     = A
@@ -187,7 +190,10 @@ type Digital
     | DpadRight
 
 
-{-| TODO
+{-| Some controls are available in analog
+
+TODO
+
 -}
 type Analog
     = LeftX
@@ -464,44 +470,48 @@ databaseFromString databaseAsString =
 
 standardButtonMaps : Dict String Mapping
 standardButtonMaps =
-    [ ( "standard"
-      , listToButtonMap
-            -- https://www.w3.org/TR/gamepad/#remapping
-            [ ( A, Origin False Button 0 )
-            , ( B, Origin False Button 1 )
-            , ( X, Origin False Button 2 )
-            , ( Y, Origin False Button 3 )
+    Dict.fromList [ ( "standard", listToButtonMap standardGamepadMapping ) ]
 
-            --
-            , ( Start, Origin False Button 9 )
-            , ( Back, Origin False Button 8 )
-            , ( Home, Origin False Button 16 )
 
-            --
-            , ( LeftStickLeft, Origin True Axis 0 )
-            , ( LeftStickRight, Origin False Axis 0 )
-            , ( LeftStickUp, Origin True Axis 1 )
-            , ( LeftStickDown, Origin False Axis 1 )
-            , ( LeftStickPress, Origin False Button 10 )
-            , ( LeftBumper, Origin False Button 4 )
-            , ( LeftTrigger, Origin False Button 6 )
+standardGamepadMapping =
+    -- https://www.w3.org/TR/gamepad/#remapping
+    [ ( A, Origin False Button 0 )
+    , ( B, Origin False Button 1 )
+    , ( X, Origin False Button 2 )
+    , ( Y, Origin False Button 3 )
 
-            --
-            , ( RightStickRight, Origin False Axis 2 )
-            , ( RightStickDown, Origin False Axis 3 )
-            , ( RightStickPress, Origin False Button 11 )
-            , ( RightBumper, Origin False Button 5 )
-            , ( RightTrigger, Origin False Button 7 )
+    --
+    , ( Start, Origin False Button 9 )
+    , ( Back, Origin False Button 8 )
+    , ( Home, Origin False Button 16 )
 
-            --
-            , ( DpadUp, Origin False Button 12 )
-            , ( DpadDown, Origin False Button 13 )
-            , ( DpadLeft, Origin False Button 14 )
-            , ( DpadRight, Origin False Button 15 )
-            ]
-      )
+    --
+    , ( LeftStickLeft, Origin True Axis 0 )
+    , ( LeftStickRight, Origin False Axis 0 )
+    , ( LeftStickUp, Origin True Axis 1 )
+    , ( LeftStickDown, Origin False Axis 1 )
+    , ( LeftStickPress, Origin False Button 10 )
+    , ( LeftBumper, Origin False Button 4 )
+    , ( LeftTrigger, Origin False Button 6 )
+
+    --
+    , ( RightStickRight, Origin False Axis 2 )
+    , ( RightStickDown, Origin False Axis 3 )
+    , ( RightStickPress, Origin False Button 11 )
+    , ( RightBumper, Origin False Button 5 )
+    , ( RightTrigger, Origin False Button 7 )
+
+    --
+    , ( DpadUp, Origin False Button 12 )
+    , ( DpadDown, Origin False Button 13 )
+    , ( DpadLeft, Origin False Button 14 )
+    , ( DpadRight, Origin False Button 15 )
     ]
-        |> Dict.fromList
+
+
+allDigitals : List Digital
+allDigitals =
+    List.map Tuple.first standardGamepadMapping
 
 
 
@@ -680,7 +690,7 @@ getAxis negativeDestination positiveDestination mapping frame =
 
 
 {-| Get the index of a known gamepad.
-Indexes start from 0.
+To match the LED indicator on XBOX gamepads, indices start from 1.
 
     getIndex gamepad == 2
 
@@ -755,3 +765,41 @@ dpadPosition pad =
     { x = 0
     , y = 0
     }
+
+
+
+-- Remap helpers
+
+
+type UnmappedGamepad
+    = UnmappedGamepad Int GamepadFrame
+
+
+getIndexUnmapped : UnmappedGamepad -> Int
+getIndexUnmapped (UnmappedGamepad index frames) =
+    index
+
+
+type MappedOrUnmapped
+    = Mapped Gamepad
+    | Unmapped UnmappedGamepad
+
+
+getMappedAndUnmappedGamepads : Database -> Blob -> List MappedOrUnmapped
+getMappedAndUnmappedGamepads db blob =
+    let
+        frameToMappedOrUnmapped : GamepadFrame -> MappedOrUnmapped
+        frameToMappedOrUnmapped gamepadFrame =
+            case maybeGamepad db blob gamepadFrame of
+                Just gamepad ->
+                    Mapped gamepad
+
+                Nothing ->
+                    Unmapped (UnmappedGamepad gamepadFrame.index gamepadFrame)
+    in
+    case blob of
+        [] ->
+            []
+
+        frame :: fx ->
+            List.map frameToMappedOrUnmapped frame.gamepads

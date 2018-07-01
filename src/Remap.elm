@@ -1,11 +1,7 @@
 module Remap exposing (..)
 
--- TODO remove GamepadPort once I get rid of Gamepad.Remap
-
 import Dict exposing (Dict)
 import Gamepad exposing (..)
-import Gamepad.Remap
-import GamepadPort
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick)
@@ -15,7 +11,6 @@ import List.Extra
 type Msg
     = Noop
     | OnGamepad Blob
-    | OnRemapMsg Gamepad.Remap.Msg
     | OnStartRemapping Int
 
 
@@ -24,34 +19,14 @@ type Msg
 
 
 type alias Model =
-    { buttons : List ( RemapDestination, String )
-    , maybeBlob : Maybe Blob
-    , maybeRemap : Maybe (Gamepad.Remap.Model String)
+    { blob : Blob
     }
 
 
-init : List ( RemapDestination, String ) -> Model
-init buttons =
-    -- TODO: keep buttons out of the Model?
-    { buttons = buttons
-    , maybeBlob = Nothing
-    , maybeRemap = Nothing
+init : Model
+init =
+    { blob = []
     }
-
-
-isRemapping : Model -> Bool
-isRemapping model =
-    model.maybeRemap /= Nothing
-
-
-gamepadsCount : Model -> Int
-gamepadsCount model =
-    case model.maybeBlob of
-        Nothing ->
-            0
-
-        Just blob ->
-            Gamepad.getAllGamepadsAsUnknown blob |> List.length
 
 
 
@@ -70,225 +45,86 @@ update msg model =
             noCmd model
 
         OnGamepad blob ->
-            noCmd { model | maybeBlob = Just blob }
+            noCmd { model | blob = blob }
 
         OnStartRemapping index ->
-            noCmd { model | maybeRemap = Just (Gamepad.Remap.init index model.buttons) }
-
-        OnRemapMsg remapMsg ->
-            case model.maybeRemap of
-                Nothing ->
-                    noCmd model
-
-                Just remap ->
-                    case Gamepad.Remap.update remapMsg remap of
-                        Gamepad.Remap.StillOpen newRemap ->
-                            noCmd { model | maybeRemap = Just newRemap }
-
-                        Gamepad.Remap.Error message ->
-                            Debug.todo message
-
-                        Gamepad.Remap.UpdateDatabase updateDatabase ->
-                            ( { model | maybeRemap = Nothing }, Just updateDatabase )
+            noCmd model
 
 
 
 -- View
 
 
-type Getter
-    = Bin (Gamepad -> Bool)
-    | Pos (Gamepad -> Float)
-    | Neg (Gamepad -> Float)
-    | DpadNeg (Gamepad -> Bool) (Gamepad -> Int)
-    | DpadPos (Gamepad -> Bool) (Gamepad -> Int)
+view : List ( String, Destination ) -> Database -> Model -> Html Msg
+view actionNames db model =
+    div
+        [ class "elm-gamepad-remap" ]
+        [ if getMappedAndUnmappedGamepads db model.blob == [] then
+            div
+                [ class "elm-gamepad-no-gamepads" ]
+                [ text "No gamepads detected" ]
+          else
+            List.map2 (viewGamepad actionNames)
+                -- first time with db
+                (getMappedAndUnmappedGamepads db model.blob)
+                -- second time without, so we can see which ones are auto configured
+                (getMappedAndUnmappedGamepads emptyDatabase model.blob)
+                |> ul [ class "elm-gamepad-gamepad-list" ]
+        ]
 
 
-getters : List ( RemapDestination, Getter )
-getters =
-    []
-    {- TODO
-    [ ( RemapA, Bin aIsPressed )
-    , ( RemapB, Bin bIsPressed )
-    , ( RemapX, Bin xIsPressed )
-    , ( RemapY, Bin yIsPressed )
-    , ( RemapStart, Bin startIsPressed )
-    , ( RemapBack, Bin backIsPressed )
-    , ( RemapHome, Bin homeIsPressed )
-    , ( RemapLeftStickPushLeft, Neg leftX )
-    , ( RemapLeftStickPushRight, Pos leftX )
-    , ( RemapLeftStickPushUp, Pos leftY )
-    , ( RemapLeftStickPushDown, Neg leftY )
-    , ( RemapLeftStickPress, Bin leftStickIsPressed )
-    , ( RemapLeftBumper, Bin leftBumperIsPressed )
-    , ( RemapLeftTrigger, Pos leftTriggerValue )
-    , ( RemapRightStickPushLeft, Neg rightX )
-    , ( RemapRightStickPushRight, Pos rightX )
-    , ( RemapRightStickPushUp, Pos rightY )
-    , ( RemapRightStickPushDown, Neg rightY )
-    , ( RemapRightStickPress, Bin rightStickIsPressed )
-    , ( RemapRightBumper, Bin rightBumperIsPressed )
-    , ( RemapRightTrigger, Pos rightTriggerValue )
-    , ( RemapDpadUp, DpadPos dpadUpIsPressed dpadY )
-    , ( RemapDpadDown, DpadNeg dpadDownIsPressed dpadY )
-    , ( RemapDpadLeft, DpadNeg dpadLeftIsPressed dpadX )
-    , ( RemapDpadRight, DpadPos dpadRightIsPressed dpadX )
-    ]
-    -}
-
-
-getterToState : Gamepad -> Getter -> Bool
-getterToState gamepad getter =
-    case getter of
-        Bin getBinary ->
-            getBinary gamepad
-
-        Neg getValue ->
-            getValue gamepad < -0.2
-
-        Pos getValue ->
-            getValue gamepad > 0.2
-
-        DpadNeg getBinary getValue ->
-            getBinary gamepad || getValue gamepad < 0
-
-        DpadPos getBinary getValue ->
-            getBinary gamepad || getValue gamepad > 0
-
-
-destinationState : Gamepad -> RemapDestination -> Bool
-destinationState gamepad d =
-    case List.Extra.find (\( dest, getter ) -> dest == d) getters of
-        Nothing ->
-            False
-
-        Just ( destination, getter ) ->
-            getterToState gamepad getter
-
-
-firstPadControl : Gamepad -> List ( RemapDestination, String ) -> String
-firstPadControl gamepad destinations =
-    case List.Extra.find (\( dest, name ) -> destinationState gamepad dest) destinations of
-        Just ( destination, name ) ->
-            name
-
-        Nothing ->
-            if List.any (\( dest, getter ) -> getterToState gamepad getter) getters then
-                "(not mapped)"
-            else
-                ""
-
-
-viewGamepadWithIndex : Database -> Model -> Blob -> Int -> Html Msg
-viewGamepadWithIndex db model blob index =
+viewGamepad : List ( String, Destination ) -> MappedOrUnmapped -> MappedOrUnmapped -> Html Msg
+viewGamepad actions mappedOrUnmapped mappedOrUnmappedWithoutDatabase =
     let
-        maybeRecognised =
-            Gamepad.getGamepads db blob
-                |> List.Extra.find (\pad -> Gamepad.getIndex pad == index)
+        ( mapSymbol, mapState ) =
+            case mappedOrUnmapped of
+                Unmapped unmappedGamepad ->
+                    ( "✘", "Needs mapping" )
 
-        hasSignal =
-            Gamepad.getAllGamepadsAsUnknown blob
-                |> List.Extra.find (\pad -> Gamepad.unknownGetIndex pad == index)
-                |> Maybe.map (Gamepad.estimateOrigin >> (/=) Nothing)
-                |> Maybe.withDefault False
+                Mapped gamepad ->
+                    if mappedOrUnmapped == mappedOrUnmappedWithoutDatabase then
+                        ( "✔", "Standard mapping" )
+                    else
+                        ( "✔", "Custom mapping" )
+
+        action =
+            case mappedOrUnmapped of
+                Unmapped unmappedGamepad ->
+                    if False then
+                        ""
+                    else
+                        "Receiving signal"
+
+                Mapped gamepad ->
+                    -- TODO getAction actions gamepad
+                    ""
+
+        ( buttonLabel, index ) =
+            case mappedOrUnmapped of
+                Unmapped unmappedGamepad ->
+                    ( "Map", getIndexUnmapped unmappedGamepad )
+
+                Mapped gamepad ->
+                    ( "Remap", getIndex gamepad )
     in
     li
-        []
-        [ "Gamepad #" ++ String.fromInt (index + 1) |> text
-        , text " "
-        , text <|
-            case maybeRecognised of
-                Just pad ->
-                    firstPadControl pad model.buttons
-
-                Nothing ->
-                    if hasSignal then
-                        "(receiving signal)"
-                    else
-                        ""
+        [ class "elm-gamepad-gamepad-list-item" ]
+        [ span
+            [ class "elm-gamepad-gamepad-index" ]
+            [ text (String.fromInt index) ]
+        , button
+            [ class "elm-gamepad-remap-button" ]
+            [ text buttonLabel ]
+        , span
+            [ class "elm-gamepad-checkmark" ]
+            [ text mapSymbol ]
+        , span
+            [ class "elm-gamepad-mapping-state-text" ]
+            [ text mapState ]
+        , span
+            [ class "elm-gamepad-current-action-text" ]
+            [ text action ]
         ]
-
-
-viewAllGamepadsWithId : Database -> Model -> Blob -> ( String, List Int ) -> Html Msg
-viewAllGamepadsWithId db model blob ( id, indexes ) =
-    let
-        findFirst : List Gamepad -> Maybe Gamepad
-        findFirst =
-            List.Extra.find (\pad -> List.member (Gamepad.getIndex pad) indexes)
-
-        maybeStandardGamepad =
-            Gamepad.getGamepads Gamepad.emptyDatabase blob |> findFirst
-
-        maybeRecognised =
-            Gamepad.getGamepads db blob |> findFirst
-
-        isAuto =
-            maybeStandardGamepad == maybeRecognised
-
-        mappingStatus =
-            if maybeRecognised == Nothing then
-                -- TODO add an "highlight" class?
-                span [] [ text "Need mapping" ]
-            else if isAuto then
-                span [] [ text "Auto mapped" ]
-            else
-                span [] [ text "Custom mapped" ]
-
-        index =
-            List.head indexes |> Maybe.withDefault 0
-    in
-    div
-        []
-        [ div
-            []
-            [ mappingStatus
-            , span [] [ text ": " ]
-            , button [ onClick (OnStartRemapping index) ] [ text "Remap" ]
-            ]
-
-        -- TODO also show number of axes/buttons?
-        , indexes
-            |> List.sort
-            |> List.map (viewGamepadWithIndex db model blob)
-            |> ul []
-        ]
-
-
-view : Database -> Model -> Html Msg
-view db model =
-    case ( model.maybeRemap, model.maybeBlob ) of
-        ( Just remap, _ ) ->
-            div
-                []
-                [ div [] [ text "Press: " ]
-                , div [] [ Gamepad.Remap.view remap |> text ]
-                ]
-
-        ( Nothing, Nothing ) ->
-            text "Waiting for gamepad blob..."
-
-        ( Nothing, Just blob ) ->
-            case Gamepad.getAllGamepadsAsUnknown blob of
-                [] ->
-                    text "No Gamepads found"
-
-                allPads ->
-                    let
-                        allIndexesForId id =
-                            allPads
-                                |> List.filter (\pad -> Gamepad.unknownGetId pad == id)
-                                |> List.map Gamepad.unknownGetIndex
-
-                        gamepadIndexesGroupedById =
-                            allPads
-                                |> List.map Gamepad.unknownGetId
-                                |> List.Extra.unique
-                                |> List.map (\id -> ( id, allIndexesForId id ))
-                                |> List.sortBy Tuple.first
-                    in
-                    gamepadIndexesGroupedById
-                        |> List.map (viewAllGamepadsWithId db model blob)
-                        |> div [ class "elm-gamepad-remap" ]
 
 
 
@@ -303,5 +139,4 @@ subscriptions : PortSubscription Msg -> Sub Msg
 subscriptions gamepadPort =
     Sub.batch
         [ gamepadPort OnGamepad
-        , Gamepad.Remap.subscriptions GamepadPort.gamepad |> Sub.map OnRemapMsg
         ]
