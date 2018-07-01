@@ -25,7 +25,7 @@ function addGamepadPort(elmApp) {
         id: g.id,
         index: g.index + 1,
         mapping: g.mapping,
-        timestamp: g.timestamp,
+        timestamp: timestamp, // g.timestamp is implemented inconsistently
       });
     }
 

@@ -95,8 +95,7 @@ init flags =
     in
     noCmd
         { scene = scene
-        --, maybeMenu = Just MenuMain
-        , maybeMenu = Just (MenuGamepads Remap.init)
+        , maybeMenu = Just MenuMain
         , selectedButtonName = "Play"
         , seed = seed
 
@@ -466,9 +465,6 @@ mainMenuButtons model =
 
                 _ ->
                     False
-
-        isMainMenu =
-            model.maybeMenu == Just MenuMain
     in
     -- Game
     [ { name = "Play"
@@ -504,17 +500,17 @@ mainMenuButtons model =
     -- Config
     , { name = "Settings"
       , view = MenuButtonLabel
-      , isVisible = isDemo || isMapEditor
+      , isVisible = True
       , update = menuNav MenuSettings
       }
     , { name = "Gamepads"
       , view = MenuButtonLabel
-      , isVisible = isDemo || isMapEditor
+      , isVisible = True
       , update = menuNav <| MenuGamepads <| Remap.init
       }
     , { name = "Quit"
       , view = MenuButtonLabel
-      , isVisible = isMapEditor
+      , isVisible = isPlaying || isMapEditor
       , update = menuDemo
       }
     ]
@@ -544,7 +540,7 @@ menuDemo model =
         ( scene, seed ) =
             demoScene model.seed
     in
-    noCmd { model | scene = scene, seed = seed, maybeMenu = Nothing }
+    noCmd { model | scene = scene, seed = seed }
 
 
 menuBack : Model -> ( Model, Cmd Msg )
@@ -657,7 +653,7 @@ gamepadButtonMap =
     , ( Gamepad.A, "Transform" )
     , ( Gamepad.B, "Rally" )
     ]
-      |> List.map (\(a, b) -> (b, a))
+        |> List.map (\( a, b ) -> ( b, a ))
 
 
 updateOnRemap : Model -> ( Remap.Model, Maybe (Database -> Database) ) -> ( Model, Cmd Msg )
