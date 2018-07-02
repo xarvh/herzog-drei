@@ -22,10 +22,6 @@ import View.Background
 import View.Game
 
 
-type Msg
-    = OnGamepad Gamepad.Blob
-
-
 type alias Model =
     { game : Game
     , botStatesByKey : Dict String Bot.Dummy.State
@@ -251,14 +247,7 @@ noCmd model =
     ( model, Cmd.none )
 
 
-update : Msg -> Shell -> Model -> ( Model, Cmd Msg )
-update msg shell model =
-    case msg of
-        OnGamepad gamepadBlob ->
-            updateOnGamepad gamepadBlob shell model
-
-
-updateOnGamepad : Gamepad.Blob -> Shell -> Model -> ( Model, Cmd Msg )
+updateOnGamepad : Gamepad.Blob -> Shell -> Model -> ( Model, Cmd a )
 updateOnGamepad gamepadBlob shell model =
     let
         dtInMilliseconds =
@@ -348,7 +337,7 @@ sanitizeInputState inputKey inputState =
     { inputState | aim = aim, move = vecNoNaN inputState.move }
 
 
-applyOutcome : Outcome -> ( Model, List (Cmd Msg) ) -> ( Model, List (Cmd Msg) )
+applyOutcome : Outcome -> ( Model, List (Cmd a) ) -> ( Model, List (Cmd a) )
 applyOutcome outcome ( model, cmds ) =
     case outcome of
         OutcomeCanAddBots ->
@@ -419,14 +408,3 @@ view shell model =
       else
         text ""
     ]
-
-
-
--- Subscriptions
-
-
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    Sub.batch
-        [ GamepadPort.gamepad OnGamepad
-        ]

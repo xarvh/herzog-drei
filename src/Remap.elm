@@ -56,6 +56,11 @@ init =
     }
 
 
+isRemapping : Model -> Bool
+isRemapping model =
+    model.maybeRemapping /= Nothing
+
+
 
 -- Stuff
 

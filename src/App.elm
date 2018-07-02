@@ -165,7 +165,6 @@ type Msg
     | OnSelectButton String
     | OnImportString String
       -- TEA children
-    | OnMainSceneMsg MainScene.Msg
     | OnMapEditorMsg MapEditor.Msg
     | OnRemapMsg Remap.Msg
       -- Env stuff used by map editor and main scene
@@ -177,7 +176,7 @@ type Msg
     | OnVisibilityChange Browser.Events.Visibility
 
 
-noCmd : Model -> ( Model, Cmd Msg )
+noCmd : Model -> ( Model, Cmd a )
 noCmd model =
     ( model, Cmd.none )
 
@@ -232,16 +231,6 @@ update msg model =
             noCmd { model | pressedKeys = Set.empty }
 
         -- TEA children
-        OnMainSceneMsg sceneMsg ->
-            case model.scene of
-                SceneMain subScene scene ->
-                    MainScene.update sceneMsg (shell model) scene
-                        |> Tuple.mapFirst (\newScene -> { model | scene = SceneMain subScene newScene })
-                        |> Tuple.mapSecond (Cmd.map OnMainSceneMsg)
-
-                _ ->
-                    noCmd model
-
         OnMapEditorMsg mapEditorMsg ->
             case ( model.scene, model.maybeMenu ) of
                 ( SceneMapEditor mapEditor, Nothing ) ->
@@ -276,8 +265,22 @@ updateOnImportString mapAsJson importModel model =
     }
 
 
-updateOnGamepad : Gamepad.Blob -> Model -> ( Model, Cmd Msg )
-updateOnGamepad blob model =
+updateMainScene : Gamepad.Blob -> Model -> ( Model, Cmd a )
+updateMainScene blob model =
+    case model.scene of
+        SceneMain subScene scene ->
+            if model.maybeMenu == Nothing || subScene == SubSceneDemo then
+                MainScene.updateOnGamepad blob (shell model) scene
+                    |> Tuple.mapFirst (\newScene -> { model | scene = SceneMain subScene newScene })
+            else
+                noCmd model
+
+        _ ->
+            noCmd model
+
+
+updateMenuOnGamepad : Gamepad.Blob -> Model -> ( Model, Cmd Msg )
+updateMenuOnGamepad blob model =
     let
         pads =
             Gamepad.getGamepads model.config.gamepadDatabase blob
@@ -296,12 +299,40 @@ updateOnGamepad blob model =
             , ( Gamepad.B, "Escape" )
             ]
     in
-    case List.Extra.find (\( b, k ) -> buttonClick b) buttonToKey of
-        Nothing ->
-            noCmd model
+    if buttonClick Gamepad.Start then
+        updateOnKeyUp "Escape" model
+    else
+        case model.maybeMenu of
+            Nothing ->
+                noCmd model
 
-        Just ( button, key ) ->
-            updateOnKeyUp key model
+            Just menu ->
+                let
+                    isRemapping =
+                        case menu of
+                            MenuGamepads remapModel ->
+                                Remap.isRemapping remapModel
+
+                            _ ->
+                                False
+                in
+                if isRemapping then
+                    noCmd model
+                else
+                    case List.Extra.find (\( b, k ) -> buttonClick b) buttonToKey of
+                        Nothing ->
+                            noCmd model
+
+                        Just ( button, key ) ->
+                            updateOnKeyUp key model
+
+
+updateOnGamepad : Gamepad.Blob -> Model -> ( Model, Cmd Msg )
+updateOnGamepad blob model =
+    model
+        |> updateMainScene blob
+        |> Tuple.mapFirst (updateMenuOnGamepad blob)
+        |> (\( ( m, c1 ), c2 ) -> ( m, Cmd.batch [ c1, c2 ] ))
 
 
 updateOnKeyUp : String -> Model -> ( Model, Cmd Msg )
@@ -685,6 +716,7 @@ gamepadButtonMap =
     , ( Gamepad.RightBumper, "Alt FIRE" )
     , ( Gamepad.A, "Transform" )
     , ( Gamepad.B, "Rally" )
+    , ( Gamepad.Start, "Menu" )
     ]
         |> List.map (\( a, b ) -> ( b, a ))
 
@@ -954,10 +986,7 @@ subscriptions model =
         , Browser.Events.onMouseUp (OnMouseButton False |> Input.always)
         , Browser.Events.onMouseMove (Input.mouseMoveDecoder OnMouseMoves)
         , Browser.Events.onResize OnWindowResizes
-        , if model.maybeMenu /= Nothing then
-            GamepadPort.gamepad OnGamepad
-          else
-            Sub.none
+        , GamepadPort.gamepad OnGamepad
         , case model.maybeMenu of
             Just (MenuGamepads remap) ->
                 Remap.subscriptions GamepadPort.gamepad |> Sub.map OnRemapMsg
@@ -965,9 +994,9 @@ subscriptions model =
             _ ->
                 Sub.none
         , case model.scene of
-            SceneMain subScene scene ->
-                MainScene.subscriptions scene |> Sub.map OnMainSceneMsg
-
             SceneMapEditor mapEditor ->
                 MapEditor.subscriptions mapEditor |> Sub.map OnMapEditorMsg
+
+            _ ->
+                Sub.none
         ]
