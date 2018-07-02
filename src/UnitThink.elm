@@ -62,7 +62,8 @@ addBigSubsToEnemyTeam killedUnit =
                         TeamRight ->
                             TeamLeft
             in
-            deltaTeam enemyTeam (\g t -> { t | bigSubsToSpawn = t.bigSubsToSpawn + 3 })
+            -- do not allow accumulation beyond 3
+            deltaTeam enemyTeam (\g t -> { t | bigSubsToSpawn = 3 })
 
 
 
