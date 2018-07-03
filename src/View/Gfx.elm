@@ -113,11 +113,11 @@ deltaAddExplosion position size =
         }
 
 
-deltaAddFlyingHead : Vec2 -> Vec2 -> ColorPattern -> Delta
-deltaAddFlyingHead origin destination colorPattern =
+deltaAddFlyingHead : MechClass -> Vec2 -> Vec2 -> ColorPattern -> Delta
+deltaAddFlyingHead class origin destination colorPattern =
     let
         speed =
-            13
+            30
 
         maxAge =
             Vec2.distance origin destination / speed
@@ -125,7 +125,7 @@ deltaAddFlyingHead origin destination colorPattern =
     deltaAddGfx
         { age = 0
         , maxAge = maxAge
-        , render = GfxFlyingHead origin destination colorPattern
+        , render = GfxFlyingHead class origin destination colorPattern
         }
 
 
@@ -313,7 +313,7 @@ render cosmetic =
                         ]
                     ]
 
-        GfxFlyingHead origin destination colorPattern ->
+        GfxFlyingHead class origin destination colorPattern ->
             let
                 headPosition =
                     Vec2.add (Vec2.scale t destination) (Vec2.scale (1 - t) origin)
@@ -328,7 +328,7 @@ render cosmetic =
                     [ transform [ translate headPosition ]
                     , opacity (1 - t * t)
                     ]
-                    [ View.Mech.head Plane 0 colorPattern.dark colorPattern.bright angle
+                    [ View.Mech.head class 0 colorPattern.dark colorPattern.bright angle
                     , View.Mech.headOverlay (0.3 + 0.3 * sin (cosmetic.age * 30)) angle
                     ]
                 ]

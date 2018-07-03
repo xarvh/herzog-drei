@@ -392,7 +392,7 @@ type GfxRender
     | GfxExplosion Vec2 Float
     | GfxProjectileCase Vec2 Angle
     | GfxFractalBeam Vec2 Vec2 ColorPattern
-    | GfxFlyingHead Vec2 Vec2 ColorPattern
+    | GfxFlyingHead MechClass Vec2 Vec2 ColorPattern
     | GfxRepairBubble Vec2
     | GfxTrail Vec2 Angle Float
 
