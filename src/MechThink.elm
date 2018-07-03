@@ -72,9 +72,7 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
             if currentInput.rally && not previousInput.rally then
                 case game.mode of
                     GameModeTeamSelection _ ->
-                        (\m -> { m | class = nextClass m.class })
-                            |> Game.updateMech
-                            |> deltaUnit unit.id
+                        deltaUnit unit.id (\g u -> Game.updateMech (\m -> { m | class = nextClass m.class }) g { u | maybeCharge = Nothing })
 
                     GameModeVersus ->
                         case unit.maybeTeamId of
@@ -178,7 +176,7 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
                 |> deltaUnit unit.id
 
         fire =
-            if mech.class == Heli && mode == ToMech then
+            if mech.class == Heli then
                 chargeDelta dt game unit mech isMoving currentInput.fire
             else if not currentInput.fire then
                 deltaNone
@@ -254,7 +252,7 @@ chargeDelta dt game unit mech isMoving isFiring =
         switchTo chargeConstructor =
             game.time |> chargeConstructor |> Just |> setCharge
     in
-    if not canMove && isMoving then
+    if Mech.transformMode mech == ToFlyer || (not canMove && isMoving) then
         deltaList
             [ reset
             , if isFiring then
