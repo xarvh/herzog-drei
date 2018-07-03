@@ -341,7 +341,7 @@ heli args =
                 { x = 0.42
                 , y = smooth 0.63 0.33
                 , w = 0.24
-                , h = 0.30
+                , h = 0.3
                 }
 
             -- mid winglets

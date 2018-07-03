@@ -80,6 +80,18 @@ splashDamage game maybeTeamId position damage radius =
 -- Utilities
 
 
+filterAndMapAll : Game -> (Unit -> Bool) -> (Unit -> a) -> List a
+filterAndMapAll game test map =
+    let
+        testUnit id unit list =
+            if test unit then
+                map unit :: list
+            else
+                list
+    in
+    Dict.foldl testUnit [] game.unitById
+
+
 toMech : Unit -> Maybe ( Unit, MechComponent )
 toMech unit =
     case unit.component of

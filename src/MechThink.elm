@@ -394,10 +394,9 @@ repairSelf dt unit =
 
 repairAllies : Seconds -> Game -> Unit -> Delta
 repairAllies dt game unit =
-    game.unitById
-        |> Dict.values
-        |> List.filter (\u -> u.maybeTeamId == unit.maybeTeamId && Vec2.distance u.position unit.position < Stats.plane.repairRange)
-        |> List.map (repairTargetDelta dt unit)
+    Unit.filterAndMapAll game
+        (\u -> u.maybeTeamId == unit.maybeTeamId && Vec2.distance u.position unit.position < Stats.plane.repairRange)
+        (repairTargetDelta dt unit)
         |> deltaList
 
 
@@ -427,10 +426,9 @@ vampireDelta dt game unit mech newPosition =
     else
         let
             deltas =
-                game.unitById
-                    |> Dict.values
-                    |> List.filter (\u -> u.maybeTeamId /= unit.maybeTeamId && Vec2.distance u.position unit.position < Stats.blimp.vampireRange)
-                    |> List.map (vampireTargetDelta dt unit)
+                Unit.filterAndMapAll game
+                    (\u -> u.maybeTeamId /= unit.maybeTeamId && Vec2.distance u.position unit.position < Stats.blimp.vampireRange)
+                    (vampireTargetDelta dt unit)
         in
         if deltas /= [] then
             deltaList deltas
@@ -571,13 +569,41 @@ attackDelta game unit mech =
 beamAttackDelta : Game -> Unit -> MechComponent -> Vec2 -> Delta
 beamAttackDelta game unit mech start =
     let
-        direction =
+        alongBeamLength =
             vec2 0 1 |> rotateVector unit.fireAngle
 
+        alongBeamWidth =
+            rotateVector (pi / 2) alongBeamLength
+
+        halfWidth =
+            0.2
+
+        lengthV =
+            Vec2.scale Stats.blimp.beamRange alongBeamLength
+
         end =
-            Vec2.add start (Vec2.scale Stats.blimp.beamRange direction)
+            Vec2.add start lengthV
+
+        a =
+            Vec2.scale halfWidth alongBeamWidth |> Vec2.add start
+
+        b =
+            Vec2.scale -halfWidth alongBeamWidth |> Vec2.add start
+
+        c =
+            Vec2.add b lengthV
+
+        d =
+            Vec2.add a lengthV
+
+        beamPolygon =
+            [ a, b, c, d ]
+
+        maybeTarget =
+            UnitCollision.enemiesVsPolygon beamPolygon unit.maybeTeamId game
+                |> List.Extra.minimumBy (\target -> Vec2.distanceSquared unit.position target.position)
     in
-    case UnitCollision.closestEnemyToVectorOrigin start end unit.maybeTeamId game of
+    case maybeTarget of
         Nothing ->
             View.Gfx.deltaAddBeam start end (teamColorPattern game unit.maybeTeamId)
 
@@ -587,7 +613,7 @@ beamAttackDelta game unit mech start =
                     Vec2.distance start target.position
 
                 newEnd =
-                    Vec2.add start (Vec2.scale length direction)
+                    Vec2.add start (Vec2.scale length alongBeamLength)
             in
             deltaList
                 [ View.Gfx.deltaAddBeam start newEnd (teamColorPattern game unit.maybeTeamId)

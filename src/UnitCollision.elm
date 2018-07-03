@@ -5,6 +5,7 @@ import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Unit
 import View.Mech
 import View.Sub
 
@@ -22,6 +23,21 @@ unitToPolygon unit =
 
         UnitMech mech ->
             View.Mech.collider mech.transformState unit.fireAngle unit.position
+
+
+
+-- unit vs polygon
+
+
+enemiesVsPolygon : List Vec2 -> Maybe TeamId -> Game -> List Unit
+enemiesVsPolygon polygon maybeTeamId game =
+    Unit.filterAndMapAll game
+        (\u -> u.maybeTeamId /= maybeTeamId && Collision.collisionPolygonVsPolygon polygon (unitToPolygon u))
+        identity
+
+
+
+-- Unit vs vector
 
 
 vector : Vec2 -> Vec2 -> Unit -> Bool
@@ -43,21 +59,9 @@ vector a b unit =
         Collision.collisionPolygonVsPolygon [ a, b ] (unitToPolygon unit)
 
 
-closestToVectorOrigin : Vec2 -> Vec2 -> (Unit -> Bool) -> Game -> Maybe Unit
-closestToVectorOrigin origin destination filter game =
-    let
-        checkUnit : Id -> Unit -> List Unit -> List Unit
-        checkUnit id unit list =
-            if filter unit && vector origin destination unit then
-                unit :: list
-            else
-                list
-    in
-    game.unitById
-        |> Dict.foldl checkUnit []
-        |> List.Extra.minimumBy (\u -> Vec2.distanceSquared origin u.position)
-
-
 closestEnemyToVectorOrigin : Vec2 -> Vec2 -> Maybe TeamId -> Game -> Maybe Unit
 closestEnemyToVectorOrigin origin destination maybeTeamId game =
-    closestToVectorOrigin origin destination (\u -> u.maybeTeamId /= maybeTeamId) game
+    Unit.filterAndMapAll game
+        (\u -> u.maybeTeamId /= maybeTeamId && vector origin destination u)
+        identity
+        |> List.Extra.minimumBy (\u -> Vec2.distanceSquared origin u.position)
