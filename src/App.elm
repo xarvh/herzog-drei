@@ -298,33 +298,28 @@ updateMenuOnGamepad blob model =
             , ( Gamepad.A, "Enter" )
             , ( Gamepad.B, "Escape" )
             ]
+
+        isRemapping =
+            case model.maybeMenu of
+                Just (MenuGamepads remapModel) ->
+                    Remap.isRemapping remapModel
+
+                _ ->
+                    False
     in
-    if buttonClick Gamepad.Start then
+    if isRemapping then
+        noCmd model
+    else if buttonClick Gamepad.Start then
         updateOnKeyUp "Escape" model
+    else if model.maybeMenu == Nothing then
+        noCmd model
     else
-        case model.maybeMenu of
+        case List.Extra.find (\( b, k ) -> buttonClick b) buttonToKey of
             Nothing ->
                 noCmd model
 
-            Just menu ->
-                let
-                    isRemapping =
-                        case menu of
-                            MenuGamepads remapModel ->
-                                Remap.isRemapping remapModel
-
-                            _ ->
-                                False
-                in
-                if isRemapping then
-                    noCmd model
-                else
-                    case List.Extra.find (\( b, k ) -> buttonClick b) buttonToKey of
-                        Nothing ->
-                            noCmd model
-
-                        Just ( button, key ) ->
-                            updateOnKeyUp key model
+            Just ( button, key ) ->
+                updateOnKeyUp key model
 
 
 updateOnGamepad : Gamepad.Blob -> Model -> ( Model, Cmd Msg )
