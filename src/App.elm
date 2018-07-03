@@ -86,7 +86,7 @@ init flags =
             Config.fromString flags.config
 
         ( scene, seed ) =
-            demoScene (Random.initialSeed flags.dateNow)
+            demoScene config (Random.initialSeed flags.dateNow)
 
         windowSize =
             { width = flags.windowWidth
@@ -112,8 +112,8 @@ init flags =
         }
 
 
-demoScene : Random.Seed -> ( Scene, Random.Seed )
-demoScene oldSeed =
+demoScene : Config -> Random.Seed -> ( Scene, Random.Seed )
+demoScene config oldSeed =
     let
         mapGenerator : Random.Generator ValidatedMap
         mapGenerator =
@@ -123,7 +123,7 @@ demoScene oldSeed =
         ( map, newSeed ) =
             Random.step mapGenerator oldSeed
     in
-    ( SceneMain SubSceneDemo (MainScene.initDemo newSeed map), newSeed )
+    ( SceneMain SubSceneDemo (MainScene.initDemo config newSeed map), newSeed )
 
 
 shell : Model -> Shell
@@ -607,7 +607,7 @@ menuDemo : Model -> ( Model, Cmd Msg )
 menuDemo model =
     let
         ( scene, seed ) =
-            demoScene model.seed
+            demoScene model.config model.seed
     in
     noCmd { model | scene = scene, seed = seed }
 

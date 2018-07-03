@@ -35,11 +35,11 @@ type alias Model =
 -- init
 
 
-initDemo : Random.Seed -> ValidatedMap -> Model
-initDemo seed map =
+initDemo : Config -> Random.Seed -> ValidatedMap -> Model
+initDemo config seed map =
     let
         game =
-            makeAiGame seed map
+            makeAiGame config seed map
     in
     { game = game
     , botStatesByKey = Dict.empty
@@ -206,8 +206,8 @@ initBots model =
 -- AI vs AI game to run in the background
 
 
-makeAiGame : Random.Seed -> ValidatedMap -> Game
-makeAiGame seed map =
+makeAiGame : Config -> Random.Seed -> ValidatedMap -> Game
+makeAiGame config seed map =
     let
         makeTeam : TeamId -> ColorPattern -> List MechClass -> TeamSeed
         makeTeam id colorPattern classes =
@@ -227,10 +227,16 @@ makeAiGame seed map =
                 (Random.list playersPerTeam Mech.classGenerator)
                 (Random.list playersPerTeam Mech.classGenerator)
 
+        botsGenerator =
+            if Dict.member "fpsTest" config.params then
+                Random.constant 4
+            else
+                Random.int 1 4
+
         generateTeams =
             Random.map2 tuplesToTeam
                 ColorPattern.twoDifferent
-                (Random.int 1 4 |> Random.andThen generateMechClasses)
+                (botsGenerator |> Random.andThen generateMechClasses)
 
         ( ( leftTeam, rightTeam ), newSeed ) =
             Random.step generateTeams seed
