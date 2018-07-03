@@ -18,6 +18,9 @@ idToClass id =
         HeliRocket ->
             Stats.rocket
 
+        HeliMissile ->
+            Stats.missile
+
         UpwardSalvo ->
             Stats.upwardSalvo
 
@@ -35,7 +38,7 @@ perspective age =
 
 
 addSpecial : Vec2 -> ProjectileSeed -> Game -> Game
-addSpecial spawnPosition { maybeTeamId, position, angle, classId } game =
+addSpecial spawnPosition { maybeTeamId, position, angle, classId, maybeTargetId } game =
     let
         class =
             idToClass classId
@@ -48,6 +51,7 @@ addSpecial spawnPosition { maybeTeamId, position, angle, classId } game =
             , spawnTime = game.time
             , angle = angle
             , classId = classId
+            , maybeTargetId = maybeTargetId
             }
 
         projectileById =

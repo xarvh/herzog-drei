@@ -177,7 +177,7 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
 
         fire =
             if mech.class == Heli then
-                chargeDelta dt game unit mech isMoving currentInput.fire
+                heliFireDelta dt game unit mech isMoving currentInput.fire
             else if not currentInput.fire then
                 deltaNone
             else if mech.class == Blimp && mode == ToFlyer then
@@ -230,8 +230,8 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
 -}
 
 
-chargeDelta : Seconds -> Game -> Unit -> MechComponent -> Bool -> Bool -> Delta
-chargeDelta dt game unit mech isMoving isFiring =
+heliFireDelta : Seconds -> Game -> Unit -> MechComponent -> Bool -> Bool -> Delta
+heliFireDelta dt game unit mech isMoving isFiring =
     let
         canMove =
             case unit.maybeCharge of
@@ -335,6 +335,7 @@ spawnUpwardRocket game unit salvoIndex =
         , position = Vec2.add dp unit.position
         , angle = degrees (da + 0.7 * toFloat salvoIndex)
         , classId = UpwardSalvo
+        , maybeTargetId = Nothing
         }
 
 
@@ -364,6 +365,7 @@ spawnDownwardRocket { target, maybeTeamId } =
         , position = origin
         , angle = angle
         , classId = DownwardSalvo
+        , maybeTargetId = Nothing
         }
 
 
@@ -533,13 +535,17 @@ attackDelta game unit mech =
             rightOrigin =
                 View.Mech.rightGunOffset mech.transformState unit.fireAngle |> Vec2.add unit.position
 
-            deltaFire classId origin =
+            deltaFire classId maybeTargetId origin =
                 Projectile.deltaAdd
                     { maybeTeamId = unit.maybeTeamId
                     , position = origin
                     , angle = unit.fireAngle
                     , classId = classId
+                    , maybeTargetId = maybeTargetId
                     }
+
+            mode =
+                Mech.transformMode mech
         in
         deltaList
             [ deltaUnit unit.id (\g u -> { u | reloadEndTime = game.time + Mech.reloadTime mech })
@@ -551,19 +557,54 @@ attackDelta game unit mech =
                         ]
 
                 Heli ->
-                    deltaList
-                        [ deltaFire HeliRocket leftOrigin
-                        , deltaFire HeliRocket rightOrigin
-                        ]
+                    case mode of
+                        ToFlyer ->
+                            deltaList
+                                [ deltaFire HeliRocket Nothing leftOrigin
+                                , deltaFire HeliRocket Nothing rightOrigin
+                                ]
+
+                        ToMech ->
+                            let
+                                maybeTargetId =
+                                    game.unitById
+                                        |> Dict.values
+                                        |> List.filter (\t -> t.maybeTeamId /= unit.maybeTeamId && Unit.isMech t)
+                                        |> List.map (\t -> ( t.id, missileTargetPriority unit t ))
+                                        |> List.Extra.maximumBy Tuple.second
+                                        |> Maybe.map Tuple.first
+                            in
+                            deltaList
+                                [ deltaFire HeliMissile maybeTargetId leftOrigin
+                                , deltaFire HeliMissile maybeTargetId rightOrigin
+                                ]
 
                 Plane ->
                     deltaList
-                        [ deltaFire PlaneBullet leftOrigin
+                        [ deltaFire PlaneBullet Nothing leftOrigin
                         , View.Gfx.deltaAddProjectileCase leftOrigin (unit.fireAngle - pi - pi / 12)
-                        , deltaFire PlaneBullet rightOrigin
+                        , deltaFire PlaneBullet Nothing rightOrigin
                         , View.Gfx.deltaAddProjectileCase rightOrigin (unit.fireAngle + pi / 12)
                         ]
             ]
+
+
+missileTargetPriority : Unit -> Unit -> Float
+missileTargetPriority shooter target =
+    let
+        dp =
+            Vec2.sub shooter.position target.position
+
+        deltaAngle =
+            dp
+                |> vecToAngle
+                |> turnTo (2 * pi) shooter.fireAngle
+                |> abs
+
+        distance =
+            Vec2.length dp
+    in
+    0 - distance - 10 * deltaAngle
 
 
 beamAttackDelta : Game -> Unit -> MechComponent -> Vec2 -> Delta

@@ -143,6 +143,7 @@ type alias ProjectileSeed =
     , position : Vec2
     , angle : Angle
     , classId : ProjectileClassId
+    , maybeTargetId : Maybe Id
     }
 
 
@@ -154,6 +155,7 @@ type alias Projectile =
     , spawnTime : Seconds
     , angle : Angle
     , classId : ProjectileClassId
+    , maybeTargetId : Maybe Id
     }
 
 
@@ -161,6 +163,7 @@ type ProjectileClassId
     = PlaneBullet
     | BigSubBullet
     | HeliRocket
+    | HeliMissile
     | UpwardSalvo
     | DownwardSalvo
 
@@ -175,7 +178,7 @@ type alias ProjectileClass =
     , range : Float
     , effect : ProjectileEffect
     , trail : Bool
-    , accelerates : Bool
+    , acceleration : Float
     , travelsAlongZ : Bool
     }
 
