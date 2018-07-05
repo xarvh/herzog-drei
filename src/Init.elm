@@ -53,6 +53,8 @@ asTeamSelection seed map =
 
     -- random, used only for cosmetics
     , seed = seed
+    , shake = 0
+    , shakeVector = vec2 0 0
     }
 
 
@@ -95,6 +97,8 @@ asVersus randomSeed time leftTeam rightTeam map =
 
     -- random, used only for cosmetics
     , seed = randomSeed
+    , shake = 0
+    , shakeVector = vec2 0 0
     }
         |> (\g -> Set.foldl addSmallBase g map.smallBases)
         |> addMainBase (Just TeamLeft) map.leftBase

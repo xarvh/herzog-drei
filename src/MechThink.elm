@@ -585,6 +585,7 @@ attackDelta game unit mech =
                         , View.Gfx.deltaAddProjectileCase leftOrigin (unit.fireAngle - pi - pi / 12)
                         , deltaFire PlaneBullet Nothing rightOrigin
                         , View.Gfx.deltaAddProjectileCase rightOrigin (unit.fireAngle + pi / 12)
+                        , deltaShake 0.05
                         ]
             ]
 

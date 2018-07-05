@@ -407,7 +407,10 @@ view terrain viewport game =
     Svg.svg
         (SplitScreen.viewportToSvgAttributes viewport)
         [ Svg.g
-            [ transform [ "scale(1 -1)", scale (1 / tilesToViewport game viewport) ]
+            [ transform
+              [ "scale(1 -1)", scale (1 / tilesToViewport game viewport)
+              , translate game.shakeVector
+              ]
             ]
             [ Svg.Lazy.lazy View.Background.terrain terrain
             , g (maybeOpacity game)

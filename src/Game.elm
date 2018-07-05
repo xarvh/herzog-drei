@@ -358,6 +358,9 @@ updateMech update game unit =
         _ ->
             unit
 
+deltaShake : Float -> Delta
+deltaShake shake =
+  deltaGame (\g -> { g | shake = max g.shake shake })
 
 
 -- Bases
@@ -453,6 +456,8 @@ type alias Game =
 
     -- random, used only for cosmetics
     , seed : Random.Seed
+    , shake : Float
+    , shakeVector : Vec2
     }
 
 

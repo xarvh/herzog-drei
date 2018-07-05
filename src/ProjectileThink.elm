@@ -135,6 +135,7 @@ thinkExplode : Game -> ProjectileClass -> Projectile -> Vec2 -> Delta
 thinkExplode game class projectile position =
     deltaList
         [ Projectile.deltaRemove projectile.id
+        , deltaShake 0.3
         , case class.effect of
             ProjectileSplashDamage { radius, damage } ->
                 deltaList
