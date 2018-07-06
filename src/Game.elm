@@ -360,7 +360,7 @@ updateMech update game unit =
 
 deltaShake : Float -> Delta
 deltaShake shake =
-  deltaGame (\g -> { g | shake = max g.shake shake })
+  deltaGame (\g -> { g | shake = g.shake + shake })
 
 
 -- Bases

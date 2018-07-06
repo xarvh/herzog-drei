@@ -81,8 +81,11 @@ update uncappedDt pairedInputStatesByKey oldGame =
 screenShake : Seconds -> Game -> Game
 screenShake dt game =
     let
+        shake =
+            game.shake * 0.2 ^ dt
+
         float =
-            Random.float -game.shake game.shake
+            Random.float -shake shake
 
         vecgen =
             Random.map2 vec2 float float
@@ -90,7 +93,6 @@ screenShake dt game =
         ( v, seed ) =
             Random.step vecgen game.seed
 
-        shake = game.shake - dt |> max 0
     in
     { game | seed = seed, shakeVector = v, shake = shake }
 
