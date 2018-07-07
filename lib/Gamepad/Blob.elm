@@ -1,4 +1,4 @@
-module Gamepad.Private exposing (..)
+module Gamepad.Blob exposing (..)
 
 import Array exposing (Array)
 
