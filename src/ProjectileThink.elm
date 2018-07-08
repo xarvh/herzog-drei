@@ -140,7 +140,7 @@ thinkExplode game class projectile position =
                 deltaList
                     [ View.Gfx.deltaAddExplosion position radius
                     , Unit.splashDamage game projectile.maybeTeamId position damage radius
-                    , deltaShake 0.05
+                    , deltaShake 0.02
                     ]
 
             _ ->

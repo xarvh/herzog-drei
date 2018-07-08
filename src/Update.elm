@@ -81,8 +81,14 @@ update uncappedDt pairedInputStatesByKey oldGame =
 screenShake : Seconds -> Game -> Game
 screenShake dt game =
     let
+        removeDecimals n =
+            if n < 0.0001 then
+                0
+            else
+                n
+
         shake =
-            game.shake * 0.2 ^ dt
+            game.shake * 0.2 ^ dt |> removeDecimals |> min 5
 
         float =
             Random.float -shake shake
@@ -92,7 +98,6 @@ screenShake dt game =
 
         ( v, seed ) =
             Random.step vecgen game.seed
-
     in
     { game | seed = seed, shakeVector = v, shake = shake }
 

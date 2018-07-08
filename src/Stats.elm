@@ -54,7 +54,7 @@ downwardSalvo : ProjectileClass
 downwardSalvo =
     { speed = 20
     , range = 20
-    , effect = ProjectileSplashDamage { radius = 4, damage = 20 }
+    , effect = ProjectileSplashDamage { radius = 5, damage = 30 }
     , trail = True
     , acceleration = 30
     , travelsAlongZ = True
