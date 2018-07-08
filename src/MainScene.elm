@@ -117,12 +117,12 @@ gamepadToInput gamepad =
             Gamepad.isPressed gamepad
     in
     ( "gamepad " ++ String.fromInt (Gamepad.getIndex gamepad)
-    , { aim = Gamepad.rightPosition gamepad |> Vec2.fromRecord |> threshold |> AimAbsolute
+    , { aim = Gamepad.rightStickPosition gamepad |> Vec2.fromRecord |> threshold |> AimAbsolute
       , fire = isPressed Gamepad.RightBumper || isPressed Gamepad.RightTrigger || isPressed Gamepad.RightStickPress
       , transform = isPressed Gamepad.A
       , switchUnit = False
       , rally = isPressed Gamepad.B
-      , move = Gamepad.leftPosition gamepad |> Vec2.fromRecord |> threshold
+      , move = Gamepad.leftStickPosition gamepad |> Vec2.fromRecord |> threshold
       }
     )
 

@@ -4,7 +4,7 @@ import Array exposing (Array)
 
 
 type alias Blob =
-    List BlobFrame
+    ( BlobFrame, BlobFrame )
 
 
 type alias BlobFrame =
@@ -19,5 +19,16 @@ type alias GamepadFrame =
     , id : String
     , index : Int
     , mapping : String
-    , timestamp : Float
     }
+
+
+emptyBlobFrame : BlobFrame
+emptyBlobFrame =
+    { timestamp = 0
+    , gamepads = []
+    }
+
+
+emptyBlob : Blob
+emptyBlob =
+    ( emptyBlobFrame, emptyBlobFrame )

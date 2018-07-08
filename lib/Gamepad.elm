@@ -10,7 +10,6 @@ module Gamepad
         , allDigitalInputs
         , animationFrameDelta
         , animationFrameTimestamp
-        , axisValue
         , dpadPosition
         , emptyUserMappings
         , encodeUserMappings
@@ -19,15 +18,16 @@ module Gamepad
         , haveUnmappedGamepads
         , isPressed
         , isRemapping
-        , leftPosition
+        , leftStickPosition
         , remapInit
         , remapSubscriptions
         , remapUpdate
         , remapView
-        , rightPosition
+        , rightStickPosition
         , userMappingsDecoder
         , userMappingsFromString
         , userMappingsToString
+        , value
         , wasClicked
         , wasReleased
         )
@@ -41,7 +41,6 @@ import Html.Events exposing (onClick)
 import Json.Decode
 import Json.Encode
 import List.Extra
-import Set exposing (Set)
 import Time
 
 
@@ -66,7 +65,15 @@ type alias Blob =
 You can use all control getters to query its state.
 -}
 type Gamepad
-    = Gamepad Int Mapping (List GamepadFrame)
+    = Gamepad Mapping GamepadFrame GamepadFrame
+
+
+
+--
+
+
+type alias Mapping =
+    Dict String Origin
 
 
 
@@ -91,14 +98,6 @@ type alias Database =
     { byIndexAndId : Dict ( Int, String ) Mapping
     , byId : Dict String Mapping
     }
-
-
-
---
-
-
-type alias Mapping =
-    Dict String Origin
 
 
 
@@ -156,6 +155,89 @@ type Digital
 
 
 
+--
+
+
+destinationToString : Digital -> String
+destinationToString destination =
+    case destination of
+        A ->
+            "a"
+
+        B ->
+            "b"
+
+        X ->
+            "x"
+
+        Y ->
+            "y"
+
+        Start ->
+            "start"
+
+        Back ->
+            "back"
+
+        Home ->
+            "home"
+
+        LeftStickLeft ->
+            "leftleft"
+
+        LeftStickRight ->
+            "leftright"
+
+        LeftStickUp ->
+            "leftup"
+
+        LeftStickDown ->
+            "leftdown"
+
+        LeftStickPress ->
+            "leftstick"
+
+        LeftBumper ->
+            "leftbumper"
+
+        LeftTrigger ->
+            "lefttrigger"
+
+        RightStickLeft ->
+            "rightleft"
+
+        RightStickRight ->
+            "rightright"
+
+        RightStickUp ->
+            "rightup"
+
+        RightStickDown ->
+            "rightdown"
+
+        RightStickPress ->
+            "rightstick"
+
+        RightBumper ->
+            "rightbumper"
+
+        RightTrigger ->
+            "righttrigger"
+
+        DpadUp ->
+            "dpadup"
+
+        DpadDown ->
+            "dpaddown"
+
+        DpadLeft ->
+            "dpadleft"
+
+        DpadRight ->
+            "dpadright"
+
+
+
 -- API ------------------------------------------------------------------------
 
 
@@ -193,7 +275,7 @@ allDigitalInputs =
 -- API ------------------------------------------------------------------------
 
 
-{-| Some controls are available in analog
+{-| Some controls are available as analog
 
 TODO
 
@@ -217,19 +299,40 @@ type OneOrTwo a
 
 
 
+--
+
+
+analogToDestination : Analog -> OneOrTwo Digital
+analogToDestination analog =
+    case analog of
+        LeftX ->
+            Two LeftStickLeft LeftStickRight
+
+        LeftY ->
+            Two LeftStickDown LeftStickUp
+
+        LeftTriggerAnalog ->
+            One LeftTrigger
+
+        RightX ->
+            Two RightStickLeft RightStickRight
+
+        RightY ->
+            Two RightStickDown RightStickUp
+
+        RightTriggerAnalog ->
+            One RightTrigger
+
+
+
 -- API -----------------------------------------------------------------------
 
 
 {-| TODO
 -}
 animationFrameDelta : Blob -> Float
-animationFrameDelta blob =
-    case blob of
-        frameA :: frameB :: fs ->
-            frameA.timestamp - frameB.timestamp
-
-        _ ->
-            17
+animationFrameDelta ( currentFrame, previousFrame ) =
+    currentFrame.timestamp - previousFrame.timestamp
 
 
 
@@ -240,14 +343,8 @@ animationFrameDelta blob =
 <https://alpha.elm-lang.org/packages/elm/browser/latest/Browser-Events#onAnimationFrame>
 -}
 animationFrameTimestamp : Blob -> Time.Posix
-animationFrameTimestamp blob =
-    Time.millisToPosix <|
-        case blob of
-            [] ->
-                0
-
-            frame :: fs ->
-                floor frame.timestamp
+animationFrameTimestamp ( currentFrame, previousFrame ) =
+    Time.millisToPosix (floor currentFrame.timestamp)
 
 
 
@@ -391,382 +488,36 @@ userMappingsDecoder =
 {-| TODO
 -}
 getGamepads : UserMappings -> Blob -> List Gamepad
-getGamepads userMappings blob =
-    case blob of
-        [] ->
-            []
-
-        frame :: fx ->
-            List.filterMap (maybeGetGamepad userMappings blob) frame.gamepads
-
-
-
--- API -----------------------------------------------------------------------
-
-
-haveUnmappedGamepads : UserMappings -> Blob -> Bool
-haveUnmappedGamepads userMappings blob =
-    List.length (getRaw blob) > List.length (getGamepads userMappings blob)
-
-
-
---
-
-
-getRaw : Blob -> List ( String, Int )
-getRaw blob =
-    case blob of
-        [] ->
-            []
-
-        frame :: fs ->
-            List.map (\g -> ( g.id, g.index )) frame.gamepads
-
-
-
--- API -----------------------------------------------------------------------
-
-
-{-| Get the index of a known gamepad.
-To match the LED indicator on XBOX gamepads, indices start from 1.
-
-    getIndex gamepad == 2
-
--}
-getIndex : Gamepad -> Int
-getIndex (Gamepad index mapping frames) =
-    index
-
-
-
--- API -----------------------------------------------------------------------
-
-
-isPressed : Gamepad -> Digital -> Bool
-isPressed (Gamepad index mapping frames) digital =
-    case frames of
-        [] ->
-            False
-
-        frame :: fs ->
-            getAsBool digital mapping frame
-
-
-
--- API -----------------------------------------------------------------------
-
-
-wasReleased : Gamepad -> Digital -> Bool
-wasReleased (Gamepad index mapping frames) digital =
-    case frames of
-        currentFrame :: previousFrame :: fs ->
-            getAsBool digital mapping previousFrame && not (getAsBool digital mapping currentFrame)
-
-        _ ->
-            False
-
-
-
--- API -----------------------------------------------------------------------
-
-
-wasClicked : Gamepad -> Digital -> Bool
-wasClicked (Gamepad index mapping frames) digital =
-    case frames of
-        currentFrame :: previousFrame :: fs ->
-            not (getAsBool digital mapping previousFrame) && getAsBool digital mapping currentFrame
-
-        _ ->
-            False
-
-
-
--- API -----------------------------------------------------------------------
-
-
-axisValue : Gamepad -> Analog -> Float
-axisValue (Gamepad index mapping frames) analog =
-    case frames of
-        [] ->
-            0
-
-        frame :: fs ->
-            case analogToDestination analog of
-                One positive ->
-                    getAsFloat positive mapping frame
-
-                Two negative positive ->
-                    getAxis negative positive mapping frame
-
-
-
--- API -----------------------------------------------------------------------
-
-
-leftPosition : Gamepad -> { x : Float, y : Float }
-leftPosition pad =
-    { x = axisValue pad LeftX
-    , y = axisValue pad LeftY
-    }
-
-
-
--- API -----------------------------------------------------------------------
-
-
-rightPosition : Gamepad -> { x : Float, y : Float }
-rightPosition pad =
-    { x = axisValue pad RightX
-    , y = axisValue pad RightY
-    }
-
-
-
--- API -----------------------------------------------------------------------
-
-
-dpadPosition : Gamepad -> { x : Int, y : Int }
-dpadPosition pad =
-    -- TODO
-    { x = 0
-    , y = 0
-    }
-
-
-
--- API -----------------------------------------------------------------------
-
-
-type RemapMsg
-    = Noop
-    | OnGamepad Blob
-    | OnStartRemapping String Int
-
-
-
--- API -----------------------------------------------------------------------
-
-
-type RemapModel
-    = RemapModel Model
-
-
-
--- API -----------------------------------------------------------------------
-
-
-remapInit : RemapModel
-remapInit =
-    RemapModel
-        { blob = []
-        , maybeRemapping = Nothing
-        }
-
-
-
--- API -----------------------------------------------------------------------
-
-
-isRemapping : RemapModel -> Bool
-isRemapping (RemapModel model) =
-    model.maybeRemapping /= Nothing
-
-
-
--- API -----------------------------------------------------------------------
-
-
-remapUpdate : List ( String, Digital ) -> RemapMsg -> RemapModel -> ( RemapModel, Maybe (UserMappings -> UserMappings) )
-remapUpdate actions msg (RemapModel model) =
-    Tuple.mapFirst RemapModel <|
-        case msg of
-            Noop ->
-                noCmd model
-
-            OnGamepad blob ->
-                updateOnGamepad actions { model | blob = blob }
-
-            OnStartRemapping id index ->
-                noCmd { model | maybeRemapping = Just (initRemap id index) }
-
-
-
--- API -----------------------------------------------------------------------
-
-
-remapView : List Action -> UserMappings -> RemapModel -> Html RemapMsg
-remapView actionNames db (RemapModel model) =
-    div
-        [ class "elm-gamepad" ]
-        [ case model.maybeRemapping of
-            Just remapping ->
-                viewRemapping actionNames remapping
-
-            Nothing ->
-                case getRaw model.blob of
-                    [] ->
-                        div
-                            [ class "elm-gamepad-no-gamepads" ]
-                            [ text "No gamepads detected" ]
-
-                    idsAndIndices ->
-                        idsAndIndices
-                            |> List.map (viewGamepad actionNames db model.blob)
-                            |> ul [ class "elm-gamepad-gamepad-list" ]
-        , node "style"
-            []
-            [ text cssStyle ]
-        ]
-
-
-
--- API -----------------------------------------------------------------------
-
-
-type alias PortSubscription msg =
-    (Blob -> msg) -> Sub msg
-
-
-
--- API -----------------------------------------------------------------------
-
-
-remapSubscriptions : PortSubscription RemapMsg -> Sub RemapMsg
-remapSubscriptions gamepadPort =
-    gamepadPort OnGamepad
-
-
-
---
-
-
-analogToDestination : Analog -> OneOrTwo Digital
-analogToDestination analog =
-    case analog of
-        LeftX ->
-            Two LeftStickLeft LeftStickRight
-
-        LeftY ->
-            Two LeftStickDown LeftStickUp
-
-        LeftTriggerAnalog ->
-            One LeftTrigger
-
-        RightX ->
-            Two RightStickLeft RightStickRight
-
-        RightY ->
-            Two RightStickDown RightStickUp
-
-        RightTriggerAnalog ->
-            One RightTrigger
-
-
-destinationToString : Digital -> String
-destinationToString destination =
-    case destination of
-        A ->
-            "a"
-
-        B ->
-            "b"
-
-        X ->
-            "x"
-
-        Y ->
-            "y"
-
-        Start ->
-            "start"
-
-        Back ->
-            "back"
-
-        Home ->
-            "home"
-
-        LeftStickLeft ->
-            "leftleft"
-
-        LeftStickRight ->
-            "leftright"
-
-        LeftStickUp ->
-            "leftup"
-
-        LeftStickDown ->
-            "leftdown"
-
-        LeftStickPress ->
-            "leftstick"
-
-        LeftBumper ->
-            "leftbumper"
-
-        LeftTrigger ->
-            "lefttrigger"
-
-        RightStickLeft ->
-            "rightleft"
-
-        RightStickRight ->
-            "rightright"
-
-        RightStickUp ->
-            "rightup"
-
-        RightStickDown ->
-            "rightdown"
-
-        RightStickPress ->
-            "rightstick"
-
-        RightBumper ->
-            "rightbumper"
-
-        RightTrigger ->
-            "righttrigger"
-
-        DpadUp ->
-            "dpadup"
-
-        DpadDown ->
-            "dpaddown"
-
-        DpadLeft ->
-            "dpadleft"
-
-        DpadRight ->
-            "dpadright"
-
-
-
--- Maps
-
-
-buttonMapDivider : String
-buttonMapDivider =
-    ",,,"
-
-
-pairsToUpdateUserMappings : String -> Int -> List ( Origin, Digital ) -> UserMappings -> UserMappings
-pairsToUpdateUserMappings id index pairs (UserMappings database) =
+getGamepads userMappings ( currentBlobFrame, previousBlobFrame ) =
     let
-        mapping =
-            pairsToMapping pairs
+        getGamepad : GamepadFrame -> Maybe Gamepad
+        getGamepad currentGamepadFrame =
+            Maybe.map2 (\previousGamepadFrame mapping -> Gamepad mapping currentGamepadFrame previousGamepadFrame)
+                (List.Extra.find (\prev -> prev.index == currentGamepadFrame.index) previousBlobFrame.gamepads)
+                (getGamepadMapping userMappings currentGamepadFrame)
     in
-    UserMappings
-        { byIndexAndId = Dict.insert ( index, id ) mapping database.byIndexAndId
-        , byId = Dict.insert id mapping database.byId
-        }
+    List.filterMap getGamepad currentBlobFrame.gamepads
 
 
-pairsToMapping : List ( Origin, Digital ) -> Mapping
-pairsToMapping pairs =
-    pairs
-        |> List.map (\( origin, digital ) -> ( destinationToString digital, origin ))
-        |> Dict.fromList
+
+--
+
+
+getGamepadMapping : UserMappings -> GamepadFrame -> Maybe Mapping
+getGamepadMapping (UserMappings database) frame =
+    case Dict.get ( frame.index, frame.id ) database.byIndexAndId of
+        Just mapping ->
+            Just mapping
+
+        Nothing ->
+            if frame.mapping == "standard" then
+                Just standardGamepadMapping
+            else
+                Dict.get frame.id database.byId
+
+
+
+--
 
 
 standardGamepadMapping : Mapping
@@ -811,47 +562,104 @@ standardGamepadMapping =
 
 
 
--- Gamepads
+--
 
 
-maybeGetGamepad : UserMappings -> Blob -> GamepadFrame -> Maybe Gamepad
-maybeGetGamepad userMappings blob frame =
-    case getGamepadMapping userMappings frame of
-        Nothing ->
-            Nothing
-
-        Just mapping ->
-            Just <| Gamepad frame.index mapping (List.foldr (addBlobFrame frame.index) [] blob)
-
-
-addBlobFrame : Int -> Gamepad.Blob.BlobFrame -> List GamepadFrame -> List GamepadFrame
-addBlobFrame index blobFrame gamepadFrames =
-    List.foldl (addGamepadFrame index) gamepadFrames blobFrame.gamepads
-
-
-addGamepadFrame : Int -> GamepadFrame -> List GamepadFrame -> List GamepadFrame
-addGamepadFrame index frame frames =
-    if frame.index == index then
-        frame :: frames
-    else
-        frames
-
-
-getGamepadMapping : UserMappings -> GamepadFrame -> Maybe Mapping
-getGamepadMapping (UserMappings database) frame =
-    case Dict.get ( frame.index, frame.id ) database.byIndexAndId of
-        Just mapping ->
-            Just mapping
-
-        Nothing ->
-            if frame.mapping == "standard" then
-                Just standardGamepadMapping
-            else
-                Dict.get frame.id database.byId
+pairsToMapping : List ( Origin, Digital ) -> Mapping
+pairsToMapping pairs =
+    pairs
+        |> List.map (\( origin, digital ) -> ( destinationToString digital, origin ))
+        |> Dict.fromList
 
 
 
--- input code helpers
+-- API -----------------------------------------------------------------------
+
+
+{-| Get the index of a known gamepad.
+To match the LED indicator on XBOX gamepads, indices start from 1.
+
+    getIndex gamepad == 2
+
+-}
+getIndex : Gamepad -> Int
+getIndex (Gamepad mapping currentFrame previousFrame) =
+    currentFrame.index
+
+
+
+-- API -----------------------------------------------------------------------
+
+
+leftStickPosition : Gamepad -> { x : Float, y : Float }
+leftStickPosition pad =
+    { x = value pad LeftX
+    , y = value pad LeftY
+    }
+
+
+
+-- API -----------------------------------------------------------------------
+
+
+rightStickPosition : Gamepad -> { x : Float, y : Float }
+rightStickPosition pad =
+    { x = value pad RightX
+    , y = value pad RightY
+    }
+
+
+
+-- API -----------------------------------------------------------------------
+
+
+dpadPosition : Gamepad -> { x : Int, y : Int }
+dpadPosition pad =
+    -- TODO
+    { x = 0
+    , y = 0
+    }
+
+
+
+-- API -----------------------------------------------------------------------
+
+
+isPressed : Gamepad -> Digital -> Bool
+isPressed (Gamepad mapping currentFrame previousFrame) digital =
+    getAsBool digital mapping currentFrame
+
+
+
+-- API -----------------------------------------------------------------------
+
+
+wasReleased : Gamepad -> Digital -> Bool
+wasReleased (Gamepad mapping currentFrame previousFrame) digital =
+    getAsBool digital mapping previousFrame && not (getAsBool digital mapping currentFrame)
+
+
+
+-- API -----------------------------------------------------------------------
+
+
+wasClicked : Gamepad -> Digital -> Bool
+wasClicked (Gamepad mapping currentFrame previousFrame) digital =
+    not (getAsBool digital mapping previousFrame) && getAsBool digital mapping currentFrame
+
+
+
+-- API -----------------------------------------------------------------------
+
+
+value : Gamepad -> Analog -> Float
+value (Gamepad mapping currentFrame previousFrame) analog =
+    case analogToDestination analog of
+        One positive ->
+            getAsFloat positive mapping currentFrame
+
+        Two negative positive ->
+            getAxis negative positive mapping currentFrame
 
 
 mappingToOrigin : Digital -> Mapping -> Maybe Origin
@@ -859,9 +667,17 @@ mappingToOrigin destination mapping =
     Dict.get (destinationToString destination) mapping
 
 
+
+--
+
+
 axisToButton : Float -> Bool
 axisToButton n =
-    n > 0.2
+    n > 0.6
+
+
+
+--
 
 
 buttonToAxis : Bool -> Float
@@ -872,12 +688,20 @@ buttonToAxis b =
         0
 
 
+
+--
+
+
 reverseAxis : Bool -> Float -> Float
 reverseAxis isReverse n =
     if isReverse then
         -n
     else
         n
+
+
+
+--
 
 
 getAsBool : Digital -> Mapping -> GamepadFrame -> Bool
@@ -898,6 +722,10 @@ getAsBool destination mapping frame =
                 |> Maybe.withDefault False
 
 
+
+--
+
+
 getAsFloat : Digital -> Mapping -> GamepadFrame -> Float
 getAsFloat destination mapping frame =
     case mappingToOrigin destination mapping of
@@ -913,6 +741,10 @@ getAsFloat destination mapping frame =
             Array.get index frame.buttons
                 |> Maybe.map Tuple.second
                 |> Maybe.withDefault 0
+
+
+
+--
 
 
 getAxis : Digital -> Digital -> Mapping -> GamepadFrame -> Float
@@ -932,86 +764,35 @@ getAxis negativeDestination positiveDestination mapping frame =
 
 
 
--- Origin estimation -------------------------------------------------------------
+-- API -----------------------------------------------------------------------
 
 
-{-| Buttons are always provided as a (isPressed, value) tuple.
-This function ignores one and uses only and always the other.
-
-Is this a good assumption?
-Are there cases where both should be considered?
-
--}
-buttonToEstimate : Int -> ( Bool, Float ) -> ( Origin, Float )
-buttonToEstimate originIndex ( pressed, value ) =
-    ( Origin False Button originIndex, boolToNumber pressed )
-
-
-boolToNumber : Bool -> number
-boolToNumber bool =
-    if bool then
-        1
-    else
-        0
-
-
-axisToEstimate : Int -> Float -> ( Origin, Float )
-axisToEstimate originIndex value =
-    ( Origin (value < 0) Axis originIndex, abs value )
-
-
-estimateThreshold : ( Origin, Float ) -> Maybe Origin
-estimateThreshold ( origin, confidence ) =
-    if confidence < 0.5 then
-        Nothing
-    else
-        Just origin
-
-
-estimateOriginInFrame : GamepadFrame -> Maybe Origin
-estimateOriginInFrame frame =
-    let
-        axesEstimates =
-            Array.indexedMap axisToEstimate frame.axes
-
-        buttonsEstimates =
-            Array.indexedMap buttonToEstimate frame.buttons
-    in
-    Array.append axesEstimates buttonsEstimates
-        |> Array.toList
-        |> List.sortBy Tuple.second
-        |> List.reverse
-        |> List.head
-        |> Maybe.andThen estimateThreshold
-
-
-{-| This function guesses the Origin currently activated by the user.
--}
-estimateOrigin : Blob -> Int -> Maybe Origin
-estimateOrigin blob index =
-    blob
-        |> List.head
-        |> Maybe.andThen (.gamepads >> List.Extra.find (\pad -> pad.index == index))
-        |> Maybe.andThen estimateOriginInFrame
+type RemapMsg
+    = Noop
+    | OnGamepad Blob
+    | OnStartRemapping String Int
 
 
 
--- Remap internals ---------------------------------------------------------------
+-- API -----------------------------------------------------------------------
 
 
-cssStyle =
-    """
-.elm-gamepad-mapping-unavailable { color: red; }
-.elm-gamepad-mapping-available { color: green; }
-.elm-gamepad-gamepad-index::before { content: "Gamepad "; }
-.elm-gamepad-gamepad-index::after { content: ": "; }
-    """
+type RemapModel
+    = RemapModel Model
+
+
+
+--
 
 
 type alias Model =
     { blob : Blob
     , maybeRemapping : Maybe Remapping
     }
+
+
+
+--
 
 
 type alias Remapping =
@@ -1023,13 +804,25 @@ type alias Remapping =
     }
 
 
+
+--
+
+
 type alias Action =
     ( String, Digital )
+
+
+
+--
 
 
 type WaitingFor
     = AllButtonsUp
     | SomeButtonDown
+
+
+
+--
 
 
 initRemap : String -> Int -> Remapping
@@ -1042,6 +835,10 @@ initRemap id index =
     }
 
 
+
+--
+
+
 nextUnmappedAction : List Action -> Remapping -> Maybe Action
 nextUnmappedAction actions remapping =
     let
@@ -1052,12 +849,73 @@ nextUnmappedAction actions remapping =
 
 
 
--- Update
+-- API -----------------------------------------------------------------------
+
+
+haveUnmappedGamepads : UserMappings -> Blob -> Bool
+haveUnmappedGamepads userMappings blob =
+    List.length (getRaw blob) > List.length (getGamepads userMappings blob)
+
+
+
+--
+
+
+getRaw : Blob -> List ( String, Int )
+getRaw ( currentBlobFrame, previousBlobFrame ) =
+    List.map (\g -> ( g.id, g.index )) currentBlobFrame.gamepads
+
+
+
+-- API -----------------------------------------------------------------------
+
+
+remapInit : RemapModel
+remapInit =
+    RemapModel
+        { blob = Gamepad.Blob.emptyBlob
+        , maybeRemapping = Nothing
+        }
+
+
+
+-- API -----------------------------------------------------------------------
+
+
+isRemapping : RemapModel -> Bool
+isRemapping (RemapModel model) =
+    model.maybeRemapping /= Nothing
+
+
+
+-- API -----------------------------------------------------------------------
+
+
+remapUpdate : List ( String, Digital ) -> RemapMsg -> RemapModel -> ( RemapModel, Maybe (UserMappings -> UserMappings) )
+remapUpdate actions msg (RemapModel model) =
+    Tuple.mapFirst RemapModel <|
+        case msg of
+            Noop ->
+                noCmd model
+
+            OnGamepad blob ->
+                updateOnGamepad actions { model | blob = blob }
+
+            OnStartRemapping id index ->
+                noCmd { model | maybeRemapping = Just (initRemap id index) }
+
+
+
+--
 
 
 noCmd : a -> ( a, Maybe (UserMappings -> UserMappings) )
 noCmd model =
     ( model, Nothing )
+
+
+
+--
 
 
 updateOnGamepad : List Action -> Model -> ( Model, Maybe (UserMappings -> UserMappings) )
@@ -1069,6 +927,10 @@ updateOnGamepad actions model =
         Just remapping ->
             updateRemapping actions remapping model
                 |> Tuple.mapFirst (\r -> { model | maybeRemapping = r })
+
+
+
+--
 
 
 updateRemapping : List Action -> Remapping -> Model -> ( Maybe Remapping, Maybe (UserMappings -> UserMappings) )
@@ -1091,13 +953,75 @@ updateRemapping actions remapping model =
             noCmd <| Just <| remapping
 
 
+
+--
+
+
 insertPair : Origin -> Digital -> Remapping -> Remapping
 insertPair origin destination remapping =
     { remapping | pairs = ( origin, destination ) :: remapping.pairs }
 
 
 
--- View
+--
+
+
+pairsToUpdateUserMappings : String -> Int -> List ( Origin, Digital ) -> UserMappings -> UserMappings
+pairsToUpdateUserMappings id index pairs (UserMappings database) =
+    let
+        mapping =
+            pairsToMapping pairs
+    in
+    UserMappings
+        { byIndexAndId = Dict.insert ( index, id ) mapping database.byIndexAndId
+        , byId = Dict.insert id mapping database.byId
+        }
+
+
+
+-- API -----------------------------------------------------------------------
+
+
+remapView : List Action -> UserMappings -> RemapModel -> Html RemapMsg
+remapView actionNames db (RemapModel model) =
+    div
+        [ class "elm-gamepad" ]
+        [ case model.maybeRemapping of
+            Just remapping ->
+                viewRemapping actionNames remapping
+
+            Nothing ->
+                case getRaw model.blob of
+                    [] ->
+                        div
+                            [ class "elm-gamepad-no-gamepads" ]
+                            [ text "No gamepads detected" ]
+
+                    idsAndIndices ->
+                        idsAndIndices
+                            |> List.map (viewGamepad actionNames db model.blob)
+                            |> ul [ class "elm-gamepad-gamepad-list" ]
+        , node "style"
+            []
+            [ text cssStyle ]
+        ]
+
+
+
+--
+
+
+cssStyle =
+    """
+.elm-gamepad-mapping-unavailable { color: red; }
+.elm-gamepad-mapping-available { color: green; }
+.elm-gamepad-gamepad-index::before { content: "Gamepad "; }
+.elm-gamepad-gamepad-index::after { content: ": "; }
+    """
+
+
+
+--
 
 
 viewRemapping : List Action -> Remapping -> Html RemapMsg
@@ -1124,9 +1048,17 @@ viewRemapping actions remapping =
                 ]
 
 
+
+--
+
+
 findIndex : Int -> List Gamepad -> Maybe Gamepad
 findIndex index pads =
     List.Extra.find (\pad -> getIndex pad == index) pads
+
+
+
+--
 
 
 viewGamepad : List Action -> UserMappings -> Blob -> ( String, Int ) -> Html RemapMsg
@@ -1188,3 +1120,76 @@ viewGamepad actions userMappings blob ( id, index ) =
             ]
             [ text buttonLabel ]
         ]
+
+
+
+-- API -----------------------------------------------------------------------
+
+
+type alias PortSubscription msg =
+    (Blob -> msg) -> Sub msg
+
+
+
+-- API -----------------------------------------------------------------------
+
+
+remapSubscriptions : PortSubscription RemapMsg -> Sub RemapMsg
+remapSubscriptions gamepadPort =
+    gamepadPort OnGamepad
+
+
+
+-- Origin estimation -------------------------------------------------------------
+
+
+buttonToEstimate : Int -> ( Bool, Float ) -> ( Origin, Float )
+buttonToEstimate originIndex ( pressed, v ) =
+    ( Origin False Button originIndex, boolToNumber pressed )
+
+
+boolToNumber : Bool -> number
+boolToNumber bool =
+    if bool then
+        1
+    else
+        0
+
+
+axisToEstimate : Int -> Float -> ( Origin, Float )
+axisToEstimate originIndex v =
+    ( Origin (v < 0) Axis originIndex, abs v )
+
+
+estimateThreshold : ( Origin, Float ) -> Maybe Origin
+estimateThreshold ( origin, confidence ) =
+    if confidence < 0.5 then
+        Nothing
+    else
+        Just origin
+
+
+estimateOriginInFrame : GamepadFrame -> Maybe Origin
+estimateOriginInFrame frame =
+    let
+        axesEstimates =
+            Array.indexedMap axisToEstimate frame.axes
+
+        buttonsEstimates =
+            Array.indexedMap buttonToEstimate frame.buttons
+    in
+    Array.append axesEstimates buttonsEstimates
+        |> Array.toList
+        |> List.sortBy Tuple.second
+        |> List.reverse
+        |> List.head
+        |> Maybe.andThen estimateThreshold
+
+
+{-| This function guesses the Origin currently activated by the user.
+-}
+estimateOrigin : Blob -> Int -> Maybe Origin
+estimateOrigin ( currentBlobFrame, previousBlobFrame ) index =
+    currentBlobFrame.gamepads
+        |> List.Extra.find (\pad -> pad.index == index)
+        |> Maybe.andThen estimateOriginInFrame
