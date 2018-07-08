@@ -12,7 +12,7 @@ bullet =
     , range = 8
     , effect = ProjectileDamage 4
     , trail = False
-    , accelerates = False
+    , acceleration = 0
     , travelsAlongZ = False
     }
 
@@ -23,7 +23,18 @@ rocket =
     , range = 8
     , effect = ProjectileSplashDamage { radius = 3, damage = 10 }
     , trail = True
-    , accelerates = True
+    , acceleration = 30
+    , travelsAlongZ = False
+    }
+
+
+missile : ProjectileClass
+missile =
+    { speed = 10
+    , range = 8
+    , effect = ProjectileSplashDamage { radius = 2, damage = 40 }
+    , trail = True
+    , acceleration = 0
     , travelsAlongZ = False
     }
 
@@ -34,7 +45,7 @@ upwardSalvo =
     , range = 40
     , effect = ProjectileDamage 0
     , trail = True
-    , accelerates = True
+    , acceleration = 30
     , travelsAlongZ = True
     }
 
@@ -43,9 +54,9 @@ downwardSalvo : ProjectileClass
 downwardSalvo =
     { speed = 20
     , range = 20
-    , effect = ProjectileSplashDamage { radius = 4, damage = 20 }
+    , effect = ProjectileSplashDamage { radius = 5, damage = 30 }
     , trail = True
-    , accelerates = True
+    , acceleration = 30
     , travelsAlongZ = True
     }
 
@@ -95,8 +106,8 @@ blimp =
 
 
 heli =
-    { walkReload = 0.5
-    , flyReload = 0.75
+    { walkReload = 0.9
+    , flyReload = 0.5
     , chargeTime = 2
     , stretchTime = 1.5
     , salvoSize = 10

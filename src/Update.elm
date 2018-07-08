@@ -8,6 +8,7 @@ import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import MechThink
 import ProjectileThink
+import Random
 import Set exposing (Set)
 import SetupPhase
 import UnitThink
@@ -61,7 +62,9 @@ update uncappedDt pairedInputStatesByKey oldGame =
       ]
 
     --
-    , [ transitionThink tempGame ]
+    , [ transitionThink tempGame
+      , deltaGame (screenShake dt)
+      ]
 
     --
     , tempGame.baseById
@@ -73,6 +76,30 @@ update uncappedDt pairedInputStatesByKey oldGame =
     ]
         |> List.map deltaList
         |> applyGameDeltas tempGame
+
+
+screenShake : Seconds -> Game -> Game
+screenShake dt game =
+    let
+        removeDecimals n =
+            if n < 0.0001 then
+                0
+            else
+                n
+
+        shake =
+            game.shake * 0.2 ^ dt |> removeDecimals |> min 5
+
+        float =
+            Random.float -shake shake
+
+        vecgen =
+            Random.map2 vec2 float float
+
+        ( v, seed ) =
+            Random.step vecgen game.seed
+    in
+    { game | seed = seed, shakeVector = v, shake = shake }
 
 
 

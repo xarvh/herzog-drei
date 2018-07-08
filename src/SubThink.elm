@@ -226,6 +226,7 @@ thinkTarget dt game unit sub =
                                         , position = origin
                                         , angle = unit.fireAngle
                                         , classId = BigSubBullet
+                                        , maybeTargetId = Nothing
                                         }
                             ]
                     ]

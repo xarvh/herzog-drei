@@ -83,10 +83,13 @@ projectile classId position angle t =
             bullet position angle
 
         HeliRocket ->
+            rocket position angle "#bbb" "black" t 1
+
+        HeliMissile ->
             rocket position angle "#bbb" "red" t 1
 
         UpwardSalvo ->
-            rocket position angle "#bbb" "red" t (Projectile.perspective t)
+            rocket position angle "#bbb" "black" t (Projectile.perspective t)
 
         DownwardSalvo ->
-            rocket position angle "#bbb" "red" t (Projectile.perspective t)
+            rocket position angle "#bbb" "black" t (Projectile.perspective t)

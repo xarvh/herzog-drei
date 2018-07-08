@@ -15,6 +15,57 @@ import View.Sub
 
 think : Seconds -> Game -> Projectile -> Delta
 think dt game projectile =
+    case projectile.maybeTargetId of
+        Just targetId ->
+            thinkSeeker dt game targetId projectile
+
+        Nothing ->
+            thinkStraight dt game projectile
+
+
+thinkSeeker : Seconds -> Game -> Id -> Projectile -> Delta
+thinkSeeker dt game targetId projectile =
+    let
+        class =
+            Projectile.idToClass projectile.classId
+
+        newPosition =
+            Vec2.scale (class.speed * dt) (angleToVector projectile.angle) |> Vec2.add projectile.position
+    in
+    -- TODO move to Stats
+    if game.time - projectile.spawnTime > 5 then
+        thinkExplode game class projectile newPosition
+    else
+        case Dict.get targetId game.unitById of
+            Nothing ->
+                thinkExplode game class projectile newPosition
+
+            Just target ->
+                if Vec2.distanceSquared target.position newPosition < 1 then
+                    thinkExplode game class projectile newPosition
+                else
+                    let
+                        targetAngle =
+                            vecToAngle (Vec2.sub target.position projectile.position)
+
+                        turnSpeed =
+                            -- TODO move to Stats
+                            0.1 * turns 1
+
+                        maxTurn =
+                            turnSpeed * dt
+
+                        newAngle =
+                            turnTo maxTurn targetAngle projectile.angle
+                    in
+                    deltaList
+                        [ deltaProjectile projectile.id (\g p -> { p | position = newPosition, angle = newAngle })
+                        , deltaTrail dt class 0 projectile
+                        ]
+
+
+thinkStraight : Seconds -> Game -> Projectile -> Delta
+thinkStraight dt game projectile =
     let
         oldPosition =
             projectile.position
@@ -25,14 +76,8 @@ think dt game projectile =
         age =
             game.time - projectile.spawnTime
 
-        a =
-            if class.accelerates then
-                30
-            else
-                0
-
         traveledDistance =
-            0.5 * a * age * age + class.speed * age
+            0.5 * class.acceleration * age * age + class.speed * age
 
         newPosition =
             angleToVector projectile.angle
@@ -45,21 +90,7 @@ think dt game projectile =
             else
                 deltaList
                     [ deltaProjectile projectile.id (\g p -> { p | position = newPosition })
-                    , if class.trail then
-                        let
-                            sizeMultiplier =
-                                if class.travelsAlongZ then
-                                    Projectile.perspective age
-                                else
-                                    1
-                        in
-                        View.Gfx.deltaAddTrail
-                            { position = oldPosition
-                            , angle = projectile.angle
-                            , stretch = sizeMultiplier * (class.speed + a * age) * dt
-                            }
-                      else
-                        deltaNone
+                    , deltaTrail dt class age projectile
                     ]
     in
     if class.travelsAlongZ then
@@ -81,6 +112,25 @@ think dt game projectile =
                 thinkNoCollision ()
 
 
+deltaTrail : Seconds -> ProjectileClass -> Seconds -> Projectile -> Delta
+deltaTrail dt class age projectile =
+    if not class.trail then
+        deltaNone
+    else
+        let
+            sizeMultiplier =
+                if class.travelsAlongZ then
+                    Projectile.perspective age
+                else
+                    1
+        in
+        View.Gfx.deltaAddTrail
+            { position = projectile.position
+            , angle = projectile.angle
+            , stretch = sizeMultiplier * (class.speed + class.acceleration * age) * dt
+            }
+
+
 thinkExplode : Game -> ProjectileClass -> Projectile -> Vec2 -> Delta
 thinkExplode game class projectile position =
     deltaList
@@ -90,6 +140,7 @@ thinkExplode game class projectile position =
                 deltaList
                     [ View.Gfx.deltaAddExplosion position radius
                     , Unit.splashDamage game projectile.maybeTeamId position damage radius
+                    , deltaShake 0.02
                     ]
 
             _ ->
