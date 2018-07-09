@@ -7,7 +7,6 @@ module Gamepad
         , RemapModel
         , RemapMsg
         , UserMappings
-        , allDigitalInputs
         , animationFrameDelta
         , animationFrameTimestamp
         , dpadPosition
@@ -32,6 +31,59 @@ module Gamepad
         , wasReleased
         )
 
+{-| You need a JavaScript port to get the gamepad information inside Elm.
+You can copy the port files from [port/](https://github.com/xarvh/elm-gamepad/tree/master/port).
+
+Within the library, the raw gamepad information produced by the port is called [Blob](#Blob).
+
+You can get a list of all recognised and connected gamepads with [getGamepads](#getGamepads).
+
+The `Digital` and `Analog` types define names for the controls available on gamepads, and
+can be used with various getter functions, such as
+
+    Gamepad.value gamepad LeftTriggerAnalog == 0.1
+
+The library also includes a button remapping tool: the tool is very important because
+while many gamepads have [a standard mapping](https://www.w3.org/TR/gamepad/#remapping)
+and will be configured automatically, many other gamepads won't; some users will also
+want to customise the buttons for comfort or accessibility.
+
+All the user-created mappings are collected together in the `UserMappings` object,
+and should be persisted within the browser's local storage or IndexedDB, to save
+the user from having to remap the gamepad at every page load.
+
+
+@docs Blob
+
+
+# Animation Frame
+
+The library reads the state of the gamepads at every new animation frame of the browser, so if you are using
+[https://package.elm-lang.org/packages/elm/browser/latest/Browser-Events#onAnimationFrame](Browser.Events.onAnimationFrame)
+or
+[https://package.elm-lang.org/packages/elm/browser/latest/Browser-Events#onAnimationFrameDelta](Browser.Events.onAnimationFrameDelta)
+you should remove them, and instead use `animationFrameTimestamp` or `animationFrameDelta` to get the frame
+timing information from the `Blob`.
+
+@docs animationFrameTimestamp, animationFrameDelta
+
+
+# User Mappings
+
+@docs UserMappings, emptyUserMappings, userMappingsFromString, userMappingsToString, userMappingsDecoder, encodeUserMappings
+
+
+# Gamepads
+
+@docs Gamepad, Analog, Digital, getGamepads, getIndex , isPressed , wasClicked , wasReleased , value , leftStickPosition , rightStickPosition , dpadPosition
+
+
+# Remapping
+
+@docs RemapModel, RemapMsg, remapInit, remapSubscriptions, remapUpdate, remapView, isRemapping, haveUnmappedGamepads
+
+-}
+
 import Array exposing (Array)
 import Dict exposing (Dict)
 import Gamepad.Blob exposing (GamepadFrame)
@@ -47,7 +99,7 @@ import Time
 -- API ------------------------------------------------------------------------
 
 
-{-| A Blob describes the raw return value of `navigator.getGamepads()`.
+{-| The Blob contains the raw gamepad data provided by the browser.
 
 The whole point of this library is to transform the Blob into something
 that is nice to use with Elm.
@@ -61,7 +113,7 @@ type alias Blob =
 -- API ------------------------------------------------------------------------
 
 
-{-| A recognised gamepad, whose buttons mapping was found in the Database.
+{-| A gamepad with a known mapping.
 You can use all control getters to query its state.
 -}
 type Gamepad
@@ -80,11 +132,7 @@ type alias Mapping =
 -- API ------------------------------------------------------------------------
 
 
-{-| A collection of button maps, by gamepad Id.
-
-If you change the mapping for one gamepad, the mapping will change for all the
-gamepads of that type (ie, all the gamepads that share that Id).
-
+{-| The collection of button maps created by the user when remapping.
 -}
 type UserMappings
     = UserMappings Database
@@ -121,9 +169,12 @@ type OriginType
 -- API ------------------------------------------------------------------------
 
 
-{-| All controls are available as digital inputs
+{-| This type defines names for all available digital controls, whose
+state can be either `True` or `False`.
 
-TODO
+Since the names cover all controls defined the [W3C draft](https://www.w3.org/TR/gamepad/),
+they are used also when when remapping the gamepad, to declare which action should be
+bound to which control.
 
 -}
 type Digital
@@ -241,44 +292,8 @@ destinationToString destination =
 -- API ------------------------------------------------------------------------
 
 
-allDigitalInputs : List Digital
-allDigitalInputs =
-    [ A
-    , B
-    , X
-    , Y
-    , Start
-    , Back
-    , Home
-    , LeftStickPress
-    , LeftStickUp
-    , LeftStickDown
-    , LeftStickLeft
-    , LeftStickRight
-    , LeftTrigger
-    , LeftBumper
-    , RightStickPress
-    , RightStickUp
-    , RightStickDown
-    , RightStickLeft
-    , RightStickRight
-    , RightTrigger
-    , RightBumper
-    , DpadUp
-    , DpadDown
-    , DpadLeft
-    , DpadRight
-    ]
-
-
-
--- API ------------------------------------------------------------------------
-
-
-{-| Some controls are available as analog
-
-TODO
-
+{-| Some controls can be accessed also as analog and this type defines special
+names for them.
 -}
 type Analog
     = LeftX
@@ -325,10 +340,35 @@ analogToDestination analog =
 
 
 
+--
+
+
+boolToNumber : Bool -> number
+boolToNumber bool =
+    if bool then
+        1
+    else
+        0
+
+
+
 -- API -----------------------------------------------------------------------
 
 
-{-| TODO
+{-| This function gives the time passed between the last browser animation
+frame and the current one, in milliseconds.
+
+It is the same value you get when using `Browser.Events.onAnimationFrameDelta`.
+
+    update msg model =
+      case msg of
+        OnGamepad blob ->
+          let
+              -- Cap the elapsed time, in case the user hides the page and comes back later.
+              deltaTimeInMilliseconds = min 200 (Gamepad.animationFrameDelta blob)
+
+        ...
+
 -}
 animationFrameDelta : Blob -> Float
 animationFrameDelta ( currentFrame, previousFrame ) =
@@ -339,8 +379,19 @@ animationFrameDelta ( currentFrame, previousFrame ) =
 -- API -----------------------------------------------------------------------
 
 
-{-| TODO
-<https://alpha.elm-lang.org/packages/elm/browser/latest/Browser-Events#onAnimationFrame>
+{-| This function gives the Posix timestamp of the current browser animation
+frame.
+
+It is the same value you get when using `Browser.Events.onAnimationFrame`.
+
+    update msg model =
+      case msg of
+        OnGamepad blob ->
+          let
+              posixTimestamp = Gamepad.animationFrame blob
+
+        ...
+
 -}
 animationFrameTimestamp : Blob -> Time.Posix
 animationFrameTimestamp ( currentFrame, previousFrame ) =
@@ -351,7 +402,10 @@ animationFrameTimestamp ( currentFrame, previousFrame ) =
 -- API -----------------------------------------------------------------------
 
 
-{-| An empty UserMappings.
+{-| UserMappings without any actual user mapping.
+
+Gamepads that the browser recognises as "standard" will still be usable.
+
 -}
 emptyUserMappings : UserMappings
 emptyUserMappings =
@@ -365,6 +419,14 @@ emptyUserMappings =
 -- API -----------------------------------------------------------------------
 
 
+{-| Transforms UserMappings into a JSON string.
+
+    saveUserMappingsToLocalStorageCmd =
+        userMappings
+            |> Gamepad.userMappingsToString
+            |> LocalStoragePort.set 'gamepadUserMappings'
+
+-}
 userMappingsToString : UserMappings -> String
 userMappingsToString userMappings =
     Json.Encode.encode 0 (encodeUserMappings userMappings)
@@ -374,6 +436,14 @@ userMappingsToString userMappings =
 -- API -----------------------------------------------------------------------
 
 
+{-| Creates UserMappings from a JSON string.
+
+    userMappings =
+        flags.gamepadUserMappings
+            |> Gamepad.userMappingsFromString
+            |> Result.withDefault Gamepad.emptyUserMappings
+
+-}
 userMappingsFromString : String -> Result Json.Decode.Error UserMappings
 userMappingsFromString asString =
     Json.Decode.decodeString userMappingsDecoder asString
@@ -383,13 +453,7 @@ userMappingsFromString asString =
 -- API -----------------------------------------------------------------------
 
 
-{-| Encodes a UserMappings into a String, useful to persist the UserMappings.
-
-    saveDatabaseToLocalStorageCmd =
-        gamepadDatabase
-            |> databaseToString
-            |> LocalStoragePort.set model.gamepadDatabaseKey
-
+{-| Encodes a UserMappings into a JSON `Value`.
 -}
 encodeUserMappings : UserMappings -> Json.Encode.Value
 encodeUserMappings (UserMappings database) =
@@ -433,6 +497,8 @@ encodeUserMappings (UserMappings database) =
 -- API -----------------------------------------------------------------------
 
 
+{-| Decodes a UserMappings from a JSON `Value`.
+-}
 userMappingsDecoder : Json.Decode.Decoder UserMappings
 userMappingsDecoder =
     let
@@ -485,7 +551,25 @@ userMappingsDecoder =
 -- API -----------------------------------------------------------------------
 
 
-{-| TODO
+{-| This function takes the user mappings and the latest blob and returns the
+current states of all recognised gamepads.
+
+Only recognised gamepads will be returned; use `haveUnmappedGamepads` to see
+if there is any gamepad that can be configured.
+
+    update msg model =
+      case OnGamepad blob ->
+        let
+            isFiring = Gamepad.isPressed Gamepad.A
+
+            playerFiringByIndex =
+              blob
+                |> Gamepad.getGamepads model.userMappings
+                |> List.map (\gamepad -> Gamepad.getIndex isFiring gamepad))
+                |> Dict.fromList
+        in
+            updateState playerFiringByIndex
+
 -}
 getGamepads : UserMappings -> Blob -> List Gamepad
 getGamepads userMappings ( currentBlobFrame, previousBlobFrame ) =
@@ -591,6 +675,8 @@ getIndex (Gamepad mapping currentFrame previousFrame) =
 -- API -----------------------------------------------------------------------
 
 
+{-| X and Y coordinates (-1 to +1) of the left stick.
+-}
 leftStickPosition : Gamepad -> { x : Float, y : Float }
 leftStickPosition pad =
     { x = value pad LeftX
@@ -602,6 +688,8 @@ leftStickPosition pad =
 -- API -----------------------------------------------------------------------
 
 
+{-| X and Y coordinates (-1 to +1) of the right stick.
+-}
 rightStickPosition : Gamepad -> { x : Float, y : Float }
 rightStickPosition pad =
     { x = value pad RightX
@@ -613,11 +701,16 @@ rightStickPosition pad =
 -- API -----------------------------------------------------------------------
 
 
+{-| X and Y coordinates (-1, 0 or +1) of the digital pad.
+-}
 dpadPosition : Gamepad -> { x : Int, y : Int }
 dpadPosition pad =
-    -- TODO
-    { x = 0
-    , y = 0
+    let
+        toInt d =
+            boolToNumber (isPressed pad d)
+    in
+    { x = toInt DpadRight - toInt DpadLeft
+    , y = toInt DpadUp - toInt DpadDown
     }
 
 
@@ -625,6 +718,8 @@ dpadPosition pad =
 -- API -----------------------------------------------------------------------
 
 
+{-| Returns `True` if the button is currently being held down.
+-}
 isPressed : Gamepad -> Digital -> Bool
 isPressed (Gamepad mapping currentFrame previousFrame) digital =
     getAsBool digital mapping currentFrame
@@ -634,6 +729,8 @@ isPressed (Gamepad mapping currentFrame previousFrame) digital =
 -- API -----------------------------------------------------------------------
 
 
+{-| Returns `True` when a button **changes** from being held down to going back up.
+-}
 wasReleased : Gamepad -> Digital -> Bool
 wasReleased (Gamepad mapping currentFrame previousFrame) digital =
     getAsBool digital mapping previousFrame && not (getAsBool digital mapping currentFrame)
@@ -643,6 +740,8 @@ wasReleased (Gamepad mapping currentFrame previousFrame) digital =
 -- API -----------------------------------------------------------------------
 
 
+{-| Returns `True` when a button **changes** from being up to being pushed down.
+-}
 wasClicked : Gamepad -> Digital -> Bool
 wasClicked (Gamepad mapping currentFrame previousFrame) digital =
     not (getAsBool digital mapping previousFrame) && getAsBool digital mapping currentFrame
@@ -652,6 +751,8 @@ wasClicked (Gamepad mapping currentFrame previousFrame) digital =
 -- API -----------------------------------------------------------------------
 
 
+{-| Returns a single value from an analog control.
+-}
 value : Gamepad -> Analog -> Float
 value (Gamepad mapping currentFrame previousFrame) analog =
     case analogToDestination analog of
@@ -681,11 +782,8 @@ axisToButton n =
 
 
 buttonToAxis : Bool -> Float
-buttonToAxis b =
-    if b then
-        1
-    else
-        0
+buttonToAxis =
+    boolToNumber
 
 
 
@@ -767,6 +865,8 @@ getAxis negativeDestination positiveDestination mapping frame =
 -- API -----------------------------------------------------------------------
 
 
+{-| [The Elm Architecture](https://guide.elm-lang.org/architecture/) `Msg` type
+-}
 type RemapMsg
     = Noop
     | OnGamepad Blob
@@ -779,6 +879,8 @@ type RemapMsg
 -- API -----------------------------------------------------------------------
 
 
+{-| The current state of the remap tool
+-}
 type RemapModel
     = RemapModel Model
 
@@ -857,6 +959,10 @@ nextUnmappedAction actions remapping =
 -- API -----------------------------------------------------------------------
 
 
+{-| This function returns `True` if there are connected gamepads that cannot
+be autoconfigured and are not in `UserMappings`.
+If so, ask the user to remap them!
+-}
 haveUnmappedGamepads : UserMappings -> Blob -> Bool
 haveUnmappedGamepads userMappings blob =
     List.length (getRaw blob) > List.length (getGamepads userMappings blob)
@@ -875,6 +981,8 @@ getRaw ( currentBlobFrame, previousBlobFrame ) =
 -- API -----------------------------------------------------------------------
 
 
+{-| [The Elm Architecture](https://guide.elm-lang.org/architecture/) `init`
+-}
 remapInit : RemapModel
 remapInit =
     RemapModel
@@ -887,6 +995,13 @@ remapInit =
 -- API -----------------------------------------------------------------------
 
 
+{-| Returns `True` if the remap tool is currently guiding the user in
+remapping a gamepad.
+
+This is useful because while this happens, you generally want to ignore gamepad
+input, as the user is trying to change the _meaning_ of the buttons.
+
+-}
 isRemapping : RemapModel -> Bool
 isRemapping (RemapModel model) =
     model.maybeRemapping /= Nothing
@@ -896,6 +1011,16 @@ isRemapping (RemapModel model) =
 -- API -----------------------------------------------------------------------
 
 
+{-| [The Elm Architecture](https://guide.elm-lang.org/architecture/) `update`
+function.
+
+When a remapping is finished, it will return a function to update the user
+mappings.
+
+You will want to persist the new user mapping, otherwise the user will need
+to remap every time tha page reloads.
+
+-}
 remapUpdate : List ( String, Digital ) -> RemapMsg -> RemapModel -> ( RemapModel, Maybe (UserMappings -> UserMappings) )
 remapUpdate actions msg (RemapModel model) =
     Tuple.mapFirst RemapModel <|
@@ -998,6 +1123,13 @@ pairsToUpdateUserMappings id index pairs (UserMappings database) =
 -- API -----------------------------------------------------------------------
 
 
+{-| [The Elm Architecture](https://guide.elm-lang.org/architecture/) `view`
+function.
+
+You can use it as it is, or customise it with CSS: every element has its
+own class name, all names are prefixed with `elm-gamepad`.
+
+-}
 remapView : List Action -> UserMappings -> RemapModel -> Html RemapMsg
 remapView actionNames db (RemapModel model) =
     div
@@ -1163,6 +1295,9 @@ viewGamepad actions userMappings blob ( id, index ) =
 -- API -----------------------------------------------------------------------
 
 
+{-| This is an alias to make the signature of `remapSubscriptions` a bit more
+obvious.
+-}
 type alias PortSubscription msg =
     (Blob -> msg) -> Sub msg
 
@@ -1171,6 +1306,24 @@ type alias PortSubscription msg =
 -- API -----------------------------------------------------------------------
 
 
+{-| [The Elm Architecture](https://guide.elm-lang.org/architecture/)
+`subscriptions` function.
+
+Instead of a model, it takes as an argument the gamepad Port.
+
+    import Gamepad
+    import GamepadPort
+
+    ...
+
+    subscriptions : Model -> Sub Msg
+    subscriptions model =
+      Cmd.batch
+        [ Gamepad.remapSubscriptions GamepadPort.gamepad |> Sub.map OnRemapMsg
+        , ...
+        ]
+
+-}
 remapSubscriptions : PortSubscription RemapMsg -> Sub RemapMsg
 remapSubscriptions gamepadPort =
     gamepadPort OnGamepad
@@ -1183,14 +1336,6 @@ remapSubscriptions gamepadPort =
 buttonToEstimate : Int -> ( Bool, Float ) -> ( Origin, Float )
 buttonToEstimate originIndex ( pressed, v ) =
     ( Origin False Button originIndex, boolToNumber pressed )
-
-
-boolToNumber : Bool -> number
-boolToNumber bool =
-    if bool then
-        1
-    else
-        0
 
 
 axisToEstimate : Int -> Float -> ( Origin, Float )
