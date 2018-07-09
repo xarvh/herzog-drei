@@ -771,6 +771,8 @@ type RemapMsg
     = Noop
     | OnGamepad Blob
     | OnStartRemapping String Int
+    | OnSkip Digital
+    | OnCancel
 
 
 
@@ -798,8 +800,8 @@ type alias Model =
 type alias Remapping =
     { id : String
     , index : Int
-    , maybeError : Maybe String
     , pairs : List ( Origin, Digital )
+    , skipped : List Digital
     , waitingFor : WaitingFor
     }
 
@@ -829,8 +831,8 @@ initRemap : String -> Int -> Remapping
 initRemap id index =
     { id = id
     , index = index
-    , maybeError = Nothing
     , pairs = []
+    , skipped = []
     , waitingFor = AllButtonsUp
     }
 
@@ -842,10 +844,13 @@ initRemap id index =
 nextUnmappedAction : List Action -> Remapping -> Maybe Action
 nextUnmappedAction actions remapping =
     let
-        isNotMapped ( name, destination ) =
-            List.all (\( o, d ) -> d /= destination) remapping.pairs
+        mapped =
+            List.map Tuple.second remapping.pairs ++ remapping.skipped
+
+        needsMapping ( name, destination ) =
+            List.all ((/=) destination) mapped
     in
-    List.Extra.find isNotMapped actions
+    List.Extra.find needsMapping actions
 
 
 
@@ -903,6 +908,17 @@ remapUpdate actions msg (RemapModel model) =
 
             OnStartRemapping id index ->
                 noCmd { model | maybeRemapping = Just (initRemap id index) }
+
+            OnCancel ->
+                noCmd { model | maybeRemapping = Nothing }
+
+            OnSkip digital ->
+                case model.maybeRemapping of
+                    Nothing ->
+                        noCmd model
+
+                    Just remapping ->
+                        noCmd { model | maybeRemapping = Just { remapping | skipped = digital :: remapping.skipped } }
 
 
 
@@ -1012,12 +1028,14 @@ remapView actionNames db (RemapModel model) =
 
 
 cssStyle =
-    """
-.elm-gamepad-mapping-unavailable { color: red; }
-.elm-gamepad-mapping-available { color: green; }
-.elm-gamepad-gamepad-index::before { content: "Gamepad "; }
-.elm-gamepad-gamepad-index::after { content: ": "; }
-    """
+    String.join "\n"
+        [ ".elm-gamepad-mapping-unavailable { color: red; }"
+        , ".elm-gamepad-mapping-available { color: green; }"
+        , ".elm-gamepad-gamepad-index::before { content: 'Gamepad '; }"
+        , ".elm-gamepad-gamepad-index::after { content: ': '; }"
+        , ".elm-gamepad-remapping-skip { margin-top: 0.5rem; }"
+        , ".elm-gamepad-remapping-cancel { margin-top: 0.5rem; }"
+        ]
 
 
 
@@ -1026,25 +1044,44 @@ cssStyle =
 
 viewRemapping : List Action -> Remapping -> Html RemapMsg
 viewRemapping actions remapping =
+    let
+        statusClass =
+            class "elm-gamepad-remapping-tellsUserWhatIsHappening"
+
+        instructionClass =
+            class "elm-gamepad-remapping-tellsUserWhatToDo"
+    in
     case nextUnmappedAction actions remapping of
         Nothing ->
             div
-                []
-                [ div [] [ text <| "Remapping Gamepad " ++ String.fromInt remapping.index ++ " complete." ]
-                , div [] [ text "Press any button to go back." ]
-
-                -- TODO, button [] [ text "Ok!" ]
+                [ class "elm-gamepad-remapping-complete" ]
+                [ div
+                    [ statusClass ]
+                    [ text <| "Remapping Gamepad " ++ String.fromInt remapping.index ++ " complete." ]
+                , div
+                    [ instructionClass ]
+                    [ text "Press any button to go back." ]
                 ]
 
         Just ( actionName, destination ) ->
             div
-                []
-                [ div [] [ text <| "Remapping Gamepad " ++ String.fromInt remapping.index ]
-                , div [] [ text "press:" ]
-                , div [] [ text actionName ]
-
-                -- TODO, button [] [ text "skip" ]
-                -- TODO, button [] [ text "cancel" ]
+                [ class "elm-gamepad-remapping" ]
+                [ div [ statusClass ]
+                    [ text <| "Remapping Gamepad " ++ String.fromInt remapping.index ]
+                , div [ instructionClass ]
+                    [ text "Press:" ]
+                , div [ class "elm-gamepad-remapping-action-name" ]
+                    [ text actionName ]
+                , div [ class "elm-gamepad-remapping-skip" ]
+                    [ button
+                        [ onClick (OnSkip destination) ]
+                        [ text "Skip this action" ]
+                    ]
+                , div [ class "elm-gamepad-remapping-cancel" ]
+                    [ button
+                        [ onClick OnCancel ]
+                        [ text "Cancel remapping" ]
+                    ]
                 ]
 
 
