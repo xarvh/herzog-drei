@@ -30,7 +30,10 @@ function addGamepadPort(elmApp) {
     for (var i = 0; i < rawGamepads.length; i++) {
       var g = rawGamepads[i];
 
-      if (g && g.connected) serialisedGamepads.push({
+      // All browsers running under Windows 10 will sometimes throw in a zombie gamepad
+      // object, unrelated to any physical gamepad and never updated.
+      // Since this gamepad has always timestamp == 0, we use timestamp > 0 to discard it.
+      if (g && g.connected && g.timestamp > 0) serialisedGamepads.push({
         axes: g.axes,
         buttons: g.buttons.map(function (b) { return [ b.pressed, b.value ]; }),
         id: g.id,
