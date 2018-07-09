@@ -1180,22 +1180,21 @@ remapSubscriptions gamepadPort =
 -- Origin estimation -------------------------------------------------------------
 
 
-buttonToEstimate : Int -> ( Bool, Float ) -> ( Origin, Float )
-buttonToEstimate originIndex ( pressed, v ) =
-    ( Origin False Button originIndex, boolToNumber pressed )
-
-
-boolToNumber : Bool -> number
-boolToNumber bool =
-    if bool then
+buttonToEstimate : Int -> ( ( Bool, Float ), ( Bool, Float ) ) -> ( Origin, Float )
+buttonToEstimate originIndex ( ( currentPressed, currentValue ), ( previousPressed, previousValue ) ) =
+    ( Origin False Button originIndex
+    , if currentPressed then
         1
-    else
+      else
         0
+    )
 
 
-axisToEstimate : Int -> Float -> ( Origin, Float )
-axisToEstimate originIndex v =
-    ( Origin (v < 0) Axis originIndex, abs v )
+axisToEstimate : Int -> ( Float, Float ) -> ( Origin, Float )
+axisToEstimate originIndex ( current, previous ) =
+    ( Origin (current < 0) Axis originIndex
+    , abs current
+    )
 
 
 estimateThreshold : ( Origin, Float ) -> Maybe Origin
@@ -1206,17 +1205,20 @@ estimateThreshold ( origin, confidence ) =
         Just origin
 
 
-estimateOriginInFrame : GamepadFrame -> Maybe Origin
-estimateOriginInFrame frame =
+estimateOriginInGamepadFrames : GamepadFrame -> GamepadFrame -> Maybe Origin
+estimateOriginInGamepadFrames currentFrame previousFrame =
     let
+        map2 : (Int -> ( a, a ) -> ( Origin, Float )) -> Array a -> Array a -> List ( Origin, Float )
+        map2 f a1 a2 =
+            List.map2 Tuple.pair (Array.toList a1) (Array.toList a2) |> List.indexedMap f
+
         axesEstimates =
-            Array.indexedMap axisToEstimate frame.axes
+            map2 axisToEstimate currentFrame.axes previousFrame.axes
 
         buttonsEstimates =
-            Array.indexedMap buttonToEstimate frame.buttons
+            map2 buttonToEstimate currentFrame.buttons previousFrame.buttons
     in
-    Array.append axesEstimates buttonsEstimates
-        |> Array.toList
+    List.append axesEstimates buttonsEstimates
         |> List.sortBy Tuple.second
         |> List.reverse
         |> List.head
@@ -1227,6 +1229,8 @@ estimateOriginInFrame frame =
 -}
 estimateOrigin : Blob -> Int -> Maybe Origin
 estimateOrigin ( currentBlobFrame, previousBlobFrame ) index =
-    currentBlobFrame.gamepads
-        |> List.Extra.find (\pad -> pad.index == index)
-        |> Maybe.andThen estimateOriginInFrame
+    let
+        find blobFrame =
+            List.Extra.find (\g -> g.index == index) blobFrame.gamepads
+    in
+    Maybe.map2 estimateOriginInGamepadFrames (find currentBlobFrame) (find previousBlobFrame) |> Maybe.andThen identity
