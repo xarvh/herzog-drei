@@ -6,7 +6,7 @@ import Json.Encode as Encode
 
 
 type alias Config =
-    { gamepadDatabase : Gamepad.Database
+    { gamepadDatabase : Gamepad.UserMappings
     , useKeyboardAndMouse : Bool
     , showFps : Bool
     }
@@ -14,7 +14,7 @@ type alias Config =
 
 default : Config
 default =
-    { gamepadDatabase = Gamepad.emptyDatabase
+    { gamepadDatabase = Gamepad.emptyUserMappings
     , useKeyboardAndMouse = True
     , showFps = False
     }
@@ -29,24 +29,10 @@ withDefault value dec =
     Decode.maybe dec |> Decode.map (Maybe.withDefault value)
 
 
-gamepadDatabaseDecoder : Decoder Gamepad.Database
-gamepadDatabaseDecoder =
-    Decode.string
-        |> Decode.andThen
-            (\asString ->
-                case Gamepad.databaseFromString asString of
-                    Err message ->
-                        Decode.fail message
-
-                    Ok db ->
-                        Decode.succeed db
-            )
-
-
 decoder : Decoder Config
 decoder =
     Decode.map3 Config
-        (Decode.field "gamepadDatabase" gamepadDatabaseDecoder |> withDefault default.gamepadDatabase)
+        (Decode.field "gamepadDatabase" Gamepad.userMappingsDecoder |> withDefault default.gamepadDatabase)
         (Decode.field "useKeyboardAndMouse" Decode.bool |> withDefault default.useKeyboardAndMouse)
         (Decode.field "showFps" Decode.bool |> withDefault default.showFps)
 
@@ -68,7 +54,7 @@ fromString s =
 encoder : Config -> Encode.Value
 encoder config =
     Encode.object
-        [ ( "gamepadDatabase", Encode.string (Gamepad.databaseToString config.gamepadDatabase) )
+        [ ( "gamepadDatabase", Gamepad.encodeUserMappings config.gamepadDatabase )
         , ( "useKeyboardAndMouse", Encode.bool config.useKeyboardAndMouse )
         , ( "showFps", Encode.bool config.showFps )
         ]

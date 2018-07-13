@@ -4,7 +4,7 @@ import Browser.Events
 import Config exposing (Config)
 import Dict exposing (Dict)
 import Game exposing (ValidatedMap)
-import Gamepad exposing (Database, Gamepad)
+import Gamepad exposing (UserMappings, Gamepad)
 import GamepadPort
 import Html exposing (..)
 import Html.Attributes exposing (..)
@@ -19,7 +19,6 @@ import MapEditor
 import OfficialMaps
 import Random
 import Random.List
-import Remap
 import Set exposing (Set)
 import Shell exposing (Shell, WindowSize)
 import SplitScreen exposing (Viewport)
@@ -41,7 +40,7 @@ type Menu
     | MenuImportMap ImportModel
     | MenuHowToPlay
     | MenuSettings
-    | MenuGamepads Remap.Model
+    | MenuGamepads Gamepad.RemapModel
 
 
 type alias ImportModel =
@@ -166,7 +165,7 @@ type Msg
     | OnImportString String
       -- TEA children
     | OnMapEditorMsg MapEditor.Msg
-    | OnRemapMsg Remap.Msg
+    | OnRemapMsg Gamepad.RemapMsg
       -- Env stuff used by map editor and main scene
     | OnWindowResizes Int Int
     | OnMouseButton Bool
@@ -244,7 +243,7 @@ update msg model =
         OnRemapMsg remapMsg ->
             case model.maybeMenu of
                 Just (MenuGamepads remap) ->
-                    Remap.update gamepadButtonMap remapMsg remap |> updateOnRemap model
+                    Gamepad.remapUpdate gamepadButtonMap remapMsg remap |> updateOnRemap model
 
                 _ ->
                     noCmd model
@@ -302,7 +301,7 @@ updateMenuOnGamepad blob model =
         isRemapping =
             case model.maybeMenu of
                 Just (MenuGamepads remapModel) ->
-                    Remap.isRemapping remapModel
+                    Gamepad.isRemapping remapModel
 
                 _ ->
                     False
@@ -532,7 +531,7 @@ mainMenuButtons model =
     , { name = "Gamepads"
       , view = MenuButtonLabel
       , isVisible = True
-      , update = menuNav <| MenuGamepads <| Remap.init
+      , update = menuNav <| MenuGamepads <| Gamepad.remapInit
       }
     , { name = "Quit"
       , view = MenuButtonLabel
@@ -716,7 +715,7 @@ gamepadButtonMap =
         |> List.map (\( a, b ) -> ( b, a ))
 
 
-updateOnRemap : Model -> ( Remap.Model, Maybe (Database -> Database) ) -> ( Model, Cmd Msg )
+updateOnRemap : Model -> ( Gamepad.RemapModel, Maybe (UserMappings -> UserMappings) ) -> ( Model, Cmd Msg )
 updateOnRemap model ( remap, maybeUpdateDb ) =
     let
         updateDb =
@@ -867,7 +866,7 @@ viewMenu menu model =
                 [ div [ class "mb2" ] [ text "> Gamepads <" ]
                 , section
                     []
-                    [ Remap.view
+                    [ Gamepad.remapView
                         gamepadButtonMap
                         model.config.gamepadDatabase
                         remap
@@ -973,6 +972,27 @@ viewMapPreview model map =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
+    let
+        remapGamepadSub =
+            Gamepad.remapSubscriptions GamepadPort.gamepad |> Sub.map OnRemapMsg
+
+        appGamepadSub =
+            GamepadPort.gamepad OnGamepad
+
+        gamepad =
+            case model.maybeMenu of
+                Just (MenuGamepads remap) ->
+                    if Gamepad.isRemapping remap then
+                        remapGamepadSub
+                    else
+                        Sub.batch
+                            [ appGamepadSub
+                            , remapGamepadSub
+                            ]
+
+                _ ->
+                    appGamepadSub
+    in
     Sub.batch
         [ Browser.Events.onKeyDown (Input.keyboardDecoder OnKeyDown)
         , Browser.Events.onKeyUp (Input.keyboardDecoder OnKeyUp)
@@ -981,13 +1001,7 @@ subscriptions model =
         , Browser.Events.onMouseUp (OnMouseButton False |> Input.always)
         , Browser.Events.onMouseMove (Input.mouseMoveDecoder OnMouseMoves)
         , Browser.Events.onResize OnWindowResizes
-        , GamepadPort.gamepad OnGamepad
-        , case model.maybeMenu of
-            Just (MenuGamepads remap) ->
-                Remap.subscriptions GamepadPort.gamepad |> Sub.map OnRemapMsg
-
-            _ ->
-                Sub.none
+        , gamepad
         , case model.scene of
             SceneMapEditor mapEditor ->
                 MapEditor.subscriptions mapEditor |> Sub.map OnMapEditorMsg

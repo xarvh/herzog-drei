@@ -5,11 +5,25 @@ function addGamepadPort(elmApp) {
     typeof navigator.webkitGetGamepads === 'function' ? function () { return navigator.webkitGetGamepads(); } :
     function () { return []; }
 
-  var frames = [];
-  requestAnimationFrame(onAnimationFrame);
+
+  var previousFrame;
+  requestAnimationFrame(function (timestamp) {
+    previousFrame = getFrame(timestamp);
+    requestAnimationFrame(onAnimationFrame);
+  });
+
 
   function onAnimationFrame(timestamp) {
     requestAnimationFrame(onAnimationFrame);
+
+    var currentFrame = getFrame(timestamp);
+    elmApp.ports.gamepad.send([ currentFrame, previousFrame ]);
+
+    previousFrame = currentFrame;
+  }
+
+
+  function getFrame(timestamp) {
     var rawGamepads = getGamepads();
 
     var serialisedGamepads = [];
@@ -25,13 +39,9 @@ function addGamepadPort(elmApp) {
         id: g.id,
         index: g.index + 1,
         mapping: g.mapping,
-        timestamp: timestamp, // g.timestamp is implemented inconsistently
       });
     }
 
-    frames.unshift({ gamepads: serialisedGamepads, timestamp: timestamp });
-    if (frames.length > 60) frames.pop();
-
-    elmApp.ports.gamepad.send(frames);
+    return { gamepads: serialisedGamepads, timestamp: timestamp };
   }
 }
