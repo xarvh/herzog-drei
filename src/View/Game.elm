@@ -6,7 +6,10 @@ import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
 import Map exposing (Map)
+import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Math.Vector3 as Vec3 exposing (Vec3, vec3)
+import Math.Vector4 as Vec4 exposing (Vec4, vec4)
 import Mech
 import Set exposing (Set)
 import SetupPhase
@@ -15,6 +18,7 @@ import Stats
 import Svg exposing (..)
 import Svg.Attributes
 import Svg.Lazy
+import Svgl.Primitives
 import Unit
 import Update
 import View exposing (..)
@@ -25,6 +29,7 @@ import View.Hud
 import View.Mech
 import View.Projectile
 import View.Sub
+import WebGL exposing (Entity, Mesh, Shader)
 
 
 checkersBackground : Game -> Svg a
@@ -403,68 +408,110 @@ view terrain viewport game =
 
         ( mechs, subs ) =
             mechVsUnit units
-    in
-    Svg.svg
-        (SplitScreen.viewportToSvgAttributes viewport)
-        [ Svg.g
-            [ transform
-              [ "scale(1 -1)", scale (1 / tilesToViewport game viewport)
-              , translate game.shakeVector
-              ]
-            ]
-            [ Svg.Lazy.lazy View.Background.terrain terrain
-            , g (maybeOpacity game)
-                [ case game.mode of
-                    GameModeTeamSelection _ ->
-                        SetupPhase.view terrain game
 
-                    _ ->
-                        text ""
-                , subs
-                    |> List.filter (\( u, s ) -> s.mode == UnitModeFree)
-                    |> List.map (viewSub game)
-                    |> g []
-                , game.wallTiles
-                    |> Set.toList
-                    |> List.map wall
-                    |> g []
-                , game.baseById
-                    |> Dict.values
-                    |> List.map (viewBase game)
-                    |> g []
-                , subs
-                    |> List.filter (\( u, s ) -> s.mode /= UnitModeFree)
-                    |> List.map (viewSub game)
-                    |> g []
-                , mechs
-                    |> List.map (viewMech game)
-                    |> g []
-                , if game.mode /= GameModeVersus then
-                    text ""
-                  else
-                    [ game.leftTeam, game.rightTeam ]
-                        |> List.map (viewMarker game)
-                        |> g []
-                , game.projectileById
-                    |> Dict.values
-                    |> List.map (viewProjectile game.time)
-                    |> g []
-                , game.cosmetics
-                    |> List.map View.Gfx.render
-                    |> g []
-                , units
-                    |> List.map viewHealthbar
-                    |> g []
-                , units
-                    |> List.map (viewCharge game)
-                    |> g []
-                ]
-            ]
-        , viewVictory game
+        normalizedSize =
+            SplitScreen.normalizedSize viewport
+
+        viewportScale =
+            2 / tilesToViewport game viewport
+
+        shake =
+            Vec2.toRecord game.shakeVector
+
+        worldToCamera =
+            Mat4.identity
+                |> Mat4.scale (vec3 (viewportScale / normalizedSize.width) (viewportScale / normalizedSize.height) 1)
+                |> Mat4.translate (vec3 shake.x shake.y 0)
+
+        e1 =
+            Svgl.Primitives.rect
+                { dimensions = vec2 10 3
+                , fill = vec4 1 0 0 1
+                , stroke = vec4 0.5 0 0 1
+                , strokeWidth = 0.1
+                , entityToCamera =
+                    Mat4.makeTranslate (vec3 10 0 0) |> Mat4.mul worldToCamera
+                }
+
+        e2 =
+            Svgl.Primitives.rect
+                { dimensions = vec2 2 3
+                , fill = vec4 0 1 0 1
+                , stroke = vec4 0 0.5 0 1
+                , strokeWidth = 0.1
+                , entityToCamera =
+                    Mat4.makeTranslate (vec3 -10 0 0) |> Mat4.mul worldToCamera
+                }
+    in
+    WebGL.toHtml
+        (SplitScreen.viewportToWebGLAttributes viewport)
+        [ e1
+        , e2
         ]
 
 
 
+
+{-
+   Svg.svg
+       (SplitScreen.viewportToSvgAttributes viewport)
+       [ Svg.g
+           [ transform
+             [ "scale(1 -1)", scale (1 / tilesToViewport game viewport)
+             , translate game.shakeVector
+             ]
+           ]
+           [ Svg.Lazy.lazy View.Background.terrain terrain
+           , g (maybeOpacity game)
+               [ case game.mode of
+                   GameModeTeamSelection _ ->
+                       SetupPhase.view terrain game
+
+                   _ ->
+                       text ""
+               , subs
+                   |> List.filter (\( u, s ) -> s.mode == UnitModeFree)
+                   |> List.map (viewSub game)
+                   |> g []
+               , game.wallTiles
+                   |> Set.toList
+                   |> List.map wall
+                   |> g []
+               , game.baseById
+                   |> Dict.values
+                   |> List.map (viewBase game)
+                   |> g []
+               , subs
+                   |> List.filter (\( u, s ) -> s.mode /= UnitModeFree)
+                   |> List.map (viewSub game)
+                   |> g []
+               , mechs
+                   |> List.map (viewMech game)
+                   |> g []
+               , if game.mode /= GameModeVersus then
+                   text ""
+                 else
+                   [ game.leftTeam, game.rightTeam ]
+                       |> List.map (viewMarker game)
+                       |> g []
+               , game.projectileById
+                   |> Dict.values
+                   |> List.map (viewProjectile game.time)
+                   |> g []
+               , game.cosmetics
+                   |> List.map View.Gfx.render
+                   |> g []
+               , units
+                   |> List.map viewHealthbar
+                   |> g []
+               , units
+                   |> List.map (viewCharge game)
+                   |> g []
+               ]
+           ]
+       , viewVictory game
+       ]
+-}
 -- Map editor
 
 
