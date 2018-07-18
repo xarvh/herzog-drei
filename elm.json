@@ -17,6 +17,7 @@
             "elm/time": "1.0.0",
             "elm-community/list-extra": "8.0.0",
             "elm-explorations/linear-algebra": "1.0.0",
+            "elm-explorations/webgl": "1.0.0",
             "xarvh/elm-gamepad": "2.0.3"
         },
         "indirect": {
