@@ -421,7 +421,7 @@ entity =
     vertexShader
     fragmentShader
     mesh
-    { perspective = perspective 0 }
+    { perspective = Mat4.identity }
 
 
 type alias Vertex =
