@@ -8,7 +8,6 @@ import ColorPattern exposing (ColorPattern, neutral)
 import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
-import Html.Attributes
 import Map exposing (Map)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mech
@@ -407,25 +406,30 @@ view terrain viewport game =
 
         ( mechs, subs ) =
             mechVsUnit units
+
+        normalizedSize =
+          SplitScreen.normalizedSize viewport
+
+        camera =
+          Mat4.makeScale (vec3 (2 / normalizedSize.width) (2 / normalizedSize.height) 1)
+
     in
     WebGL.toHtml
-      [ Html.Attributes.width viewport.w
-      , Html.Attributes.height viewport.h
-      ]
-      [ entity ]
+      (SplitScreen.viewportToWebGLAttributes viewport)
+      [ entity camera ]
 
 
-entity : Entity
-entity =
+entity : Mat4 -> Entity
+entity camera =
   WebGL.entity
     vertexShader
     fragmentShader
     mesh
-    { perspective = Mat4.identity }
+    { perspective = camera }
 
 
 type alias Vertex =
-    { position : Vec3
+    { position : Vec2
     , color : Vec3
     }
 
@@ -433,9 +437,13 @@ type alias Vertex =
 mesh : Mesh Vertex
 mesh =
     WebGL.triangles
-        [ ( Vertex (vec3 0 0 0) (vec3 1 0 0)
-          , Vertex (vec3 1 1 0) (vec3 0 1 0)
-          , Vertex (vec3 1 -1 0) (vec3 0 0 1)
+        [ ( Vertex (vec2 -0.4 -0.4) (vec3 1 0 0)
+          , Vertex (vec2 0.4 -0.4) (vec3 0 1 0)
+          , Vertex (vec2 0.4 0.4) (vec3 0 0 1)
+          )
+        , ( Vertex (vec2 -0.4 -0.4) (vec3 1 0 1)
+          , Vertex (vec2 -0.4 0.4) (vec3 1 1 0)
+          , Vertex (vec2 0.4 0.4) (vec3 0 1 1)
           )
         ]
 
@@ -455,12 +463,12 @@ type alias Uniforms =
 vertexShader : Shader Vertex Uniforms { vcolor : Vec3 }
 vertexShader =
     [glsl|
-        attribute vec3 position;
+        attribute vec2 position;
         attribute vec3 color;
         uniform mat4 perspective;
         varying vec3 vcolor;
         void main () {
-            gl_Position = perspective * vec4(position, 1.0);
+            gl_Position = perspective * vec4(position, 0.0, 1.0);
             vcolor = color;
         }
     |]

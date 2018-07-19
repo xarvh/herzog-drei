@@ -145,8 +145,10 @@ fitWidthAndHeight width height viewport =
 -- Svg Attributes
 
 
-viewportToViewBox : Viewport -> Svg.Attribute a
-viewportToViewBox viewport =
+{-| Ensures that the screen will fit a 1x1 square area
+-}
+normalizedSize : Viewport -> { width : Float, height : Float }
+normalizedSize viewport =
     let
         pixelW =
             toFloat viewport.w
@@ -156,14 +158,19 @@ viewportToViewBox viewport =
 
         minSize =
             min pixelW pixelH
-
-        w =
-            pixelW / minSize
-
-        h =
-            pixelH / minSize
     in
-    [ -w / 2, -h / 2, w, h ]
+    { width = pixelW / minSize
+    , height = pixelH / minSize
+    }
+
+
+viewportToViewBox : Viewport -> Svg.Attribute a
+viewportToViewBox viewport =
+    let
+        { width, height } =
+            normalizedSize viewport
+    in
+    [ -width / 2, -height / 2, width, height ]
         |> List.map String.fromFloat
         |> String.join " "
         |> Svg.Attributes.viewBox
@@ -182,6 +189,16 @@ viewportToSvgAttributes : Viewport -> List (Svg.Attribute a)
 viewportToSvgAttributes viewport =
     viewportToViewBox viewport
         :: style (viewportToStyle viewport)
+
+
+viewportToWebGLAttributes : Viewport -> List (Svg.Attribute a)
+viewportToWebGLAttributes viewport =
+    List.concat
+        [ [ Svg.Attributes.width (String.fromInt viewport.w)
+          , Svg.Attributes.height (String.fromInt viewport.h)
+          ]
+        , style (viewportToStyle viewport)
+        ]
 
 
 
