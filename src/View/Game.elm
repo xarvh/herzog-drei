@@ -410,8 +410,19 @@ view terrain viewport game =
         normalizedSize =
           SplitScreen.normalizedSize viewport
 
+
+
+        viewportScale =
+          2 / tilesToViewport game viewport
+
+        shake =
+          Vec2.toRecord game.shakeVector
+
         camera =
-          Mat4.makeScale (vec3 (2 / normalizedSize.width) (2 / normalizedSize.height) 1)
+          Mat4.identity
+            |> Mat4.scale (vec3 (viewportScale / normalizedSize.width) (viewportScale / normalizedSize.height) 1)
+            |> Mat4.translate (vec3 shake.x shake.y 0)
+
 
     in
     WebGL.toHtml
