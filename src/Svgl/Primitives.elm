@@ -83,20 +83,33 @@ rectFragmentShader =
 
         varying vec2 localPosition;
 
-        float e = 5.0 / 30.0;
+        float pixelsPerTile = 30.0;
+        float e = 1.0 / pixelsPerTile;
+
+
+
+/*
+       0               1                            1                     0
+       |------|--------|----------------------------|----------|----------|
+    -edge-e  -edge  -edge+e                      edge-e      edge      edge+e
+*/
+
+
+
+        float mirrorStep(float edge, float p) {
+          return smoothstep(-edge - e, -edge + e, p) - smoothstep(edge - e, edge + e, p);
+        }
+
+
+
 
         void main () {
           vec2 strokeSize = dimensions / 2.0;
           vec2 fillSize = dimensions / 2.0 - strokeWidth;
 
+          float ax = mirrorStep(strokeSize.x, localPosition.x);
 
-          if (localPosition.x < -fillSize.x) {
-            float ax = smoothstep( -e - strokeSize.x, e - strokeSize.x, localPosition.x);
-            gl_FragColor = vec4(stroke, ax);
-          } else {
-            float ax = smoothstep( -e - fillSize.x, e - fillSize.x, localPosition.x);
-            gl_FragColor = vec4(mix(stroke, fill, ax), 1.0);
-          }
+          gl_FragColor = vec4(1.0, 0.0, 0.0, ax);
         }
     |]
 
