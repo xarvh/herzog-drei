@@ -9,6 +9,7 @@ import Map exposing (Map)
 import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
+import Math.Vector4 as Vec4 exposing (Vec4, vec4)
 import Mech
 import Set exposing (Set)
 import SetupPhase
@@ -17,6 +18,7 @@ import Stats
 import Svg exposing (..)
 import Svg.Attributes
 import Svg.Lazy
+import Svgl.Primitives
 import Unit
 import Update
 import View exposing (..)
@@ -422,10 +424,24 @@ view terrain viewport game =
                 |> Mat4.translate (vec3 shake.x shake.y 0)
 
         e1 =
-            entity (vec2 10 3) (Mat4.makeTranslate (vec3 10 0 0)) worldToCamera
+            Svgl.Primitives.rect
+                { dimensions = vec2 10 3
+                , fill = vec4 1 0 0 1
+                , stroke = vec4 0.5 0 0 1
+                , strokeWidth = 0.1
+                , entityToCamera =
+                    Mat4.makeTranslate (vec3 10 0 0) |> Mat4.mul worldToCamera
+                }
 
         e2 =
-            entity (vec2 2 3) (Mat4.makeTranslate (vec3 -10 0 0)) worldToCamera
+            Svgl.Primitives.rect
+                { dimensions = vec2 2 3
+                , fill = vec4 0 1 0 1
+                , stroke = vec4 0 0.5 0 1
+                , strokeWidth = 0.1
+                , entityToCamera =
+                    Mat4.makeTranslate (vec3 -10 0 0) |> Mat4.mul worldToCamera
+                }
     in
     WebGL.toHtml
         (SplitScreen.viewportToWebGLAttributes viewport)
@@ -433,92 +449,6 @@ view terrain viewport game =
         , e2
         ]
 
-
-entity : Vec2 -> Mat4 -> Mat4 -> Entity
-entity normalSize entityToWorld worldToCamera =
-    WebGL.entity
-        vertexShader
-        fragmentShader
-        normalQuad
-        { normalSize = normalSize
-        , entityToWorld = entityToWorld
-        , worldToCamera = worldToCamera
-        }
-
-
-type alias Vertex =
-    { position : Vec2
-    , color : Vec3
-    }
-
-
-normalQuad : Mesh Vertex
-normalQuad =
-    WebGL.triangles
-        [ ( Vertex (vec2 -0.5 -0.5) (vec3 1 0 0)
-          , Vertex (vec2 0.5 -0.5) (vec3 0 1 0)
-          , Vertex (vec2 0.5 0.5) (vec3 0 0 1)
-          )
-        , ( Vertex (vec2 -0.5 -0.5) (vec3 1 0 1)
-          , Vertex (vec2 -0.5 0.5) (vec3 1 1 0)
-          , Vertex (vec2 0.5 0.5) (vec3 0 1 1)
-          )
-        ]
-
-
-type alias Uniforms =
-    { normalSize : Vec2
-    , entityToWorld : Mat4
-    , worldToCamera : Mat4
-    }
-
-
-vertexShader : Shader Vertex Uniforms { vcolor : Vec3, localPosition : Vec2 }
-vertexShader =
-    [glsl|
-        precision mediump float;
-
-        attribute vec2 position;
-        attribute vec3 color;
-
-        uniform vec2 normalSize;
-        uniform mat4 entityToWorld;
-        uniform mat4 worldToCamera;
-
-        varying vec2 localPosition;
-        varying vec3 vcolor;
-
-        void main () {
-            localPosition = normalSize * position;
-            gl_Position = worldToCamera * entityToWorld * vec4(localPosition, 0, 1);
-            vcolor = color;
-        }
-    |]
-
-
-fragmentShader : Shader {} Uniforms { localPosition : Vec2, vcolor : Vec3 }
-fragmentShader =
-    [glsl|
-        precision mediump float;
-
-        uniform vec2 normalSize;
-
-        varying vec3 vcolor;
-        varying vec2 localPosition;
-
-        float size = 1.0;
-
-        void main () {
-            if ( localPosition.x > size - normalSize.x / 2.0
-              && localPosition.x < -size + normalSize.x / 2.0
-              && localPosition.y > size - normalSize.y / 2.0
-              && localPosition.y < -size + normalSize.y / 2.0
-              )
-              gl_FragColor = vec4(0, 0, 0, 1);
-            else
-              gl_FragColor = vec4(vcolor, 1.0);
-        }
-    |]
 
 
 
