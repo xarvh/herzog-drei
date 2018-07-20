@@ -125,41 +125,60 @@ ellipseFragmentShader =
         float pixelsPerTile = 30.0;
         float e = 1.0 / pixelsPerTile;
 
-        /*
-         *     0               1                            1                     0
-         *     |------|--------|----------------------------|----------|----------|
-         *  -edge-e  -edge  -edge+e                      edge-e      edge      edge+e
-         */
-        float mirrorStep (float edge, float p) {
-          return smoothstep(-edge - e, -edge + e, p) - smoothstep(edge - e, edge + e, p);
-        }
 
-        void main () {
-          float x = localPosition.x / 0.5;
-          float y = localPosition.y / 0.5;
-          float w = dimensions.x / 2.0;
-          float h = dimensions.y / 2.0;
+        float smoothEllipse(vec2 position, vec2 diameters) {
+          float x = position.x;
+          float y = position.y;
+          float w = diameters.x / 2.0;
+          float h = diameters.y / 2.0;
 
           float xx = x * x;
           float yy = y * y;
           float ww = w * w;
           float hh = h * h;
 
+          // We will need the assumption that we are not too far from the ellipse
+          float ew = w + e;
+          float eh = h + e;
+
+          if ( xx / (ew * ew) + yy / (eh * eh) > 1.0 ) {
+            return 1.0;
+          }
+
+          /*
+          Given an ellipse Q with radii W and H, the ellipse P whose every point
+          has distance D from the closest point in A is given by:
+
+            x^2       y^2
+          ------- + ------- = 1
+          (W+D)^2   (H+D)^2
+
+          Assuming D << W and D << H we can solve for D dropping the terms in
+          D^3 and D^4.
+          We obtain: a * d^2 + b * d + c = 0
+          */
+
           float c = xx * hh + yy * ww - ww * hh;
           float b = 2.0 * (h * xx + yy * w - h * ww - w * hh);
           float a = xx + yy - ww - hh - 4.0 * w * h;
 
           float delta = sqrt(b * b - 4.0 * a * c);
-          float s1 = (-b + delta) / (2.0 * a);
-          float s2 = (-b - delta) / (2.0 * a);
+          //float solution1 = (-b + delta) / (2.0 * a);
+          float solution2 = (-b - delta) / (2.0 * a);
 
-          // distance from the ellipse border
-          float d = max(s1, s2);
+          return smoothstep(-e, e, solution2);
+        }
 
-          float q = 1.0 - smoothstep(-e, e, d);
 
-          float p = (xx / ww + yy / hh < 1.0) ? 0.0 : 0.50;
+        void main () {
+          vec2 strokeSize = dimensions / 2.0;
+          vec2 fillSize = dimensions / 2.0 - strokeWidth;
 
-          gl_FragColor = vec4(q, 0.0, 0.0, 1.0);
+          float alpha = 1.0 - smoothEllipse(localPosition, dimensions);
+          float fillVsStroke = 1.0 - smoothEllipse(localPosition, dimensions - strokeWidth);
+
+          vec3 color = mix(fill, stroke, fillVsStroke);
+
+          gl_FragColor = vec4(color, alpha);
         }
     |]

@@ -427,20 +427,20 @@ view terrain viewport game =
                 { dimensions = vec2 10 3
                 , fill = vec3 1 0 0
                 , stroke = vec3 0.5 0 0
-                , strokeWidth = 0.1
+                , strokeWidth = 0.5
                 , entityToCamera =
                   Mat4.identity
                     |> Mat4.translate (vec3 10 0 0)
-                    |> Mat4.rotate (turns 0.3) (vec3 0 0 1)
+                    |> Mat4.rotate (turns 0) (vec3 0 0 1)
                     |> Mat4.mul worldToCamera
                 }
 
         e2 =
             Svgl.Primitives.ellipse
-                { dimensions = vec2 10 17
+                { dimensions = vec2 10 3
                 , fill = vec3 0 1 0
                 , stroke = vec3 0 0.5 0
-                , strokeWidth = 0.1
+                , strokeWidth = 0.5
                 , entityToCamera =
                     Mat4.makeTranslate (vec3 -10 0 0) |> Mat4.mul worldToCamera
                 }
