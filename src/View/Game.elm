@@ -9,7 +9,6 @@ import Map exposing (Map)
 import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
-import Math.Vector4 as Vec4 exposing (Vec4, vec4)
 import Mech
 import Set exposing (Set)
 import SetupPhase
@@ -416,7 +415,7 @@ view terrain viewport game =
             2 / tilesToViewport game viewport
 
         shake =
-            Vec2.toRecord game.shakeVector
+            Vec2.toRecord (vec2 0 0) --game.shakeVector
 
         worldToCamera =
             Mat4.identity
@@ -426,18 +425,21 @@ view terrain viewport game =
         e1 =
             Svgl.Primitives.rect
                 { dimensions = vec2 10 3
-                , fill = vec4 1 0 0 1
-                , stroke = vec4 0.5 0 0 1
+                , fill = vec3 1 0 0
+                , stroke = vec3 0 0 1
                 , strokeWidth = 0.1
                 , entityToCamera =
-                    Mat4.makeTranslate (vec3 10 0 0) |> Mat4.mul worldToCamera
+                  Mat4.identity
+                    |> Mat4.translate (vec3 10 0 0)
+                    |> Mat4.rotate (turns 0.3) (vec3 0 0 1)
+                    |> Mat4.mul worldToCamera
                 }
 
         e2 =
             Svgl.Primitives.ellipse
                 { dimensions = vec2 8 5
-                , fill = vec4 0 1 0 1
-                , stroke = vec4 0 0.5 0 1
+                , fill = vec3 0 1 0
+                , stroke = vec3 0 0.5 0
                 , strokeWidth = 0.1
                 , entityToCamera =
                     Mat4.makeTranslate (vec3 -10 0 0) |> Mat4.mul worldToCamera

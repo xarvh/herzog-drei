@@ -3,7 +3,6 @@ module Svgl.Primitives exposing (..)
 import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
-import Math.Vector4 as Vec4 exposing (Vec4, vec4)
 import WebGL exposing (Entity, Mesh, Shader)
 
 
@@ -15,8 +14,8 @@ type alias Attributes =
 type alias Uniforms =
     { entityToCamera : Mat4
     , dimensions : Vec2
-    , fill : Vec4
-    , stroke : Vec4
+    , fill : Vec3
+    , stroke : Vec3
     , strokeWidth : Float
     }
 
@@ -58,14 +57,14 @@ quadVertexShader =
 
         uniform mat4 entityToCamera;
         uniform vec2 dimensions;
-        uniform vec4 fill;
-        uniform vec4 stroke;
+        uniform vec3 fill;
+        uniform vec3 stroke;
         uniform float strokeWidth;
 
         varying vec2 localPosition;
 
         void main () {
-            localPosition = (dimensions + vec2(strokeWidth, strokeWidth)) * position;
+            localPosition = (dimensions + strokeWidth) * position;
             gl_Position = entityToCamera * vec4(localPosition, 0, 1);
         }
     |]
@@ -78,21 +77,26 @@ rectFragmentShader =
 
         uniform mat4 entityToCamera;
         uniform vec2 dimensions;
-        uniform vec4 fill;
-        uniform vec4 stroke;
+        uniform vec3 fill;
+        uniform vec3 stroke;
         uniform float strokeWidth;
 
         varying vec2 localPosition;
 
+        float e = 5.0 / 30.0;
+
         void main () {
-            if ( localPosition.x > strokeWidth - dimensions.x / 2.0
-              && localPosition.x < -strokeWidth + dimensions.x / 2.0
-              && localPosition.y > strokeWidth - dimensions.y / 2.0
-              && localPosition.y < -strokeWidth + dimensions.y / 2.0
-              )
-              gl_FragColor = fill;
-            else
-              gl_FragColor = stroke;
+          vec2 strokeSize = dimensions / 2.0;
+          vec2 fillSize = dimensions / 2.0 - strokeWidth;
+
+
+          if (localPosition.x < -fillSize.x) {
+            float ax = smoothstep( -e - strokeSize.x, e - strokeSize.x, localPosition.x);
+            gl_FragColor = vec4(stroke, ax);
+          } else {
+            float ax = smoothstep( -e - fillSize.x, e - fillSize.x, localPosition.x);
+            gl_FragColor = vec4(mix(stroke, fill, ax), 1.0);
+          }
         }
     |]
 
@@ -103,19 +107,14 @@ ellipseFragmentShader =
 
         uniform mat4 entityToCamera;
         uniform vec2 dimensions;
-        uniform vec4 fill;
-        uniform vec4 stroke;
+        uniform vec3 fill;
+        uniform vec3 stroke;
         uniform float strokeWidth;
 
         varying vec2 localPosition;
 
         void main () {
-          vec2 ellipseStroke = localPosition / dimensions;
-          vec2 ellipseFill = localPosition / (dimensions - 2.0 * strokeWidth * vec2(1.0, 1.0));
-
-          if ( dot(ellipseFill, ellipseFill) < 0.25 )
-              gl_FragColor = fill;
-          else if ( dot(ellipseStroke, ellipseStroke) < 0.25 )
-              gl_FragColor = stroke;
+          float xx = localPosition.x * localPosition.x;
+          float yy =  localPosition.y * localPosition.y;
         }
     |]
