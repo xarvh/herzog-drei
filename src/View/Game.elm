@@ -1,15 +1,14 @@
 module View.Game exposing (..)
 
-import Math.Matrix4 as Mat4 exposing (Mat4)
-import Math.Vector3 as Vec3 exposing (Vec3, vec3)
-import WebGL exposing (Entity, Mesh, Shader)
 import Base
 import ColorPattern exposing (ColorPattern, neutral)
 import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
 import Map exposing (Map)
+import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Math.Vector3 as Vec3 exposing (Vec3, vec3)
 import Mech
 import Set exposing (Set)
 import SetupPhase
@@ -28,6 +27,7 @@ import View.Hud
 import View.Mech
 import View.Projectile
 import View.Sub
+import WebGL exposing (Entity, Mesh, Shader)
 
 
 checkersBackground : Game -> Svg a
@@ -408,35 +408,42 @@ view terrain viewport game =
             mechVsUnit units
 
         normalizedSize =
-          SplitScreen.normalizedSize viewport
-
-
+            SplitScreen.normalizedSize viewport
 
         viewportScale =
-          2 / tilesToViewport game viewport
+            2 / tilesToViewport game viewport
 
         shake =
-          Vec2.toRecord game.shakeVector
+            Vec2.toRecord game.shakeVector
 
-        camera =
-          Mat4.identity
-            |> Mat4.scale (vec3 (viewportScale / normalizedSize.width) (viewportScale / normalizedSize.height) 1)
-            |> Mat4.translate (vec3 shake.x shake.y 0)
+        worldToCamera =
+            Mat4.identity
+                |> Mat4.scale (vec3 (viewportScale / normalizedSize.width) (viewportScale / normalizedSize.height) 1)
+                |> Mat4.translate (vec3 shake.x shake.y 0)
 
+        e1 =
+            entity (vec2 10 3) (Mat4.makeTranslate (vec3 10 0 0)) worldToCamera
 
+        e2 =
+            entity (vec2 2 3) (Mat4.makeTranslate (vec3 -10 0 0)) worldToCamera
     in
     WebGL.toHtml
-      (SplitScreen.viewportToWebGLAttributes viewport)
-      [ entity camera ]
+        (SplitScreen.viewportToWebGLAttributes viewport)
+        [ e1
+        , e2
+        ]
 
 
-entity : Mat4 -> Entity
-entity camera =
-  WebGL.entity
-    vertexShader
-    fragmentShader
-    mesh
-    { perspective = camera }
+entity : Vec2 -> Mat4 -> Mat4 -> Entity
+entity normalSize entityToWorld worldToCamera =
+    WebGL.entity
+        vertexShader
+        fragmentShader
+        normalQuad
+        { normalSize = normalSize
+        , entityToWorld = entityToWorld
+        , worldToCamera = worldToCamera
+        }
 
 
 type alias Vertex =
@@ -445,124 +452,136 @@ type alias Vertex =
     }
 
 
-mesh : Mesh Vertex
-mesh =
+normalQuad : Mesh Vertex
+normalQuad =
     WebGL.triangles
-        [ ( Vertex (vec2 -0.4 -0.4) (vec3 1 0 0)
-          , Vertex (vec2 0.4 -0.4) (vec3 0 1 0)
-          , Vertex (vec2 0.4 0.4) (vec3 0 0 1)
+        [ ( Vertex (vec2 -0.5 -0.5) (vec3 1 0 0)
+          , Vertex (vec2 0.5 -0.5) (vec3 0 1 0)
+          , Vertex (vec2 0.5 0.5) (vec3 0 0 1)
           )
-        , ( Vertex (vec2 -0.4 -0.4) (vec3 1 0 1)
-          , Vertex (vec2 -0.4 0.4) (vec3 1 1 0)
-          , Vertex (vec2 0.4 0.4) (vec3 0 1 1)
+        , ( Vertex (vec2 -0.5 -0.5) (vec3 1 0 1)
+          , Vertex (vec2 -0.5 0.5) (vec3 1 1 0)
+          , Vertex (vec2 0.5 0.5) (vec3 0 1 1)
           )
         ]
 
 
-
-perspective : Float -> Mat4
-perspective t =
-    Mat4.mul
-        (Mat4.makePerspective 45 1 0.01 100)
-        (Mat4.makeLookAt (vec3 (4 * cos t) 0 (4 * sin t)) (vec3 0 0 0) (vec3 0 1 0))
-
-
 type alias Uniforms =
-    { perspective : Mat4 }
+    { normalSize : Vec2
+    , entityToWorld : Mat4
+    , worldToCamera : Mat4
+    }
 
 
-vertexShader : Shader Vertex Uniforms { vcolor : Vec3 }
+vertexShader : Shader Vertex Uniforms { vcolor : Vec3, localPosition : Vec2 }
 vertexShader =
     [glsl|
+        precision mediump float;
+
         attribute vec2 position;
         attribute vec3 color;
-        uniform mat4 perspective;
+
+        uniform vec2 normalSize;
+        uniform mat4 entityToWorld;
+        uniform mat4 worldToCamera;
+
+        varying vec2 localPosition;
         varying vec3 vcolor;
+
         void main () {
-            gl_Position = perspective * vec4(position, 0.0, 1.0);
+            localPosition = normalSize * position;
+            gl_Position = worldToCamera * entityToWorld * vec4(localPosition, 0, 1);
             vcolor = color;
         }
     |]
 
 
-fragmentShader : Shader {} Uniforms { vcolor : Vec3 }
+fragmentShader : Shader {} Uniforms { localPosition : Vec2, vcolor : Vec3 }
 fragmentShader =
     [glsl|
         precision mediump float;
+
+        uniform vec2 normalSize;
+
         varying vec3 vcolor;
+        varying vec2 localPosition;
+
+        float size = 1.0;
+
         void main () {
-            gl_FragColor = vec4(vcolor, 1.0);
+            if ( localPosition.x > size - normalSize.x / 2.0
+              && localPosition.x < -size + normalSize.x / 2.0
+              && localPosition.y > size - normalSize.y / 2.0
+              && localPosition.y < -size + normalSize.y / 2.0
+              )
+              gl_FragColor = vec4(0, 0, 0, 1);
+            else
+              gl_FragColor = vec4(vcolor, 1.0);
         }
     |]
 
 
 
+{-
+   Svg.svg
+       (SplitScreen.viewportToSvgAttributes viewport)
+       [ Svg.g
+           [ transform
+             [ "scale(1 -1)", scale (1 / tilesToViewport game viewport)
+             , translate game.shakeVector
+             ]
+           ]
+           [ Svg.Lazy.lazy View.Background.terrain terrain
+           , g (maybeOpacity game)
+               [ case game.mode of
+                   GameModeTeamSelection _ ->
+                       SetupPhase.view terrain game
 
-
-
-    {-
-    Svg.svg
-        (SplitScreen.viewportToSvgAttributes viewport)
-        [ Svg.g
-            [ transform
-              [ "scale(1 -1)", scale (1 / tilesToViewport game viewport)
-              , translate game.shakeVector
-              ]
-            ]
-            [ Svg.Lazy.lazy View.Background.terrain terrain
-            , g (maybeOpacity game)
-                [ case game.mode of
-                    GameModeTeamSelection _ ->
-                        SetupPhase.view terrain game
-
-                    _ ->
-                        text ""
-                , subs
-                    |> List.filter (\( u, s ) -> s.mode == UnitModeFree)
-                    |> List.map (viewSub game)
-                    |> g []
-                , game.wallTiles
-                    |> Set.toList
-                    |> List.map wall
-                    |> g []
-                , game.baseById
-                    |> Dict.values
-                    |> List.map (viewBase game)
-                    |> g []
-                , subs
-                    |> List.filter (\( u, s ) -> s.mode /= UnitModeFree)
-                    |> List.map (viewSub game)
-                    |> g []
-                , mechs
-                    |> List.map (viewMech game)
-                    |> g []
-                , if game.mode /= GameModeVersus then
-                    text ""
-                  else
-                    [ game.leftTeam, game.rightTeam ]
-                        |> List.map (viewMarker game)
-                        |> g []
-                , game.projectileById
-                    |> Dict.values
-                    |> List.map (viewProjectile game.time)
-                    |> g []
-                , game.cosmetics
-                    |> List.map View.Gfx.render
-                    |> g []
-                , units
-                    |> List.map viewHealthbar
-                    |> g []
-                , units
-                    |> List.map (viewCharge game)
-                    |> g []
-                ]
-            ]
-        , viewVictory game
-        ]
-    -}
-
-
-
+                   _ ->
+                       text ""
+               , subs
+                   |> List.filter (\( u, s ) -> s.mode == UnitModeFree)
+                   |> List.map (viewSub game)
+                   |> g []
+               , game.wallTiles
+                   |> Set.toList
+                   |> List.map wall
+                   |> g []
+               , game.baseById
+                   |> Dict.values
+                   |> List.map (viewBase game)
+                   |> g []
+               , subs
+                   |> List.filter (\( u, s ) -> s.mode /= UnitModeFree)
+                   |> List.map (viewSub game)
+                   |> g []
+               , mechs
+                   |> List.map (viewMech game)
+                   |> g []
+               , if game.mode /= GameModeVersus then
+                   text ""
+                 else
+                   [ game.leftTeam, game.rightTeam ]
+                       |> List.map (viewMarker game)
+                       |> g []
+               , game.projectileById
+                   |> Dict.values
+                   |> List.map (viewProjectile game.time)
+                   |> g []
+               , game.cosmetics
+                   |> List.map View.Gfx.render
+                   |> g []
+               , units
+                   |> List.map viewHealthbar
+                   |> g []
+               , units
+                   |> List.map (viewCharge game)
+                   |> g []
+               ]
+           ]
+       , viewVictory game
+       ]
+-}
 -- Map editor
 
 
