@@ -41,11 +41,16 @@ normalizedQuadMesh =
 
 rect : Uniforms -> Entity
 rect =
-    WebGL.entity rectVertexShader rectFragmentShader normalizedQuadMesh
+    WebGL.entity quadVertexShader rectFragmentShader normalizedQuadMesh
 
 
-rectVertexShader : Shader Attributes Uniforms Varying
-rectVertexShader =
+ellipse : Uniforms -> Entity
+ellipse =
+    WebGL.entity quadVertexShader ellipseFragmentShader normalizedQuadMesh
+
+
+quadVertexShader : Shader Attributes Uniforms Varying
+quadVertexShader =
     [glsl|
         precision mediump float;
 
@@ -87,6 +92,30 @@ rectFragmentShader =
               )
               gl_FragColor = fill;
             else
+              gl_FragColor = stroke;
+        }
+    |]
+
+ellipseFragmentShader : Shader {} Uniforms Varying
+ellipseFragmentShader =
+    [glsl|
+        precision mediump float;
+
+        uniform mat4 entityToCamera;
+        uniform vec2 dimensions;
+        uniform vec4 fill;
+        uniform vec4 stroke;
+        uniform float strokeWidth;
+
+        varying vec2 localPosition;
+
+        void main () {
+          vec2 ellipseStroke = localPosition / dimensions;
+          vec2 ellipseFill = localPosition / (dimensions - 2.0 * strokeWidth * vec2(1.0, 1.0));
+
+          if ( dot(ellipseFill, ellipseFill) < 0.25 )
+              gl_FragColor = fill;
+          else if ( dot(ellipseStroke, ellipseStroke) < 0.25 )
               gl_FragColor = stroke;
         }
     |]
