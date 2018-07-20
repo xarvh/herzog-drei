@@ -1,11 +1,11 @@
-module Svgl.Primitives exposing (..)
+module Svgl.Primitives exposing (Uniforms, ellipse, rect)
 
 import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
-import Math.Vector4 as Vec4 exposing (Vec4, vec4)
 import WebGL exposing (Entity, Mesh, Shader)
-
+import WebGL.Settings exposing (Setting)
+import WebGL.Settings.Blend as Blend
 
 
 type alias Attributes =
@@ -15,14 +15,29 @@ type alias Attributes =
 type alias Uniforms =
     { entityToCamera : Mat4
     , dimensions : Vec2
-    , fill : Vec4
-    , stroke : Vec4
+    , fill : Vec3
+    , stroke : Vec3
     , strokeWidth : Float
     }
 
 
 type alias Varying =
     { localPosition : Vec2 }
+
+
+settings : List Setting
+settings =
+    [ Blend.add Blend.srcAlpha Blend.oneMinusSrcAlpha ]
+
+
+rect : Uniforms -> Entity
+rect =
+    WebGL.entityWith settings quadVertexShader rectFragmentShader normalizedQuadMesh
+
+
+ellipse : Uniforms -> Entity
+ellipse =
+    WebGL.entityWith settings quadVertexShader ellipseFragmentShader normalizedQuadMesh
 
 
 normalizedQuadMesh : Mesh Attributes
@@ -39,16 +54,6 @@ normalizedQuadMesh =
         ]
 
 
-rect : Uniforms -> Entity
-rect =
-    WebGL.entity quadVertexShader rectFragmentShader normalizedQuadMesh
-
-
-ellipse : Uniforms -> Entity
-ellipse =
-    WebGL.entity quadVertexShader ellipseFragmentShader normalizedQuadMesh
-
-
 quadVertexShader : Shader Attributes Uniforms Varying
 quadVertexShader =
     [glsl|
@@ -58,14 +63,14 @@ quadVertexShader =
 
         uniform mat4 entityToCamera;
         uniform vec2 dimensions;
-        uniform vec4 fill;
-        uniform vec4 stroke;
+        uniform vec3 fill;
+        uniform vec3 stroke;
         uniform float strokeWidth;
 
         varying vec2 localPosition;
 
         void main () {
-            localPosition = (dimensions + vec2(strokeWidth, strokeWidth)) * position;
+            localPosition = (dimensions + strokeWidth) * position;
             gl_Position = entityToCamera * vec4(localPosition, 0, 1);
         }
     |]
@@ -78,23 +83,37 @@ rectFragmentShader =
 
         uniform mat4 entityToCamera;
         uniform vec2 dimensions;
-        uniform vec4 fill;
-        uniform vec4 stroke;
+        uniform vec3 fill;
+        uniform vec3 stroke;
         uniform float strokeWidth;
 
         varying vec2 localPosition;
 
+        // TODO: transform into `pixelSize`, make it a uniform
+        float pixelsPerTile = 30.0;
+        float e = 1.0 / pixelsPerTile;
+
+        /*
+         *     0               1                            1                     0
+         *     |------|--------|----------------------------|----------|----------|
+         *  -edge-e  -edge  -edge+e                      edge-e      edge      edge+e
+         */
+        float mirrorStep (float edge, float p) {
+          return smoothstep(-edge - e, -edge + e, p) - smoothstep(edge - e, edge + e, p);
+        }
+
         void main () {
-            if ( localPosition.x > strokeWidth - dimensions.x / 2.0
-              && localPosition.x < -strokeWidth + dimensions.x / 2.0
-              && localPosition.y > strokeWidth - dimensions.y / 2.0
-              && localPosition.y < -strokeWidth + dimensions.y / 2.0
-              )
-              gl_FragColor = fill;
-            else
-              gl_FragColor = stroke;
+          vec2 strokeSize = dimensions / 2.0;
+          vec2 fillSize = dimensions / 2.0 - strokeWidth;
+
+          float alpha = mirrorStep(strokeSize.x, localPosition.x) * mirrorStep(strokeSize.y, localPosition.y);
+          float fillVsStroke = mirrorStep(fillSize.x, localPosition.x) * mirrorStep(fillSize.y, localPosition.y);
+          vec3 color = mix(fill, stroke, fillVsStroke);
+
+          gl_FragColor = vec4(color, alpha);
         }
     |]
+
 
 ellipseFragmentShader : Shader {} Uniforms Varying
 ellipseFragmentShader =
@@ -103,19 +122,70 @@ ellipseFragmentShader =
 
         uniform mat4 entityToCamera;
         uniform vec2 dimensions;
-        uniform vec4 fill;
-        uniform vec4 stroke;
+        uniform vec3 fill;
+        uniform vec3 stroke;
         uniform float strokeWidth;
 
         varying vec2 localPosition;
 
-        void main () {
-          vec2 ellipseStroke = localPosition / dimensions;
-          vec2 ellipseFill = localPosition / (dimensions - 2.0 * strokeWidth * vec2(1.0, 1.0));
+        // TODO: transform into `pixelSize`, make it a uniform
+        float pixelsPerTile = 30.0;
+        float e = 1.0 / pixelsPerTile;
 
-          if ( dot(ellipseFill, ellipseFill) < 0.25 )
-              gl_FragColor = fill;
-          else if ( dot(ellipseStroke, ellipseStroke) < 0.25 )
-              gl_FragColor = stroke;
+
+        float smoothEllipse(vec2 position, vec2 radii) {
+          float x = position.x;
+          float y = position.y;
+          float w = radii.x;
+          float h = radii.y;
+
+          float xx = x * x;
+          float yy = y * y;
+          float ww = w * w;
+          float hh = h * h;
+
+          // We will need the assumption that we are not too far from the ellipse
+          float ew = w + e;
+          float eh = h + e;
+
+          if ( xx / (ew * ew) + yy / (eh * eh) > 1.0 ) {
+            return 1.0;
+          }
+
+          /*
+          Given an ellipse Q with radii W and H, the ellipse P whose every point
+          has distance D from the closest point in A is given by:
+
+            x^2       y^2
+          ------- + ------- = 1
+          (W+D)^2   (H+D)^2
+
+          Assuming D << W and D << H we can solve for D dropping the terms in
+          D^3 and D^4.
+          We obtain: a * d^2 + b * d + c = 0
+          */
+
+          float c = xx * hh + yy * ww - ww * hh;
+          float b = 2.0 * (h * xx + yy * w - h * ww - w * hh);
+          float a = xx + yy - ww - hh - 4.0 * w * h;
+
+          float delta = sqrt(b * b - 4.0 * a * c);
+          //float solution1 = (-b + delta) / (2.0 * a);
+          float solution2 = (-b - delta) / (2.0 * a);
+
+          return smoothstep(-e, e, solution2);
+        }
+
+
+        void main () {
+          vec2 strokeSize = dimensions / 2.0;
+          vec2 fillSize = strokeSize - strokeWidth;
+
+          float alpha = 1.0 - smoothEllipse(localPosition, strokeSize);
+          float fillVsStroke = 1.0 - smoothEllipse(localPosition, fillSize);
+
+          vec3 color = mix(fill, stroke, fillVsStroke);
+
+          gl_FragColor = vec4(color, alpha);
         }
     |]
