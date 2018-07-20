@@ -426,7 +426,7 @@ view terrain viewport game =
             Svgl.Primitives.rect
                 { dimensions = vec2 10 3
                 , fill = vec3 1 0 0
-                , stroke = vec3 0 0 1
+                , stroke = vec3 0.5 0 0
                 , strokeWidth = 0.1
                 , entityToCamera =
                   Mat4.identity
@@ -437,7 +437,7 @@ view terrain viewport game =
 
         e2 =
             Svgl.Primitives.ellipse
-                { dimensions = vec2 8 5
+                { dimensions = vec2 10 17
                 , fill = vec3 0 1 0
                 , stroke = vec3 0 0.5 0
                 , strokeWidth = 0.1

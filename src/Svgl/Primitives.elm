@@ -83,33 +83,28 @@ rectFragmentShader =
 
         varying vec2 localPosition;
 
+        // TODO: transform into `pixelSize`, make it a uniform
         float pixelsPerTile = 30.0;
         float e = 1.0 / pixelsPerTile;
 
-
-
-/*
-       0               1                            1                     0
-       |------|--------|----------------------------|----------|----------|
-    -edge-e  -edge  -edge+e                      edge-e      edge      edge+e
-*/
-
-
-
-        float mirrorStep(float edge, float p) {
+        /*
+         *     0               1                            1                     0
+         *     |------|--------|----------------------------|----------|----------|
+         *  -edge-e  -edge  -edge+e                      edge-e      edge      edge+e
+         */
+        float mirrorStep (float edge, float p) {
           return smoothstep(-edge - e, -edge + e, p) - smoothstep(edge - e, edge + e, p);
         }
-
-
-
 
         void main () {
           vec2 strokeSize = dimensions / 2.0;
           vec2 fillSize = dimensions / 2.0 - strokeWidth;
 
-          float ax = mirrorStep(strokeSize.x, localPosition.x);
+          float alpha = mirrorStep(strokeSize.x, localPosition.x) * mirrorStep(strokeSize.y, localPosition.y);
+          float fillVsStroke = mirrorStep(fillSize.x, localPosition.x) * mirrorStep(fillSize.y, localPosition.y);
+          vec3 color = mix(fill, stroke, fillVsStroke);
 
-          gl_FragColor = vec4(1.0, 0.0, 0.0, ax);
+          gl_FragColor = vec4(color, alpha);
         }
     |]
 
@@ -126,8 +121,45 @@ ellipseFragmentShader =
 
         varying vec2 localPosition;
 
+        // TODO: transform into `pixelSize`, make it a uniform
+        float pixelsPerTile = 30.0;
+        float e = 1.0 / pixelsPerTile;
+
+        /*
+         *     0               1                            1                     0
+         *     |------|--------|----------------------------|----------|----------|
+         *  -edge-e  -edge  -edge+e                      edge-e      edge      edge+e
+         */
+        float mirrorStep (float edge, float p) {
+          return smoothstep(-edge - e, -edge + e, p) - smoothstep(edge - e, edge + e, p);
+        }
+
         void main () {
-          float xx = localPosition.x * localPosition.x;
-          float yy =  localPosition.y * localPosition.y;
+          float x = localPosition.x / 0.5;
+          float y = localPosition.y / 0.5;
+          float w = dimensions.x / 2.0;
+          float h = dimensions.y / 2.0;
+
+          float xx = x * x;
+          float yy = y * y;
+          float ww = w * w;
+          float hh = h * h;
+
+          float c = xx * hh + yy * ww - ww * hh;
+          float b = 2.0 * (h * xx + yy * w - h * ww - w * hh);
+          float a = xx + yy - ww - hh - 4.0 * w * h;
+
+          float delta = sqrt(b * b - 4.0 * a * c);
+          float s1 = (-b + delta) / (2.0 * a);
+          float s2 = (-b - delta) / (2.0 * a);
+
+          // distance from the ellipse border
+          float d = max(s1, s2);
+
+          float q = 1.0 - smoothstep(-e, e, d);
+
+          float p = (xx / ww + yy / hh < 1.0) ? 0.0 : 0.50;
+
+          gl_FragColor = vec4(q, 0.0, 0.0, 1.0);
         }
     |]
