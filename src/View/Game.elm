@@ -431,7 +431,7 @@ view terrain viewport game =
                 , entityToCamera =
                   Mat4.identity
                     |> Mat4.translate (vec3 10 0 0)
-                    |> Mat4.rotate (turns 0) (vec3 0 0 1)
+                    |> Mat4.rotate (turns 0.3) (vec3 0 0 1)
                     |> Mat4.mul worldToCamera
                 }
 
@@ -442,7 +442,10 @@ view terrain viewport game =
                 , stroke = vec3 0 0.5 0
                 , strokeWidth = 0.5
                 , entityToCamera =
-                    Mat4.makeTranslate (vec3 -10 0 0) |> Mat4.mul worldToCamera
+                  Mat4.identity
+                    |> Mat4.translate (vec3 -10 0 0)
+                    |> Mat4.rotate (degrees 20) (vec3 0 0 1)
+                    |> Mat4.mul worldToCamera
                 }
     in
     WebGL.toHtml

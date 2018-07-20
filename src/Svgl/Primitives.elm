@@ -6,7 +6,6 @@ import Math.Vector3 as Vec3 exposing (Vec3, vec3)
 import WebGL exposing (Entity, Mesh, Shader)
 
 
-
 type alias Attributes =
     { position : Vec2 }
 
@@ -108,6 +107,7 @@ rectFragmentShader =
         }
     |]
 
+
 ellipseFragmentShader : Shader {} Uniforms Varying
 ellipseFragmentShader =
     [glsl|
@@ -126,11 +126,11 @@ ellipseFragmentShader =
         float e = 1.0 / pixelsPerTile;
 
 
-        float smoothEllipse(vec2 position, vec2 diameters) {
+        float smoothEllipse(vec2 position, vec2 radii) {
           float x = position.x;
           float y = position.y;
-          float w = diameters.x / 2.0;
-          float h = diameters.y / 2.0;
+          float w = radii.x;
+          float h = radii.y;
 
           float xx = x * x;
           float yy = y * y;
@@ -172,10 +172,10 @@ ellipseFragmentShader =
 
         void main () {
           vec2 strokeSize = dimensions / 2.0;
-          vec2 fillSize = dimensions / 2.0 - strokeWidth;
+          vec2 fillSize = strokeSize - strokeWidth;
 
-          float alpha = 1.0 - smoothEllipse(localPosition, dimensions);
-          float fillVsStroke = 1.0 - smoothEllipse(localPosition, dimensions - strokeWidth);
+          float alpha = 1.0 - smoothEllipse(localPosition, strokeSize);
+          float fillVsStroke = 1.0 - smoothEllipse(localPosition, fillSize);
 
           vec3 color = mix(fill, stroke, fillVsStroke);
 
