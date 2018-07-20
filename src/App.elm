@@ -94,7 +94,7 @@ init flags =
     in
     noCmd
         { scene = scene
-        , maybeMenu = Just MenuMain
+        , maybeMenu = Nothing --Just MenuMain
         , selectedButton = SelectedButton ""
         , seed = seed
 

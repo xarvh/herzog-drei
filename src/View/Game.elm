@@ -434,8 +434,8 @@ view terrain viewport game =
                 }
 
         e2 =
-            Svgl.Primitives.rect
-                { dimensions = vec2 2 3
+            Svgl.Primitives.ellipse
+                { dimensions = vec2 8 5
                 , fill = vec4 0 1 0 1
                 , stroke = vec4 0 0.5 0 1
                 , strokeWidth = 0.1
