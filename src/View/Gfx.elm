@@ -4,6 +4,7 @@ import ColorPattern exposing (ColorPattern)
 import Ease
 import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
+import Math.Vector3 as Vec3 exposing (Vec3, vec3)
 import Random
 import Svg exposing (..)
 import View exposing (..)
@@ -14,6 +15,8 @@ healingGreen : ColorPattern
 healingGreen =
     { bright = "#2d0"
     , dark = "#090"
+    , brightV = vec3 0 0 0
+    , darkV = vec3 0 0 0
     , key = ""
     }
 
@@ -22,6 +25,8 @@ vampireRed : ColorPattern
 vampireRed =
     { bright = "#f11"
     , dark = "#c33"
+    , brightV = vec3 0 0 0
+    , darkV = vec3 0 0 0
     , key = ""
     }
 

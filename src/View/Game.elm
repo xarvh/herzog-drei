@@ -135,8 +135,8 @@ viewSub game ( unit, subRecord ) =
             unit.lookAngle
             unit.moveAngle
             unit.fireAngle
-            (vec3 0 1 0) --colorPattern.bright
-            (vec3 0 0.5 0) --colorPattern.dark
+            colorPattern.brightV
+            colorPattern.darkV
             subRecord.isBig
 
         --, View.Sub.collider unit.moveAngle (vec2 0 0) |> View.renderCollider

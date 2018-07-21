@@ -107,8 +107,8 @@ rectFragmentShader =
           vec2 fillSize = dimensions / 2.0 - strokeWidth;
 
           float alpha = mirrorStep(strokeSize.x, localPosition.x) * mirrorStep(strokeSize.y, localPosition.y);
-          float fillVsStroke = mirrorStep(fillSize.x, localPosition.x) * mirrorStep(fillSize.y, localPosition.y);
-          vec3 color = mix(fill, stroke, fillVsStroke);
+          float strokeVsFill = mirrorStep(fillSize.x, localPosition.x) * mirrorStep(fillSize.y, localPosition.y);
+          vec3 color = mix(stroke, fill, strokeVsFill);
 
           gl_FragColor = vec4(color, alpha);
         }
@@ -182,7 +182,7 @@ ellipseFragmentShader =
           vec2 fillSize = strokeSize - strokeWidth;
 
           float alpha = 1.0 - smoothEllipse(localPosition, strokeSize);
-          float fillVsStroke = 1.0 - smoothEllipse(localPosition, fillSize);
+          float fillVsStroke = smoothEllipse(localPosition, fillSize);
 
           vec3 color = mix(fill, stroke, fillVsStroke);
 

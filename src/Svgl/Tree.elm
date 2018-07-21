@@ -99,7 +99,7 @@ entity primitive p =
                     , dimensions = vec2 p.w p.h
                     , fill = p.fill
                     , stroke = p.stroke
-                    , strokeWidth = 0.03
+                    , strokeWidth = 0.05
                     }
             )
         ]
