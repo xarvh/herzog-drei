@@ -302,9 +302,12 @@ render cosmetic =
                     [ transform [ translate headPosition ]
                     , opacity (1 - t * t)
                     ]
+                    []
+                    {- TODO
                     [ View.Mech.head class 0 colorPattern.dark colorPattern.bright angle
-                    , View.Mech.headOverlay (0.3 + 0.3 * sin (cosmetic.age * 30)) angle
+                    View.Mech.headOverlay (0.3 + 0.3 * sin (cosmetic.age * 30)) angle
                     ]
+                    -}
                 ]
 
         GfxRepairBubble position ->

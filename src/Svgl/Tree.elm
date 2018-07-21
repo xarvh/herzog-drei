@@ -4,7 +4,7 @@ import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
 import Svgl.Primitives as Primitives
-import WebGL exposing (Entity, Mesh, Shader)
+import WebGL exposing (Mesh, Shader)
 
 
 type alias Transform =
@@ -12,6 +12,10 @@ type alias Transform =
     , translateY : Float
     , rotate : Float
     }
+
+
+type alias Entity =
+    ( Float, WebGL.Entity )
 
 
 type Node
@@ -76,6 +80,7 @@ rotateRad radians =
 type alias Params =
     { x : Float
     , y : Float
+    , z : Float
     , rotate : Float
     , w : Float
     , h : Float
@@ -84,8 +89,12 @@ type alias Params =
     }
 
 
-entity : (Primitives.Uniforms -> Entity) -> Params -> Node
-entity primitive p =
+entity =
+    entityWithStroke 0.025
+
+
+entityWithStroke : Float -> (Primitives.Uniforms -> WebGL.Entity) -> Params -> Node
+entityWithStroke strokeWidth primitive p =
     Nod
         [ { translateX = p.x
           , translateY = p.y
@@ -94,13 +103,15 @@ entity primitive p =
         ]
         [ Ent
             (\entityToCamera ->
-                primitive
+                ( p.z
+                , primitive
                     { entityToCamera = entityToCamera
                     , dimensions = vec2 p.w p.h
                     , fill = p.fill
                     , stroke = p.stroke
-                    , strokeWidth = 0.05
+                    , strokeWidth = strokeWidth
                     }
+                )
             )
         ]
 
@@ -108,6 +119,11 @@ entity primitive p =
 rect : Params -> Node
 rect =
     entity Primitives.rect
+
+
+ellipseWithStroke : Float -> Params -> Node
+ellipseWithStroke strokeWidth =
+    entityWithStroke strokeWidth Primitives.ellipse
 
 
 ellipse : Params -> Node

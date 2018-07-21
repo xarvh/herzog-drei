@@ -1,27 +1,33 @@
 module View.Mech exposing (..)
 
+import Colors
 import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
-import Svg exposing (..)
-import View exposing (..)
-import View.Propeller
+import Math.Vector3 as Vec3 exposing (Vec3, vec3)
+import Svgl.Tree exposing (..)
+import View
 
 
-{-| TODO: this should go inside View
--}
-strokeW : Svg.Attribute a
-strokeW =
-    strokeWidth 0.06
+-- import Game exposing (..)
+-- import View.Propeller
 
 
 type alias Args =
     { transformState : Float
     , lookAngle : Angle
     , fireAngle : Angle
-    , fill : String
-    , stroke : String
+    , fill : Vec3
+    , stroke : Vec3
     , time : Seconds
     }
+
+
+mechHeight =
+    0.4
+
+
+flyingHeight =
+    mechHeight
 
 
 
@@ -58,78 +64,98 @@ rightGunOffset t torsoAngle =
 
 
 
--- draw helpers (chuck these in View too?)
+--
 
 
-type alias RectangleArgs =
+type alias ParamsNoColors =
     { x : Float
     , y : Float
+    , z : Float
+    , a : Float
     , w : Float
     , h : Float
-    , a : Float
     }
 
 
-rectangleColor : String -> String -> RectangleArgs -> Svg a
-rectangleColor fillColor strokeColor ar =
-    rect
-        [ transform [ translate2 ar.x ar.y, rotateDeg ar.a ]
-        , fill fillColor
-        , stroke strokeColor
-        , strokeW
-        , width ar.w
-        , height ar.h
-        , x (-ar.w / 2)
-        , y (-ar.h / 2)
-        ]
+primitiveColor : (Params -> Node) -> Vec3 -> Vec3 -> ParamsNoColors -> Node
+primitiveColor primitive fill stroke { x, y, z, a, w, h } =
+    primitive
+        { fill = fill
+        , stroke = stroke
+        , x = x
+        , y = y
+        , z = z
+        , rotate = degrees a
+        , w = w
+        , h = h
+        }
+
+
+rectangleColor =
+    primitiveColor rect
+
+
+ellipseColor =
+    primitiveColor ellipse
+
+
+mirrorRectanglesColor : Vec3 -> Vec3 -> ParamsNoColors -> Node
+mirrorRectanglesColor fill stroke params =
+    Nod
         []
-
-
-mirrorRectanglesColor : String -> String -> RectangleArgs -> Svg a
-mirrorRectanglesColor fillColor strokeColor ar =
-    g []
-        [ rectangleColor fillColor strokeColor { ar | x = -ar.x, a = -ar.a }
-        , rectangleColor fillColor strokeColor ar
+        [ rectangleColor fill stroke { params | x = -params.x, a = -params.a }
+        , rectangleColor fill stroke params
         ]
 
 
-ellipseColor : String -> String -> { x : Float, y : Float, w : Float, h : Float } -> Svg a
-ellipseColor fillColor strokeColor ar =
-    Svg.ellipse
-        [ cx ar.x
-        , cy ar.y
-        , rx (ar.w / 2)
-        , ry (ar.h / 2)
-        , fill fillColor
-        , stroke strokeColor
-        , strokeW
-        ]
-        []
+guns : { x : Float, y : Float, w : Float, h : Float } -> Node
+guns { x, y, w, h } =
+    mirrorRectanglesColor
+        Colors.gunFill
+        Colors.gunStroke
+        { x = x
+        , y = y
+        , z = 0.4 * mechHeight
+        , a = 0
+        , w = w
+        , h = h
+        }
 
 
-guns : { x : Float, y : Float, w : Float, h : Float } -> Svg a
-guns ar =
-    mirrorRectanglesColor "#666" "#808080" { x = ar.x, y = ar.y, w = ar.w, h = ar.h, a = 0 }
+eye : { x : Float, y : Float, a : Float } -> Node
+eye { x, y, a } =
+    ellipseWithStroke 0.02
+        { fill = Colors.red
+        , stroke = Colors.darkRed
+        , x = x
+        , y = y
+        , z = mechHeight
+        , rotate = degrees a
+        , w = 0.1
+        , h = 0.16
+        }
 
 
-eye : { x : Float, y : Float, a : Float } -> Svg a
-eye ar =
-    Svg.ellipse
-        [ transform [ translate2 ar.x ar.y, rotateDeg ar.a ]
-        , fill "#f80000"
-        , stroke "#990000"
-        , strokeWidth 0.03
-        , ry 0.08
-        , rx 0.05
-        ]
-        []
+raise : Float -> Node -> Node
+raise dz node =
+    case node of
+        Nod transforms children ->
+            Nod transforms (List.map (raise dz) children)
+
+        Ent f ->
+            Ent (f >> Tuple.mapFirst ((+) dz))
+
+
+raiseList : Float -> List Node -> Node
+raiseList dz list =
+    raise dz (Nod [] list)
 
 
 
 -- Blimp =====================================================================
 
 
-blimp : Args -> Svg a
+blimp : Args -> Node
 blimp args =
     let
         smooth =
@@ -176,9 +202,9 @@ blimp args =
         shA =
             10
     in
-    g []
-        [ g
-            [ transform [ rotateRad args.fireAngle ] ]
+    raiseList args.transformState
+        [ Nod
+            [ rotateRad args.fireAngle ]
             [ guns
                 { x = smooth 0.42 0.25
                 , y = smooth 0.63 0.3
@@ -190,6 +216,7 @@ blimp args =
             , mirrorRectangles
                 { x = smooth 0.3 0.3
                 , y = smooth -0.15 -0.8
+                , z = 0.41 * mechHeight
                 , w = smooth 0.2 0.3
                 , h = 0.3
                 , a = smooth 30 45
@@ -197,6 +224,7 @@ blimp args =
             , mirrorRectangles
                 { x = smooth 0.25 0.35
                 , y = smooth -0.35 -0.94
+                , z = 0.42 * mechHeight
                 , w = smooth 0.45 0.35
                 , h = 0.2
                 , a = smooth -15 0
@@ -206,39 +234,47 @@ blimp args =
             , mirrorRectangles
                 { x = smooth 0.6 0.5
                 , y = smooth 0.2 0
+                , z = 0.43 * mechHeight
                 , w = smooth 0.7 0.5
                 , h = smooth 0.1 0.3
-                , a = smooth 80 40
+                , a = smooth (80 + 360 * 10) 40
                 }
 
             -- watermelon bottom, right gun cover
             , ellipse
                 { x = smooth armX 0
                 , y = smooth armY 0
+                , z = 0.44 * mechHeight
                 , w = smooth armW 1.0
                 , h = smooth armH 2.4
+                , a = 0
                 }
 
             -- watermelon mid, left gun cover
             , ellipse
                 { x = smooth -armX 0
                 , y = smooth armY 0
+                , z = 0.45 * mechHeight
                 , w = smooth armW 0.65
                 , h = smooth armH 2.4
+                , a = 0
                 }
 
             -- watermelon top, mech body
             , ellipse
                 { x = 0
                 , y = smooth -0.1 0
+                , z = 0.46 * mechHeight
                 , w = smooth 1.2 0.25
                 , h = smooth 0.55 2.4
+                , a = 0
                 }
 
             -- central tail winglet, shoulders
             , rectangle
                 { x = smooth shX 0
                 , y = smooth shY -0.8
+                , z = 0.47 * mechHeight
                 , w = smooth shW 0.1
                 , h = smooth shH 0.3
                 , a = smooth shA 0
@@ -246,6 +282,7 @@ blimp args =
             , rectangle
                 { x = smooth -shX 0
                 , y = smooth shY -0.94
+                , z = 0.48 * mechHeight
                 , w = smooth shW 0.1
                 , h = smooth shH 0.2
                 , a = smooth -shA 0
@@ -255,7 +292,7 @@ blimp args =
         ]
 
 
-blimpHead : Float -> String -> String -> Angle -> Svg a
+blimpHead : Float -> Vec3 -> Vec3 -> Angle -> Node
 blimpHead t fillColor strokeColor angle =
     let
         smooth =
@@ -273,13 +310,15 @@ blimpHead t fillColor strokeColor angle =
         h =
             0.2
     in
-    g
-        [ transform [ rotateRad angle ] ]
+    Nod
+        [ rotateRad angle ]
         -- central mid winglet, head
-        [ rectangleColor fillColor
+        [ rectangleColor
+            fillColor
             strokeColor
             { x = 0
             , y = 0
+            , z = 0.99 * mechHeight
             , w = smooth 0.4 0.1
             , h = smooth 0.9 0.5
             , a = 0
@@ -316,7 +355,7 @@ blimpHead t fillColor strokeColor angle =
 -- Heli ======================================================================
 
 
-heli : Args -> Svg a
+heli : Args -> Node
 heli args =
     let
         smooth =
@@ -334,9 +373,9 @@ heli args =
         ellipse =
             ellipseColor args.fill args.stroke
     in
-    g []
-        [ g
-            [ transform [ rotateRad args.fireAngle ] ]
+    raiseList args.transformState
+        [ Nod
+            [ rotateRad args.fireAngle ]
             [ guns
                 { x = 0.42
                 , y = smooth 0.63 0.33
@@ -348,6 +387,7 @@ heli args =
             , mirrorRectangles
                 { x = smooth 0.5 0.4
                 , y = smooth 0.3 0.16
+                , z = 0.41 * mechHeight
                 , w = 0.7
                 , h = 0.3
                 , a = smooth -90 20
@@ -357,22 +397,27 @@ heli args =
             , ellipse
                 { x = 0
                 , y = smooth -0.04 0
+                , z = 0.42 * mechHeight
                 , w = smooth 0.8 0.42
                 , h = smooth 0.37 1.9
+                , a = 0
                 }
 
             -- main mech body
             , ellipse
                 { x = 0
                 , y = smooth -0.04 0
+                , z = 0.43 * mechHeight
                 , w = smooth 1.4 0.42
                 , h = smooth 0.5 0.5
+                , a = 0
                 }
 
             -- engine
             , mirrorRectangles
                 { x = 0.2
                 , y = smooth -0.4 0
+                , z = 0.44 * mechHeight
                 , w = 0.2
                 , h = smooth 0.4 0.68
                 , a = 5
@@ -380,14 +425,17 @@ heli args =
             , ellipse
                 { x = 0
                 , y = smooth -0.41 0.1
+                , z = 0.45 * mechHeight
                 , w = 0.3
                 , h = smooth 0.4 0.7
+                , a = 0
                 }
 
             -- tail end
             , mirrorRectangles
                 { x = smooth -0.55 0.2
                 , y = smooth -0.05 -1.39
+                , z = 0.46 * mechHeight
                 , w = smooth 0.52 0.32
                 , h = smooth 0.42 0.12
                 , a = smooth 110 20
@@ -395,37 +443,44 @@ heli args =
             , ellipse
                 { x = 0
                 , y = smooth -0.35 -1.15
+                , z = 0.47 * mechHeight
                 , w = 0.2
                 , h = smooth 0.2 0.57
+                , a = 0
                 }
             ]
         , heliHead args.transformState args.fill args.stroke (step args.lookAngle args.fireAngle)
-        , g
-            [ transform
-                [ rotateRad args.fireAngle
-                , translate2 0 (smooth -0.41 0.1)
-                ]
-            ]
-            [ View.Propeller.propeller (2.4 * args.transformState) args.time ]
+
+        {-
+           , g
+               [ transform
+                   [ rotateRad args.fireAngle
+                   , translate2 0 (smooth -0.41 0.1)
+                   ]
+               ]
+               [ View.Propeller.propeller (2.4 * args.transformState) args.time ]
+        -}
         ]
 
 
-heliHead : Float -> String -> String -> Angle -> Svg a
+heliHead : Float -> Vec3 -> Vec3 -> Angle -> Node
 heliHead t fillColor strokeColor angle =
     let
         smooth =
             View.smooth t
     in
-    g
-        [ transform [ rotateRad angle ] ]
+    Nod
+        [ rotateRad angle ]
         -- cockpit / head
         [ ellipseColor
             fillColor
             strokeColor
             { x = 0
             , y = smooth 0.03 0.75
+            , z = 0.99 * mechHeight
             , w = smooth 0.48 0.22
             , h = smooth 0.8 0.4
+            , a = 0
             }
         , eye
             { x = 0
@@ -449,7 +504,7 @@ heliHead t fillColor strokeColor angle =
 -- Plane =====================================================================
 
 
-plane : Args -> Svg a
+plane : Args -> Node
 plane args =
     let
         smooth =
@@ -467,9 +522,9 @@ plane args =
         ellipse =
             ellipseColor args.fill args.stroke
     in
-    g []
-        [ g
-            [ transform [ rotateRad args.fireAngle ] ]
+    raiseList args.transformState
+        [ Nod
+            [ rotateRad args.fireAngle ]
             -- guns
             [ guns
                 { x = 3 * smooth 0.14 0.1
@@ -482,6 +537,7 @@ plane args =
             , mirrorRectangles
                 { x = 3 * smooth 0.18 0.25
                 , y = 3 * smooth 0.1 0.03
+                , z = 0.41 * mechHeight
                 , w = 3 * smooth 0.1 0.4
                 , h = 3 * smooth 0.23 0.15
                 , a = smooth 0 15
@@ -491,6 +547,7 @@ plane args =
             , rectangle
                 { x = 0
                 , y = 3 * smooth -0.04 0.04
+                , z = 0.42 * mechHeight
                 , w = 3 * smooth 0.45 0.3
                 , h = 3 * smooth 0.17 0.12
                 , a = 0
@@ -500,6 +557,7 @@ plane args =
             , mirrorRectangles
                 { x = 3 * smooth 0.21 0.12
                 , y = 3 * smooth -0.04 -0.25
+                , z = 0.43 * mechHeight
                 , w = 3 * smooth 0.15 0.15
                 , h = 3 * smooth 0.23 0.25
                 , a = smooth 10 -45
@@ -509,21 +567,23 @@ plane args =
         ]
 
 
-planeHead : Float -> String -> String -> Angle -> Svg a
+planeHead : Float -> Vec3 -> Vec3 -> Angle -> Node
 planeHead t fillColor strokeColor angle =
     let
         smooth =
             View.smooth t
     in
-    g
-        [ transform [ rotateRad angle ] ]
+    Nod
+        [ rotateRad angle ]
         [ ellipseColor
             fillColor
             strokeColor
             { x = 0
             , y = -0.03
+            , z = 0.99 * mechHeight
             , w = 0.48
             , h = 6 * smooth 0.17 0.34
+            , a = 0
             }
         , eye { x = 0.09, y = smooth 0.3 0.66, a = 14 }
         , eye { x = -0.09, y = smooth 0.3 0.66, a = -14 }
@@ -534,26 +594,23 @@ planeHead t fillColor strokeColor angle =
 
 
 -- Overlay
-
-
-headOverlay : Float -> Angle -> Svg a
-headOverlay op angle =
-    g
-        [ transform [ scale 3, rotateRad angle ]
-        , opacity op
-        ]
-        [ ellipse
-            [ cx 0
-            , cy -0.01
-            , rx 0.08
-            , ry 0.17
-            , fill "#fff"
-            ]
-            []
-        ]
-
-
-
+{-
+   headOverlay : Float -> Angle -> Svg a
+   headOverlay op angle =
+       g
+           [ transform [ scale 3, rotateRad angle ]
+           , opacity op
+           ]
+           [ ellipse
+               [ cx 0
+               , cy -0.01
+               , rx 0.08
+               , ry 0.17
+               , fill "#fff"
+               ]
+               []
+           ]
+-}
 -- main
 
 

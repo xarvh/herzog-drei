@@ -27,7 +27,8 @@ type alias Varying =
 
 settings : List Setting
 settings =
-    [ Blend.add Blend.srcAlpha Blend.oneMinusSrcAlpha ]
+    -- https://limnu.com/webgl-blending-youre-probably-wrong/
+    [ Blend.add Blend.one Blend.oneMinusSrcAlpha ]
 
 
 rect : Uniforms -> Entity
@@ -70,7 +71,7 @@ quadVertexShader =
         varying vec2 localPosition;
 
         void main () {
-            localPosition = (dimensions + strokeWidth) * position;
+            localPosition = (dimensions + strokeWidth * 2.0) * position;
             gl_Position = entityToCamera * vec4(localPosition, 0, 1);
         }
     |]
@@ -91,7 +92,7 @@ rectFragmentShader =
 
         // TODO: transform into `pixelSize`, make it a uniform
         float pixelsPerTile = 30.0;
-        float e = 1.0 / pixelsPerTile;
+        float e = 0.5 / pixelsPerTile;
 
         /*
          *     0               1                            1                     0
@@ -103,14 +104,14 @@ rectFragmentShader =
         }
 
         void main () {
-          vec2 strokeSize = dimensions / 2.0;
+          vec2 strokeSize = dimensions / 2.0 + strokeWidth;
           vec2 fillSize = dimensions / 2.0 - strokeWidth;
 
           float alpha = mirrorStep(strokeSize.x, localPosition.x) * mirrorStep(strokeSize.y, localPosition.y);
           float strokeVsFill = mirrorStep(fillSize.x, localPosition.x) * mirrorStep(fillSize.y, localPosition.y);
           vec3 color = mix(stroke, fill, strokeVsFill);
 
-          gl_FragColor = vec4(color, alpha);
+          gl_FragColor = alpha * vec4(color, 1.0);
         }
     |]
 
@@ -130,7 +131,7 @@ ellipseFragmentShader =
 
         // TODO: transform into `pixelSize`, make it a uniform
         float pixelsPerTile = 30.0;
-        float e = 1.0 / pixelsPerTile;
+        float e = 0.5 / pixelsPerTile;
 
 
         float smoothEllipse(vec2 position, vec2 radii) {
@@ -178,14 +179,14 @@ ellipseFragmentShader =
 
 
         void main () {
-          vec2 strokeSize = dimensions / 2.0;
-          vec2 fillSize = strokeSize - strokeWidth;
+          vec2 strokeSize = dimensions / 2.0 + strokeWidth;
+          vec2 fillSize = dimensions / 2.0 - strokeWidth;
 
           float alpha = 1.0 - smoothEllipse(localPosition, strokeSize);
           float fillVsStroke = smoothEllipse(localPosition, fillSize);
 
           vec3 color = mix(fill, stroke, fillVsStroke);
 
-          gl_FragColor = vec4(color, alpha);
+          gl_FragColor = alpha * vec4(color, 1.0);
         }
     |]
