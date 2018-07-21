@@ -27,7 +27,8 @@ type alias Varying =
 
 settings : List Setting
 settings =
-    [ Blend.add Blend.srcAlpha Blend.oneMinusSrcAlpha ]
+    -- https://limnu.com/webgl-blending-youre-probably-wrong/
+    [ Blend.add Blend.one Blend.oneMinusSrcAlpha ]
 
 
 rect : Uniforms -> Entity
@@ -110,7 +111,7 @@ rectFragmentShader =
           float strokeVsFill = mirrorStep(fillSize.x, localPosition.x) * mirrorStep(fillSize.y, localPosition.y);
           vec3 color = mix(stroke, fill, strokeVsFill);
 
-          gl_FragColor = vec4(color, alpha);
+          gl_FragColor = alpha * vec4(color, 1.0);
         }
     |]
 
@@ -186,6 +187,6 @@ ellipseFragmentShader =
 
           vec3 color = mix(fill, stroke, fillVsStroke);
 
-          gl_FragColor = vec4(color, alpha);
+          gl_FragColor = alpha * vec4(color, 1.0);
         }
     |]

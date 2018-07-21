@@ -1,8 +1,8 @@
 module View.Game exposing (..)
 
-import Colors
 import Base
 import ColorPattern exposing (ColorPattern, neutral)
+import Colors
 import Dict exposing (Dict)
 import Game exposing (..)
 import List.Extra
@@ -97,29 +97,39 @@ view terrain viewport game =
                 }
 
         node1 =
-          Nod
-            [ rotateRad (degrees 20), translate2 10 0]
-            [ rect
-                { fill = Colors.gunFill
-                , stroke = Colors.gunStroke
-                , x = 0
-                , y = 0
-                , rotate = game.time / 4
-                , w = 6
-                , h = 2
-                }
-            ]
-
-
+            Nod
+                [ rotateRad (degrees 20), translate2 10 0 ]
+                [ rect
+                    { fill = Colors.gunFill
+                    , stroke = Colors.gunStroke
+                    , x = 0
+                    , y = 0
+                    , rotate = game.time / 4
+                    , w = 6
+                    , h = 2
+                    }
+                ]
 
         node2 =
             Nod
                 []
-                (List.map (viewSub game) subs)
+                [ rect
+                    { fill = vec3 0 0 0
+                    , stroke = vec3 0 0 0
+                    , x = 0
+                    , y = 0
+                    , rotate = 0
+                    , w = 4
+                    , h = 2
+                    }
+                , Nod [] (List.map (viewSub game) subs)
+                ]
     in
-    WebGL.toHtml
+    WebGL.toHtmlWith
+        [ WebGL.depth 1
+        ]
         (SplitScreen.viewportToWebGLAttributes viewport)
---         [e1, e2]
+--                  [e1, e2]
         (treeToEntities worldToCamera node2)
 
 
