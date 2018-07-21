@@ -125,9 +125,7 @@ view terrain viewport game =
                 , Nod [] (List.map (viewSub game) subs)
                 ]
     in
-    WebGL.toHtmlWith
-        [ WebGL.depth 1
-        ]
+    WebGL.toHtml
         (SplitScreen.viewportToWebGLAttributes viewport)
 --                  [e1, e2]
         (treeToEntities worldToCamera node2)
