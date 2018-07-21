@@ -92,7 +92,7 @@ rectFragmentShader =
 
         // TODO: transform into `pixelSize`, make it a uniform
         float pixelsPerTile = 30.0;
-        float e = 1.0 / pixelsPerTile;
+        float e = 0.4 / pixelsPerTile;
 
         /*
          *     0               1                            1                     0
