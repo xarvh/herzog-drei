@@ -29,6 +29,8 @@ gunOffset torsoAngle =
 
 -- Render
 
+droneHeight = 0.2
+
 
 sub : Angle -> Angle -> Angle -> Vec3 -> Vec3 -> Bool -> Node
 sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
@@ -51,7 +53,8 @@ sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
                 { fill = Colors.gunFill
                 , stroke = Colors.gunStroke
                 , x = 0
-                , y = 0.15
+                , y = 0.21
+                , z = 0.5 * droneHeight
                 , rotate = 0
                 , w = 0.21
                 , h = 1.1
@@ -65,6 +68,7 @@ sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
                 , stroke = strokeColor
                 , x = 0
                 , y = 0
+                , z = 0.7 * droneHeight
                 , rotate = 0
                 , w = 0.9
                 , h = 0.4
@@ -78,17 +82,19 @@ sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
                 , stroke = strokeColor
                 , x = 0
                 , y = 0
+                , z = 0.9 * droneHeight
                 , rotate = 0
                 , w = 0.5
                 , h = 0.6
                 }
 
             -- eye
-            , ellipse
+            , ellipseWithStroke 0.02
                 { fill = Colors.red
                 , stroke = Colors.darkRed
                 , x = 0
                 , y = 0.135
+                , z = 1.0 * droneHeight
                 , rotate = 0
                 , w = 0.25
                 , h = 0.3

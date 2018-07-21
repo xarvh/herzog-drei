@@ -14,6 +14,7 @@ type alias Attributes =
 
 type alias Uniforms =
     { entityToCamera : Mat4
+    , z : Float
     , dimensions : Vec2
     , fill : Vec3
     , stroke : Vec3
@@ -63,6 +64,7 @@ quadVertexShader =
         attribute vec2 position;
 
         uniform mat4 entityToCamera;
+        uniform float z;
         uniform vec2 dimensions;
         uniform vec3 fill;
         uniform vec3 stroke;
@@ -71,8 +73,9 @@ quadVertexShader =
         varying vec2 localPosition;
 
         void main () {
-            localPosition = (dimensions + strokeWidth) * position;
+            localPosition = (dimensions + strokeWidth * 2.0) * position;
             gl_Position = entityToCamera * vec4(localPosition, 0, 1);
+            gl_Position.z = z;
         }
     |]
 
@@ -104,7 +107,7 @@ rectFragmentShader =
         }
 
         void main () {
-          vec2 strokeSize = dimensions / 2.0;
+          vec2 strokeSize = dimensions / 2.0 + strokeWidth;
           vec2 fillSize = dimensions / 2.0 - strokeWidth;
 
           float alpha = mirrorStep(strokeSize.x, localPosition.x) * mirrorStep(strokeSize.y, localPosition.y);
@@ -179,8 +182,8 @@ ellipseFragmentShader =
 
 
         void main () {
-          vec2 strokeSize = dimensions / 2.0;
-          vec2 fillSize = strokeSize - strokeWidth;
+          vec2 strokeSize = dimensions / 2.0 + strokeWidth;
+          vec2 fillSize = dimensions / 2.0 - strokeWidth;
 
           float alpha = 1.0 - smoothEllipse(localPosition, strokeSize);
           float fillVsStroke = smoothEllipse(localPosition, fillSize);

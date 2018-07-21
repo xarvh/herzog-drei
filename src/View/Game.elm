@@ -73,6 +73,7 @@ view terrain viewport game =
         e1 =
             Svgl.Primitives.rect
                 { dimensions = vec2 10 3
+                , z = 0
                 , fill = vec3 1 0 0
                 , stroke = vec3 0.5 0 0
                 , strokeWidth = 0.5
@@ -86,6 +87,7 @@ view terrain viewport game =
         e2 =
             Svgl.Primitives.ellipse
                 { dimensions = vec2 10 3
+                , z = 0
                 , fill = vec3 0 1 0
                 , stroke = vec3 0 0.5 0
                 , strokeWidth = 0.5
@@ -101,6 +103,7 @@ view terrain viewport game =
                 [ rotateRad (degrees 20), translate2 10 0 ]
                 [ rect
                     { fill = Colors.gunFill
+                    , z = 0
                     , stroke = Colors.gunStroke
                     , x = 0
                     , y = 0
@@ -115,6 +118,7 @@ view terrain viewport game =
                 []
                 [ rect
                     { fill = vec3 0 0 0
+                    , z = 0
                     , stroke = vec3 0 0 0
                     , x = 0
                     , y = 0

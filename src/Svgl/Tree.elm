@@ -76,6 +76,7 @@ rotateRad radians =
 type alias Params =
     { x : Float
     , y : Float
+    , z : Float
     , rotate : Float
     , w : Float
     , h : Float
@@ -84,8 +85,12 @@ type alias Params =
     }
 
 
-entity : (Primitives.Uniforms -> Entity) -> Params -> Node
-entity primitive p =
+entity =
+    entityWithStroke 0.025
+
+
+entityWithStroke : Float -> (Primitives.Uniforms -> Entity) -> Params -> Node
+entityWithStroke strokeWidth primitive p =
     Nod
         [ { translateX = p.x
           , translateY = p.y
@@ -96,10 +101,11 @@ entity primitive p =
             (\entityToCamera ->
                 primitive
                     { entityToCamera = entityToCamera
+                    , z = p.z
                     , dimensions = vec2 p.w p.h
                     , fill = p.fill
                     , stroke = p.stroke
-                    , strokeWidth = 0.04
+                    , strokeWidth = strokeWidth
                     }
             )
         ]
@@ -108,6 +114,11 @@ entity primitive p =
 rect : Params -> Node
 rect =
     entity Primitives.rect
+
+
+ellipseWithStroke : Float -> Params -> Node
+ellipseWithStroke strokeWidth =
+    entityWithStroke strokeWidth Primitives.ellipse
 
 
 ellipse : Params -> Node
