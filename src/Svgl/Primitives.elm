@@ -92,7 +92,7 @@ rectFragmentShader =
 
         // TODO: transform into `pixelSize`, make it a uniform
         float pixelsPerTile = 30.0;
-        float e = 0.4 / pixelsPerTile;
+        float e = 0.5 / pixelsPerTile;
 
         /*
          *     0               1                            1                     0
@@ -131,7 +131,7 @@ ellipseFragmentShader =
 
         // TODO: transform into `pixelSize`, make it a uniform
         float pixelsPerTile = 30.0;
-        float e = 0.4 / pixelsPerTile;
+        float e = 0.5 / pixelsPerTile;
 
 
         float smoothEllipse(vec2 position, vec2 radii) {
