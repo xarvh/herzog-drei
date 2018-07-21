@@ -1,9 +1,10 @@
 module View.Sub exposing (..)
 
+import Colors
 import Game exposing (Angle, normalizeAngle)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
-import Svg exposing (..)
-import View exposing (..)
+import Math.Vector3 as Vec3 exposing (Vec3, vec3)
+import Svgl.Tree exposing (..)
 
 
 -- Physics
@@ -29,7 +30,7 @@ gunOffset torsoAngle =
 -- Render
 
 
-sub : Angle -> Angle -> Angle -> String -> String -> Bool -> Svg a
+sub : Angle -> Angle -> Angle -> Vec3 -> Vec3 -> Bool -> Node
 sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
     let
         ( fillColor, strokeColor ) =
@@ -38,76 +39,59 @@ sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
             else
                 ( brightColor, darkColor )
 
-        {-
-           -- aimAngle - moveAngle
-           am =
-               normalizeAngle (aimAngle - moveAngle)
-
-           -- near threshold
-           thn =
-               pi / 4
-
-           -- far threshold
-           thf =
-               pi / 2
-
-           torsoDelta =
-               if am < -thf then
-                   am + thf
-               else if am < -thn then
-                   (am + thn) / 2
-               else
-                   0
-        -}
-        {- TODO
-           torsoAngle =
-               normalizeAngle (moveAngle + torsoDelta)
-        -}
         gunOrigin =
             gunOffset moveAngle
-                |> Vec2.scale 2
     in
-    g
-        [ transform [ scale 0.5 ] ]
-        [ rect
-            [ transform [ translate gunOrigin, rotateRad aimAngle ]
-            , fill "#808080"
-            , stroke "#666"
-            , strokeWidth 0.1
-            , width 0.42
-            , height 2.2
-            , x -0.21
-            , y -0.7
+    Nod
+        []
+        [ Nod
+            -- gun
+            [ translate gunOrigin, rotateRad aimAngle ]
+            [ rect
+                { fill = Colors.gunFill
+                , stroke = Colors.gunStroke
+                , x = 0
+                , y = 0.35
+                , rotate = 0
+                , w = 0.21
+                , h = 1.1
+                }
             ]
-            []
-        , rect
-            [ transform [ rotateRad moveAngle ]
-            , height 0.8
-            , width 1.8
-            , y -0.4
-            , x -0.9
-            , fill fillColor
-            , stroke strokeColor
-            , strokeWidth 0.1
+        , Nod
+            -- torso
+            [ rotateRad moveAngle ]
+            [ rect
+                { fill = fillColor
+                , stroke = strokeColor
+                , x = 0
+                , y = 0
+                , rotate = 0
+                , w = 0.9
+                , h = 0.4
+                }
             ]
-            []
-        , ellipse
-            [ transform [ rotateRad lookAngle ]
-            , fill fillColor
-            , stroke strokeColor
-            , strokeWidth 0.1
-            , rx 0.5
-            , ry 0.6
+        , Nod
+            [ rotateRad lookAngle ]
+            -- head
+            [ ellipse
+                { fill = fillColor
+                , stroke = strokeColor
+                , x = 0
+                , y = 0
+                , rotate = 0
+                , w = 0.5
+                , h = 0.6
+                }
+
+            -- eye
+            , ellipse
+                { fill = Colors.red
+                , stroke = Colors.darkRed
+                , x = 0
+                , y = 0.135
+                , rotate = 0
+                , w = 0.25
+                , h = 0.3
+                }
             ]
-            []
-        , ellipse
-            [ transform [ rotateRad lookAngle ]
-            , fill "#f00"
-            , stroke "#900"
-            , strokeWidth 0.07
-            , cy 0.27
-            , rx 0.25
-            , ry 0.3
-            ]
-            []
         ]

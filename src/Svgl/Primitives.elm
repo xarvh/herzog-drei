@@ -1,9 +1,11 @@
-module Svgl.Primitives exposing (..)
+module Svgl.Primitives exposing (Uniforms, ellipse, rect)
 
 import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
 import WebGL exposing (Entity, Mesh, Shader)
+import WebGL.Settings exposing (Setting)
+import WebGL.Settings.Blend as Blend
 
 
 type alias Attributes =
@@ -23,6 +25,21 @@ type alias Varying =
     { localPosition : Vec2 }
 
 
+settings : List Setting
+settings =
+    [ Blend.add Blend.srcAlpha Blend.oneMinusSrcAlpha ]
+
+
+rect : Uniforms -> Entity
+rect =
+    WebGL.entityWith settings quadVertexShader rectFragmentShader normalizedQuadMesh
+
+
+ellipse : Uniforms -> Entity
+ellipse =
+    WebGL.entityWith settings quadVertexShader ellipseFragmentShader normalizedQuadMesh
+
+
 normalizedQuadMesh : Mesh Attributes
 normalizedQuadMesh =
     WebGL.triangles
@@ -35,16 +52,6 @@ normalizedQuadMesh =
           , Attributes (vec2 0.5 0.5)
           )
         ]
-
-
-rect : Uniforms -> Entity
-rect =
-    WebGL.entity quadVertexShader rectFragmentShader normalizedQuadMesh
-
-
-ellipse : Uniforms -> Entity
-ellipse =
-    WebGL.entity quadVertexShader ellipseFragmentShader normalizedQuadMesh
 
 
 quadVertexShader : Shader Attributes Uniforms Varying
