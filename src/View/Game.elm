@@ -21,6 +21,7 @@ import Svgl.Tree exposing (..)
 import Unit
 import Update
 import View.Sub
+import View.Mech
 import WebGL exposing (Entity, Mesh, Shader)
 
 
@@ -70,69 +71,18 @@ view terrain viewport game =
                 |> Mat4.scale (vec3 (viewportScale / normalizedSize.width) (viewportScale / normalizedSize.height) 1)
                 |> Mat4.translate (vec3 shake.x shake.y 0)
 
-        e1 =
-            Svgl.Primitives.rect
-                { dimensions = vec2 10 3
-                , z = 0
-                , fill = vec3 1 0 0
-                , stroke = vec3 0.5 0 0
-                , strokeWidth = 0.5
-                , entityToCamera =
-                    Mat4.identity
-                        |> Mat4.translate (vec3 1 0 0)
-                        |> Mat4.rotate (turns 0.3) (vec3 0 0 1)
-                        |> Mat4.mul worldToCamera
-                }
-
-        e2 =
-            Svgl.Primitives.ellipse
-                { dimensions = vec2 10 3
-                , z = 0
-                , fill = vec3 0 1 0
-                , stroke = vec3 0 0.5 0
-                , strokeWidth = 0.5
-                , entityToCamera =
-                    Mat4.identity
-                        |> Mat4.translate (vec3 -1 0 0)
-                        |> Mat4.rotate (degrees 20) (vec3 0 0 1)
-                        |> Mat4.mul worldToCamera
-                }
-
-        node1 =
-            Nod
-                [ rotateRad (degrees 20), translate2 10 0 ]
-                [ rect
-                    { fill = Colors.gunFill
-                    , z = 0
-                    , stroke = Colors.gunStroke
-                    , x = 0
-                    , y = 0
-                    , rotate = game.time / 4
-                    , w = 6
-                    , h = 2
-                    }
-                ]
-
         node2 =
-            Nod
-                []
-                [ rect
-                    { fill = vec3 0 0 0
-                    , z = 0
-                    , stroke = vec3 0 0 0
-                    , x = 0
-                    , y = 0
-                    , rotate = 0
-                    , w = 4
-                    , h = 2
-                    }
-                , Nod [] (List.map (viewSub game) subs)
+            Nod []
+                [ Nod [] (List.map (viewSub game) subs)
+                , Nod [] (List.map (viewMech game) mechs)
                 ]
     in
     WebGL.toHtml
         (SplitScreen.viewportToWebGLAttributes viewport)
---                  [e1, e2]
-        (treeToEntities worldToCamera node2)
+        (treeToEntities worldToCamera node2
+            |> List.sortBy Tuple.first
+            |> List.map Tuple.second
+        )
 
 
 viewSub : Game -> ( Unit, SubComponent ) -> Node
@@ -155,7 +105,89 @@ viewSub game ( unit, subRecord ) =
         ]
 
 
+viewMech : Game -> ( Unit, MechComponent ) -> Node
+viewMech game ( unit, mech ) =
+    let
+        colorPattern =
+            Game.teamColorPattern game unit.maybeTeamId
+    in
+    Nod
+        [ translate unit.position ]
+        [ View.Mech.mech mech.class
+            { transformState = mech.transformState
+            , lookAngle = unit.lookAngle
+            , fireAngle = unit.fireAngle
+            , fill = colorPattern.brightV
+            , stroke = colorPattern.darkV
+            , time = game.time
+            }
 
+        --, View.Mech.collider mechRecord.transformState unit.fireAngle (vec2 0 0) |> View.renderCollider
+        ]
+
+
+
+{-
+   Nod
+       []
+       [ rect
+           { fill = vec3 0 0 0
+           , z = 0
+           , stroke = vec3 0 0 0
+           , x = 0
+           , y = 0
+           , rotate = 0
+           , w = 4
+           , h = 2
+           }
+       ,
+       ]
+-}
+{-
+   e1 =
+       Svgl.Primitives.rect
+           { dimensions = vec2 10 3
+           , z = 0
+           , fill = vec3 1 0 0
+           , stroke = vec3 0.5 0 0
+           , strokeWidth = 0.5
+           , entityToCamera =
+               Mat4.identity
+                   |> Mat4.translate (vec3 1 0 0)
+                   |> Mat4.rotate (turns 0.3) (vec3 0 0 1)
+                   |> Mat4.mul worldToCamera
+           }
+
+   e2 =
+       Svgl.Primitives.ellipse
+           { dimensions = vec2 10 3
+           , z = 0
+           , fill = vec3 0 1 0
+           , stroke = vec3 0 0.5 0
+           , strokeWidth = 0.5
+           , entityToCamera =
+               Mat4.identity
+                   |> Mat4.translate (vec3 -1 0 0)
+                   |> Mat4.rotate (degrees 20) (vec3 0 0 1)
+                   |> Mat4.mul worldToCamera
+           }
+
+   node1 =
+       Nod
+           [ rotateRad (degrees 20), translate2 10 0 ]
+           [ rect
+               { fill = Colors.gunFill
+               , z = 0
+               , stroke = Colors.gunStroke
+               , x = 0
+               , y = 0
+               , rotate = game.time / 4
+               , w = 6
+               , h = 2
+               }
+           ]
+
+-}
 --
 {-
    maybeOpacity game =

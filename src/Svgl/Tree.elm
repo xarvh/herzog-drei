@@ -4,7 +4,7 @@ import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
 import Svgl.Primitives as Primitives
-import WebGL exposing (Entity, Mesh, Shader)
+import WebGL exposing (Mesh, Shader)
 
 
 type alias Transform =
@@ -12,6 +12,10 @@ type alias Transform =
     , translateY : Float
     , rotate : Float
     }
+
+
+type alias Entity =
+    ( Float, WebGL.Entity )
 
 
 type Node
@@ -89,7 +93,7 @@ entity =
     entityWithStroke 0.025
 
 
-entityWithStroke : Float -> (Primitives.Uniforms -> Entity) -> Params -> Node
+entityWithStroke : Float -> (Primitives.Uniforms -> WebGL.Entity) -> Params -> Node
 entityWithStroke strokeWidth primitive p =
     Nod
         [ { translateX = p.x
@@ -99,14 +103,15 @@ entityWithStroke strokeWidth primitive p =
         ]
         [ Ent
             (\entityToCamera ->
-                primitive
+                ( p.z
+                , primitive
                     { entityToCamera = entityToCamera
-                    , z = p.z
                     , dimensions = vec2 p.w p.h
                     , fill = p.fill
                     , stroke = p.stroke
                     , strokeWidth = strokeWidth
                     }
+                )
             )
         ]
 
