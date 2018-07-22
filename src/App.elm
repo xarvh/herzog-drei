@@ -4,7 +4,7 @@ import Browser.Events
 import Config exposing (Config)
 import Dict exposing (Dict)
 import Game exposing (ValidatedMap)
-import Gamepad exposing (UserMappings, Gamepad)
+import Gamepad exposing (Gamepad, UserMappings)
 import GamepadPort
 import Html exposing (..)
 import Html.Attributes exposing (..)
