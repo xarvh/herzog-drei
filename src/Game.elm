@@ -358,9 +358,11 @@ updateMech update game unit =
         _ ->
             unit
 
+
 deltaShake : Float -> Delta
 deltaShake shake =
-  deltaGame (\g -> { g | shake = g.shake + shake })
+    deltaGame (\g -> { g | shake = g.shake + shake })
+
 
 
 -- Bases
@@ -470,6 +472,7 @@ type Delta
     | DeltaList (List Delta)
     | DeltaLater Seconds SerialisedDelta
     | DeltaGame (Game -> Game)
+    | DeltaRandom (Random.Generator Delta)
     | DeltaOutcome Outcome
 
 
@@ -500,6 +503,33 @@ deltaLater =
 deltaGame : (Game -> Game) -> Delta
 deltaGame =
     DeltaGame
+
+
+deltaRandom : (a -> Delta) -> Random.Generator a -> Delta
+deltaRandom function generator =
+    DeltaRandom (Random.map function generator)
+
+
+deltaRandom2 : (a -> b -> Delta) -> Random.Generator a -> Random.Generator b -> Delta
+deltaRandom2 function generatorA generatorB =
+    DeltaRandom (Random.map2 function generatorA generatorB)
+
+
+deltaWithChance : Float -> Delta -> Delta
+deltaWithChance chance delta =
+    let
+        rollToDelta : Float -> Delta
+        rollToDelta roll =
+            if roll > chance then
+                deltaNone
+            else
+                delta
+    in
+    deltaRandom rollToDelta (Random.float 0 1)
+
+
+
+--
 
 
 deltaBase : Id -> (Game -> Base -> Base) -> Delta

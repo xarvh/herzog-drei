@@ -164,22 +164,33 @@ updateGfxs dt game =
 
 
 applyDelta : Delta -> ( Game, List Outcome ) -> ( Game, List Outcome )
-applyDelta delta gameAndOutcome =
+applyDelta delta ( game, outcomes ) =
     case delta of
         DeltaNone ->
-            gameAndOutcome
+            ( game, outcomes )
 
         DeltaList list ->
-            List.foldl applyDelta gameAndOutcome list
+            List.foldl applyDelta ( game, outcomes ) list
 
         DeltaGame f ->
-            Tuple.mapFirst f gameAndOutcome
+            ( f game, outcomes )
 
         DeltaOutcome o ->
-            Tuple.mapSecond ((::) o) gameAndOutcome
+            ( game, o :: outcomes )
 
         DeltaLater delay later ->
-            Tuple.mapFirst (\g -> { g | laters = ( g.time + delay, later ) :: g.laters }) gameAndOutcome
+            let
+                laters =
+                    ( game.time + delay, later ) :: game.laters
+            in
+            ( { game | laters = laters }, outcomes )
+
+        DeltaRandom deltaGenerator ->
+            let
+                ( d, seed ) =
+                    Random.step deltaGenerator game.seed
+            in
+            applyDelta d ( { game | seed = seed }, outcomes )
 
 
 applyGameDeltas : Game -> List Delta -> ( Game, List Outcome )

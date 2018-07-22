@@ -40,34 +40,6 @@ deltaAddGfx gfx =
     deltaGame (addGfx gfx)
 
 
-randomlyUpdateGame : Float -> Random.Generator a -> (a -> Game -> Game) -> Game -> Game
-randomlyUpdateGame probability generator upd game =
-    let
-        floatToMaybeValue : Float -> Random.Generator (Maybe a)
-        floatToMaybeValue float =
-            if float > probability then
-                Random.constant Nothing
-            else
-                Random.map Just generator
-
-        ( maybeValue, seed ) =
-            Random.step (Random.float 0 1 |> Random.andThen floatToMaybeValue) game.seed
-
-        updateGame =
-            case maybeValue of
-                Nothing ->
-                    identity
-
-                Just value ->
-                    upd value
-    in
-    updateGame { game | seed = seed }
-
-
-
---
-
-
 deltaAddProjectileCase : Vec2 -> Angle -> Delta
 deltaAddProjectileCase origin angle =
     deltaAddGfx
@@ -132,19 +104,16 @@ deltaAddFlyingHead class origin destination colorPattern =
 deltaAddRepairBubbles : Float -> Seconds -> Vec2 -> Delta
 deltaAddRepairBubbles bubblesPerSecond dt position =
     let
-        addBubble : Float -> Game -> Game
-        addBubble randomDx =
-            addGfx
-                { age = 0
-                , maxAge = 1
-                , render = GfxRepairBubble (Vec2.add position (vec2 randomDx 0))
-                }
-
-        upd : Game -> Game
-        upd =
-            randomlyUpdateGame (dt * bubblesPerSecond) (Random.float -0.5 0.5) addBubble
+        displacementToGfx : Float -> Gfx
+        displacementToGfx randomDx =
+            { age = 0
+            , maxAge = 1
+            , render = GfxRepairBubble (Vec2.add position (vec2 randomDx 0))
+            }
     in
-    deltaGame upd
+    Random.float -0.5 0.5
+        |> deltaRandom (displacementToGfx >> deltaAddGfx)
+        |> deltaWithChance (dt * bubblesPerSecond)
 
 
 deltaAddTrail : { position : Vec2, angle : Angle, stretch : Float } -> Delta
