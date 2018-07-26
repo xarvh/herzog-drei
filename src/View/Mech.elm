@@ -77,14 +77,15 @@ type alias ParamsNoColors =
 primitiveColor : (Params -> Node) -> Vec3 -> Vec3 -> ParamsNoColors -> Node
 primitiveColor primitive fill stroke { x, y, z, a, w, h } =
     primitive
-        { fill = fill
-        , stroke = stroke
-        , x = x
-        , y = y
-        , z = z
-        , rotate = degrees a
-        , w = w
-        , h = h
+        { defaultParams
+            | fill = fill
+            , stroke = stroke
+            , x = x
+            , y = y
+            , z = z
+            , rotate = degrees a
+            , w = w
+            , h = h
         }
 
 
@@ -121,15 +122,17 @@ guns { x, y, w, h } =
 
 eye : { x : Float, y : Float, a : Float } -> Node
 eye { x, y, a } =
-    ellipseWithStroke 0.02
-        { fill = Colors.red
-        , stroke = Colors.darkRed
-        , x = x
-        , y = y
-        , z = height
-        , rotate = degrees a
-        , w = 0.1
-        , h = 0.16
+    ellipse
+        { defaultParams
+            | fill = Colors.red
+            , stroke = Colors.darkRed
+            , strokeWidth = 0.02
+            , x = x
+            , y = y
+            , z = height
+            , rotate = degrees a
+            , w = 0.1
+            , h = 0.16
         }
 
 
@@ -184,7 +187,7 @@ blimp args =
         shA =
             10
     in
-    raiseList (args.transformState * Stats.maxHeight.base)
+    Nod []
         [ Nod
             [ rotateRad args.fireAngle ]
             [ guns
@@ -355,7 +358,7 @@ heli args =
         ellipse =
             ellipseColor args.fill args.stroke
     in
-    raiseList (args.transformState * Stats.maxHeight.base)
+    Nod []
         [ Nod
             [ rotateRad args.fireAngle ]
             [ guns
@@ -504,7 +507,7 @@ plane args =
         ellipse =
             ellipseColor args.fill args.stroke
     in
-    raiseList (args.transformState * Stats.maxHeight.base)
+    Nod []
         [ Nod
             [ rotateRad args.fireAngle ]
             -- guns

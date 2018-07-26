@@ -12,6 +12,7 @@ maxHeight =
     , mech = 0.3
     , wall = 0.4
     , base = 0.5
+    , projectile = 0.6
     }
 
 

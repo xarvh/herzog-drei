@@ -38,12 +38,11 @@ type alias Args =
     , bright : Vec3
     , dark : Vec3
     , isBig : Bool
-    , isOverBase : Bool
     }
 
 
 sub : Args -> Node
-sub { lookAngle, moveAngle, fireAngle, bright, dark, isBig, isOverBase } =
+sub { lookAngle, moveAngle, fireAngle, bright, dark, isBig } =
     let
         ( fillColor, strokeColor ) =
             if isBig then
@@ -54,68 +53,59 @@ sub { lookAngle, moveAngle, fireAngle, bright, dark, isBig, isOverBase } =
         gunOrigin =
             gunOffset moveAngle
 
-        dz =
-            if isOverBase then
-                Stats.maxHeight.base
-            else
-                0
-
         height =
             Stats.maxHeight.sub
+
+        params =
+            { defaultParams
+                | fill = fillColor
+                , stroke = strokeColor
+            }
     in
-    raiseList dz
+    Nod []
         [ Nod
             -- gun
-            [ translate gunOrigin, rotateRad fireAngle ]
+            [ translateVz gunOrigin 0, rotateRad fireAngle ]
             [ rect
-                { fill = Colors.gunFill
-                , stroke = Colors.gunStroke
-                , x = 0
-                , y = 0.21
-                , z = 0.5 * height
-                , rotate = 0
-                , w = 0.21
-                , h = 1.1
+                { defaultParams
+                    | fill = Colors.gunFill
+                    , stroke = Colors.gunStroke
+                    , y = 0.21
+                    , z = 0.5 * height
+                    , w = 0.21
+                    , h = 1.1
                 }
             ]
         , Nod
             -- torso
             [ rotateRad moveAngle ]
             [ rect
-                { fill = fillColor
-                , stroke = strokeColor
-                , x = 0
-                , y = 0
-                , z = 0.7 * height
-                , rotate = 0
-                , w = 0.9
-                , h = 0.4
+                { params
+                    | z = 0.7 * height
+                    , w = 0.9
+                    , h = 0.4
                 }
             ]
         , Nod
             [ rotateRad lookAngle ]
             -- head
             [ ellipse
-                { fill = fillColor
-                , stroke = strokeColor
-                , x = 0
-                , y = 0
-                , z = 0.9 * height
-                , rotate = 0
-                , w = 0.5
-                , h = 0.6
+                { params
+                    | z = 0.9 * height
+                    , w = 0.5
+                    , h = 0.6
                 }
 
             -- eye
-            , ellipseWithStroke 0.02
-                { fill = Colors.red
-                , stroke = Colors.darkRed
-                , x = 0
-                , y = 0.135
-                , z = 1.0 * height
-                , rotate = 0
-                , w = 0.25
-                , h = 0.3
+            , ellipse
+                { defaultParams
+                    | fill = Colors.red
+                    , stroke = Colors.darkRed
+                    , strokeWidth = 0.02
+                    , y = 0.135
+                    , z = 1.0 * height
+                    , w = 0.25
+                    , h = 0.3
                 }
             ]
         ]

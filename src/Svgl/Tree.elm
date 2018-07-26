@@ -3,19 +3,19 @@ module Svgl.Tree exposing (..)
 import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
-import Svgl.Primitives as Primitives
+import Svgl.Primitives as Primitives exposing (defaultUniforms)
 import WebGL exposing (Mesh, Shader)
 
 
 type alias Transform =
-    { translateX : Float
-    , translateY : Float
+    -- TODO: turn into `type Transform = Translate Vec3 | Rotate Float`?
+    { translate : Vec3
     , rotate : Float
     }
 
 
 type alias Entity =
-    ( Float, WebGL.Entity )
+    WebGL.Entity
 
 
 type Node
@@ -23,7 +23,7 @@ type Node
     | Nod (List Transform) (List Node)
 
 
-treeToEntities : Mat4 -> Node -> List Entity
+treeToEntities : Mat4 -> Node -> List ( Mat4, Entity )
 treeToEntities worldToCamera node =
     recursiveTreeToEntities node worldToCamera []
 
@@ -31,15 +31,15 @@ treeToEntities worldToCamera node =
 applyTransform : Transform -> Mat4 -> Mat4
 applyTransform t mat =
     mat
-        |> Mat4.translate3 t.translateX t.translateY 0
+        |> Mat4.translate t.translate
         |> Mat4.rotate t.rotate (vec3 0 0 -1)
 
 
-recursiveTreeToEntities : Node -> Mat4 -> List Entity -> List Entity
+recursiveTreeToEntities : Node -> Mat4 -> List ( Mat4, Entity ) -> List ( Mat4, Entity )
 recursiveTreeToEntities node transformSoFar entitiesSoFar =
     case node of
         Ent matToEntity ->
-            matToEntity transformSoFar :: entitiesSoFar
+            ( transformSoFar, matToEntity transformSoFar ) :: entitiesSoFar
 
         Nod transforms children ->
             let
@@ -51,47 +51,42 @@ recursiveTreeToEntities node transformSoFar entitiesSoFar =
 
 
 --
+{-
+   raise : Float -> Node -> Node
+   raise dz node =
+       case node of
+           Nod transforms children ->
+               Nod transforms (List.map (raise dz) children)
+
+           end ->
+             ent
+               Ent (f >> Tuple.mapFirst ((+) dz))
 
 
-raise : Float -> Node -> Node
-raise dz node =
-    case node of
-        Nod transforms children ->
-            Nod transforms (List.map (raise dz) children)
-
-        Ent f ->
-            Ent (f >> Tuple.mapFirst ((+) dz))
-
-
-raiseList : Float -> List Node -> Node
-raiseList dz list =
-    raise dz (Nod [] list)
-
-
-
+   raiseList : Float -> List Node -> Node
+   raiseList dz list =
+       raise dz (Nod [] list)
+-}
 --
 
 
-translate : Vec2 -> Transform
-translate v =
-    { translateX = Vec2.getX v
-    , translateY = Vec2.getY v
+translateVz : Vec2 -> Float -> Transform
+translateVz v z =
+    { translate = vec3 (Vec2.getX v) (Vec2.getY v) z
     , rotate = 0
     }
 
 
 translate2 : Float -> Float -> Transform
 translate2 x y =
-    { translateX = x
-    , translateY = y
+    { translate = vec3 x y 0
     , rotate = 0
     }
 
 
 rotateRad : Float -> Transform
 rotateRad radians =
-    { translateX = 0
-    , translateY = 0
+    { translate = vec3 0 0 0
     , rotate = radians
     }
 
@@ -110,32 +105,44 @@ type alias Params =
     , h : Float
     , fill : Vec3
     , stroke : Vec3
+    , strokeWidth : Float
+    , opacity : Float
     }
 
 
-entity =
-    entityWithStroke 0.025
+defaultParams : Params
+defaultParams =
+    { x = 0
+    , y = 0
+    , z = 0
+    , rotate = 0
+    , w = 1
+    , h = 1
+    , fill = Primitives.defaultUniforms.fill
+    , stroke = Primitives.defaultUniforms.stroke
+    , strokeWidth = 0.025
+    , opacity = 1
+    }
 
 
-entityWithStroke : Float -> (Primitives.Uniforms -> WebGL.Entity) -> Params -> Node
-entityWithStroke strokeWidth primitive p =
+entity : (Primitives.Uniforms -> WebGL.Entity) -> Params -> Node
+entity primitive p =
     Nod
-        [ { translateX = p.x
-          , translateY = p.y
+        [ { translate = vec3 p.x p.y p.z
           , rotate = p.rotate
           }
         ]
         [ Ent
             (\entityToCamera ->
-                ( p.z
-                , primitive
-                    { entityToCamera = entityToCamera
-                    , dimensions = vec2 p.w p.h
-                    , fill = p.fill
-                    , stroke = p.stroke
-                    , strokeWidth = strokeWidth
+                primitive
+                    { defaultUniforms
+                        | entityToCamera = entityToCamera
+                        , dimensions = vec2 p.w p.h
+                        , fill = p.fill
+                        , stroke = p.stroke
+                        , strokeWidth = p.strokeWidth
+                        , opacity = p.opacity
                     }
-                )
             )
         ]
 
@@ -143,11 +150,6 @@ entityWithStroke strokeWidth primitive p =
 rect : Params -> Node
 rect =
     entity Primitives.rect
-
-
-ellipseWithStroke : Float -> Params -> Node
-ellipseWithStroke strokeWidth =
-    entityWithStroke strokeWidth Primitives.ellipse
 
 
 ellipse : Params -> Node

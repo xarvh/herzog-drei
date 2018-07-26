@@ -22,6 +22,7 @@ import Unit
 import Update
 import View.Base
 import View.Mech
+import View.Projectile
 import View.Sub
 import WebGL exposing (Entity, Mesh, Shader)
 
@@ -52,7 +53,11 @@ view : q -> Viewport -> Game -> Svg a
 view terrain viewport game =
     let
         units =
-            game.unitById |> Dict.values
+            game.unitById
+                |> Dict.values
+                -- This sorting is necessary to keep rendering order
+                -- consistent when later we sort by Z
+                |> List.sortBy .id
 
         ( mechs, subs ) =
             mechVsUnit units
@@ -77,12 +82,13 @@ view terrain viewport game =
                 [ Nod [] (List.map (viewSub game) subs)
                 , Nod [] (List.map (viewMech game) mechs)
                 , Nod [] (game.baseById |> Dict.values |> List.map (viewBase game))
+                , Nod [] (game.projectileById |> Dict.values |> List.map (viewProjectile game))
                 ]
     in
     WebGL.toHtml
         (SplitScreen.viewportToWebGLAttributes viewport)
         (treeToEntities worldToCamera node2
-            |> List.sortBy Tuple.first
+            |> List.sortBy (\( mat, entity ) -> Mat4.transform mat (vec3 0 0 0) |> Vec3.getZ)
             |> List.map Tuple.second
         )
 
@@ -93,28 +99,27 @@ viewSub game ( unit, subRecord ) =
         colorPattern =
             Game.teamColorPattern game unit.maybeTeamId
 
-        isOverBase =
+        z =
             case subRecord.mode of
                 UnitModeFree ->
-                    False
+                    0
 
                 UnitModeBase _ ->
-                    True
+                    Stats.maxHeight.base
     in
-        Nod
-            [ translate unit.position ]
-            [ View.Sub.sub
-                { lookAngle = unit.lookAngle
-                , moveAngle = unit.moveAngle
-                , fireAngle = unit.fireAngle
-                , bright = colorPattern.brightV
-                , dark = colorPattern.darkV
-                , isBig = subRecord.isBig
-                , isOverBase = isOverBase
-                }
+    Nod
+        [ translateVz unit.position z ]
+        [ View.Sub.sub
+            { lookAngle = unit.lookAngle
+            , moveAngle = unit.moveAngle
+            , fireAngle = unit.fireAngle
+            , bright = colorPattern.brightV
+            , dark = colorPattern.darkV
+            , isBig = subRecord.isBig
+            }
 
-            --, View.Sub.collider unit.moveAngle (vec2 0 0) |> View.renderCollider
-            ]
+        --, View.Sub.collider unit.moveAngle (vec2 0 0) |> View.renderCollider
+        ]
 
 
 viewMech : Game -> ( Unit, MechComponent ) -> Node
@@ -122,9 +127,12 @@ viewMech game ( unit, mech ) =
     let
         colorPattern =
             Game.teamColorPattern game unit.maybeTeamId
+
+        z =
+            mech.transformState * Stats.maxHeight.base
     in
     Nod
-        [ translate unit.position ]
+        [ translateVz unit.position z ]
         [ View.Mech.mech mech.class
             { transformState = mech.transformState
             , lookAngle = unit.lookAngle
@@ -156,7 +164,7 @@ viewBase game base =
                         |> Maybe.withDefault ( Nothing, occupied.subBuildCompletion )
     in
     Nod
-        [ translate base.position ]
+        [ translateVz base.position 0 ]
         [ case base.type_ of
             Game.BaseSmall ->
                 View.Base.small completion colorPattern.brightV colorPattern.darkV
@@ -189,6 +197,11 @@ viewBase game base =
                ]
         -}
         ]
+
+
+viewProjectile : Game -> Projectile -> Node
+viewProjectile game projectile =
+    View.Projectile.projectile projectile.classId projectile.position projectile.angle (game.time - projectile.spawnTime)
 
 
 
@@ -278,57 +291,6 @@ viewBase game base =
 
 
 
-   checkersBackground : Game -> Svg a
-   checkersBackground game =
-       let
-           squareSize =
-               1.0
-
-           s =
-               squareSize
-
-           s2 =
-               squareSize * 2
-       in
-       Svg.g
-           []
-           [ Svg.defs
-               []
-               [ Svg.pattern
-                   [ Svg.Attributes.id "grid"
-                   , width s2
-                   , height s2
-                   , Svg.Attributes.patternUnits "userSpaceOnUse"
-                   ]
-                   [ Svg.rect
-                       [ x 0
-                       , y 0
-                       , width s
-                       , height s
-                       , fill "#eee"
-                       ]
-                       []
-                   , Svg.rect
-                       [ x s
-                       , y s
-                       , width s
-                       , height s
-                       , fill "#eee"
-                       ]
-                       []
-                   ]
-               ]
-           , Svg.rect
-               [ fill "url(#grid)"
-               , x (toFloat -game.halfWidth)
-               , y (toFloat -game.halfHeight)
-               , width (toFloat <| game.halfWidth * 2)
-               , height (toFloat <| game.halfHeight * 2)
-               ]
-               []
-           ]
-
-
 
 
    viewMapEditorBase : ( Tile2, BaseType ) -> Svg a
@@ -346,30 +308,6 @@ viewBase game base =
                Game.BaseMain ->
                    View.Base.main_ 0 colorPattern.bright colorPattern.dark
            ]
-
-
-   viewMech : Game -> ( Unit, MechComponent ) -> Svg a
-   viewMech game ( unit, mech ) =
-       let
-           colorPattern =
-               Game.teamColorPattern game unit.maybeTeamId
-       in
-       Svg.g
-           [ transform [ translate unit.position ] ]
-           [ View.Mech.mech mech.class
-               { transformState = mech.transformState
-               , lookAngle = unit.lookAngle
-               , fireAngle = unit.fireAngle
-               , fill = colorPattern.bright
-               , stroke = colorPattern.dark
-               , time = game.time
-               }
-
-           --, View.Mech.collider mechRecord.transformState unit.fireAngle (vec2 0 0) |> View.renderCollider
-           ]
-
-
-
 
 
 
@@ -445,10 +383,6 @@ viewBase game base =
            , arrow (an + -45)
            ]
 
-
-   viewProjectile : Seconds -> Projectile -> Svg a
-   viewProjectile t projectile =
-       View.Projectile.projectile projectile.classId projectile.position projectile.angle (t - projectile.spawnTime)
 
 
    viewHealthbar : Unit -> Svg a
