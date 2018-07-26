@@ -53,6 +53,25 @@ recursiveTreeToEntities node transformSoFar entitiesSoFar =
 --
 
 
+raise : Float -> Node -> Node
+raise dz node =
+    case node of
+        Nod transforms children ->
+            Nod transforms (List.map (raise dz) children)
+
+        Ent f ->
+            Ent (f >> Tuple.mapFirst ((+) dz))
+
+
+raiseList : Float -> List Node -> Node
+raiseList dz list =
+    raise dz (Nod [] list)
+
+
+
+--
+
+
 translate : Vec2 -> Transform
 translate v =
     { translateX = Vec2.getX v
@@ -75,6 +94,11 @@ rotateRad radians =
     , translateY = 0
     , rotate = radians
     }
+
+
+rotateDeg : Float -> Transform
+rotateDeg =
+    degrees >> rotateRad
 
 
 type alias Params =

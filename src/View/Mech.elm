@@ -4,6 +4,7 @@ import Colors
 import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
+import Stats
 import Svgl.Tree exposing (..)
 import View
 
@@ -22,12 +23,8 @@ type alias Args =
     }
 
 
-mechHeight =
-    0.4
-
-
-flyingHeight =
-    mechHeight
+height =
+    Stats.maxHeight.mech
 
 
 
@@ -115,7 +112,7 @@ guns { x, y, w, h } =
         Colors.gunStroke
         { x = x
         , y = y
-        , z = 0.4 * mechHeight
+        , z = 0.9 * height
         , a = 0
         , w = w
         , h = h
@@ -129,26 +126,11 @@ eye { x, y, a } =
         , stroke = Colors.darkRed
         , x = x
         , y = y
-        , z = mechHeight
+        , z = height
         , rotate = degrees a
         , w = 0.1
         , h = 0.16
         }
-
-
-raise : Float -> Node -> Node
-raise dz node =
-    case node of
-        Nod transforms children ->
-            Nod transforms (List.map (raise dz) children)
-
-        Ent f ->
-            Ent (f >> Tuple.mapFirst ((+) dz))
-
-
-raiseList : Float -> List Node -> Node
-raiseList dz list =
-    raise dz (Nod [] list)
 
 
 
@@ -202,7 +184,7 @@ blimp args =
         shA =
             10
     in
-    raiseList args.transformState
+    raiseList (args.transformState * Stats.maxHeight.base)
         [ Nod
             [ rotateRad args.fireAngle ]
             [ guns
@@ -216,7 +198,7 @@ blimp args =
             , mirrorRectangles
                 { x = smooth 0.3 0.3
                 , y = smooth -0.15 -0.8
-                , z = 0.41 * mechHeight
+                , z = 0.91 * height
                 , w = smooth 0.2 0.3
                 , h = 0.3
                 , a = smooth 30 45
@@ -224,7 +206,7 @@ blimp args =
             , mirrorRectangles
                 { x = smooth 0.25 0.35
                 , y = smooth -0.35 -0.94
-                , z = 0.42 * mechHeight
+                , z = 0.92 * height
                 , w = smooth 0.45 0.35
                 , h = 0.2
                 , a = smooth -15 0
@@ -234,7 +216,7 @@ blimp args =
             , mirrorRectangles
                 { x = smooth 0.6 0.5
                 , y = smooth 0.2 0
-                , z = 0.43 * mechHeight
+                , z = 0.93 * height
                 , w = smooth 0.7 0.5
                 , h = smooth 0.1 0.3
                 , a = smooth (80 + 360 * 10) 40
@@ -244,7 +226,7 @@ blimp args =
             , ellipse
                 { x = smooth armX 0
                 , y = smooth armY 0
-                , z = 0.44 * mechHeight
+                , z = 0.94 * height
                 , w = smooth armW 1.0
                 , h = smooth armH 2.4
                 , a = 0
@@ -254,7 +236,7 @@ blimp args =
             , ellipse
                 { x = smooth -armX 0
                 , y = smooth armY 0
-                , z = 0.45 * mechHeight
+                , z = 0.95 * height
                 , w = smooth armW 0.65
                 , h = smooth armH 2.4
                 , a = 0
@@ -264,7 +246,7 @@ blimp args =
             , ellipse
                 { x = 0
                 , y = smooth -0.1 0
-                , z = 0.46 * mechHeight
+                , z = 0.96 * height
                 , w = smooth 1.2 0.25
                 , h = smooth 0.55 2.4
                 , a = 0
@@ -274,7 +256,7 @@ blimp args =
             , rectangle
                 { x = smooth shX 0
                 , y = smooth shY -0.8
-                , z = 0.47 * mechHeight
+                , z = 0.97 * height
                 , w = smooth shW 0.1
                 , h = smooth shH 0.3
                 , a = smooth shA 0
@@ -282,7 +264,7 @@ blimp args =
             , rectangle
                 { x = smooth -shX 0
                 , y = smooth shY -0.94
-                , z = 0.48 * mechHeight
+                , z = 0.98 * height
                 , w = smooth shW 0.1
                 , h = smooth shH 0.2
                 , a = smooth -shA 0
@@ -318,7 +300,7 @@ blimpHead t fillColor strokeColor angle =
             strokeColor
             { x = 0
             , y = 0
-            , z = 0.99 * mechHeight
+            , z = 0.99 * height
             , w = smooth 0.4 0.1
             , h = smooth 0.9 0.5
             , a = 0
@@ -373,7 +355,7 @@ heli args =
         ellipse =
             ellipseColor args.fill args.stroke
     in
-    raiseList args.transformState
+    raiseList (args.transformState * Stats.maxHeight.base)
         [ Nod
             [ rotateRad args.fireAngle ]
             [ guns
@@ -387,7 +369,7 @@ heli args =
             , mirrorRectangles
                 { x = smooth 0.5 0.4
                 , y = smooth 0.3 0.16
-                , z = 0.41 * mechHeight
+                , z = 0.91 * height
                 , w = 0.7
                 , h = 0.3
                 , a = smooth -90 20
@@ -397,7 +379,7 @@ heli args =
             , ellipse
                 { x = 0
                 , y = smooth -0.04 0
-                , z = 0.42 * mechHeight
+                , z = 0.92 * height
                 , w = smooth 0.8 0.42
                 , h = smooth 0.37 1.9
                 , a = 0
@@ -407,7 +389,7 @@ heli args =
             , ellipse
                 { x = 0
                 , y = smooth -0.04 0
-                , z = 0.43 * mechHeight
+                , z = 0.93 * height
                 , w = smooth 1.4 0.42
                 , h = smooth 0.5 0.5
                 , a = 0
@@ -417,7 +399,7 @@ heli args =
             , mirrorRectangles
                 { x = 0.2
                 , y = smooth -0.4 0
-                , z = 0.44 * mechHeight
+                , z = 0.94 * height
                 , w = 0.2
                 , h = smooth 0.4 0.68
                 , a = 5
@@ -425,7 +407,7 @@ heli args =
             , ellipse
                 { x = 0
                 , y = smooth -0.41 0.1
-                , z = 0.45 * mechHeight
+                , z = 0.95 * height
                 , w = 0.3
                 , h = smooth 0.4 0.7
                 , a = 0
@@ -435,7 +417,7 @@ heli args =
             , mirrorRectangles
                 { x = smooth -0.55 0.2
                 , y = smooth -0.05 -1.39
-                , z = 0.46 * mechHeight
+                , z = 0.96 * height
                 , w = smooth 0.52 0.32
                 , h = smooth 0.42 0.12
                 , a = smooth 110 20
@@ -443,7 +425,7 @@ heli args =
             , ellipse
                 { x = 0
                 , y = smooth -0.35 -1.15
-                , z = 0.47 * mechHeight
+                , z = 0.97 * height
                 , w = 0.2
                 , h = smooth 0.2 0.57
                 , a = 0
@@ -477,7 +459,7 @@ heliHead t fillColor strokeColor angle =
             strokeColor
             { x = 0
             , y = smooth 0.03 0.75
-            , z = 0.99 * mechHeight
+            , z = 0.99 * height
             , w = smooth 0.48 0.22
             , h = smooth 0.8 0.4
             , a = 0
@@ -522,7 +504,7 @@ plane args =
         ellipse =
             ellipseColor args.fill args.stroke
     in
-    raiseList args.transformState
+    raiseList (args.transformState * Stats.maxHeight.base)
         [ Nod
             [ rotateRad args.fireAngle ]
             -- guns
@@ -537,7 +519,7 @@ plane args =
             , mirrorRectangles
                 { x = 3 * smooth 0.18 0.25
                 , y = 3 * smooth 0.1 0.03
-                , z = 0.41 * mechHeight
+                , z = 0.96 * height
                 , w = 3 * smooth 0.1 0.4
                 , h = 3 * smooth 0.23 0.15
                 , a = smooth 0 15
@@ -547,7 +529,7 @@ plane args =
             , rectangle
                 { x = 0
                 , y = 3 * smooth -0.04 0.04
-                , z = 0.42 * mechHeight
+                , z = 0.97 * height
                 , w = 3 * smooth 0.45 0.3
                 , h = 3 * smooth 0.17 0.12
                 , a = 0
@@ -557,7 +539,7 @@ plane args =
             , mirrorRectangles
                 { x = 3 * smooth 0.21 0.12
                 , y = 3 * smooth -0.04 -0.25
-                , z = 0.43 * mechHeight
+                , z = 0.98 * height
                 , w = 3 * smooth 0.15 0.15
                 , h = 3 * smooth 0.23 0.25
                 , a = smooth 10 -45
@@ -580,7 +562,7 @@ planeHead t fillColor strokeColor angle =
             strokeColor
             { x = 0
             , y = -0.03
-            , z = 0.99 * mechHeight
+            , z = 0.99 * height
             , w = 0.48
             , h = 6 * smooth 0.17 0.34
             , a = 0
