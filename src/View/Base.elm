@@ -53,13 +53,16 @@ teeth completion z radius bright dark =
 small : Float -> Vec3 -> Vec3 -> Node
 small completion bright dark =
     let
+        height =
+            Stats.maxHeight.base
+
         re { x, y, z, w, h } =
             rect
                 { fill = bright
                 , stroke = dark
                 , x = x
                 , y = y
-                , z = z
+                , z = z * height
                 , rotate = 0
                 , w = w
                 , h = h
@@ -71,20 +74,17 @@ small completion bright dark =
                 , stroke = dark
                 , x = x
                 , y = y
-                , z = z
+                , z = z * height
                 , rotate = 0
                 , w = r * 2
                 , h = r * 2
                 }
-
-        height =
-            Stats.maxHeight.base
     in
     Nod []
         [ cir
             { x = 0
             , y = 0
-            , z = 0.94 * height
+            , z = 0.94
             , r = 1
             }
         , ellipse
@@ -92,56 +92,55 @@ small completion bright dark =
             , stroke = dark
             , x = 0
             , y = 0
-            , z = 0.95 * height
+            , z = 0.95
             , rotate = 0
             , w = 1.2 * completion
             , h = 1.2 * completion
             }
-
-        --, teeth completion 0.7 bright dark
+        , teeth completion (0.955 * height) 0.7 bright dark
         , re
             { x = -1
             , y = 0
-            , z = 0.96 * height
+            , z = 0.96
             , w = 0.2
             , h = 0.4
             }
         , re
             { x = 1
             , y = 0.15
-            , z = 0.96 * height
+            , z = 0.96
             , w = 0.2
             , h = 0.15
             }
         , re
             { x = 1
             , y = -0.15
-            , z = 0.96 * height
+            , z = 0.96
             , w = 0.2
             , h = 0.15
             }
         , cir
             { x = 0.8
             , y = 0.8
-            , z = 0.97 * height
+            , z = 0.97
             , r = 0.4
             }
         , cir
             { x = -0.8
             , y = 0.8
-            , z = 0.97 * height
+            , z = 0.97
             , r = 0.4
             }
         , cir
             { x = -0.8
             , y = -0.8
-            , z = 0.97 * height
+            , z = 0.97
             , r = 0.4
             }
         , cir
             { x = 0.8
             , y = -0.8
-            , z = 0.97 * height
+            , z = 0.97
             , r = 0.4
             }
         ]
@@ -387,7 +386,7 @@ main_ completion bright dark =
             , w = 2.2 * completion
             , h = 2.2 * completion
             }
-        , teeth completion 0.98 1.1 dark bright
+        , teeth completion (0.98 * height) 1.1 dark bright
 
         --
         , cir
