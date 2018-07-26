@@ -3,6 +3,19 @@ module Stats exposing (..)
 import Game exposing (..)
 
 
+-- Heights
+-- mech + base < 1
+
+
+maxHeight =
+    { sub = 0.2
+    , mech = 0.3
+    , wall = 0.4
+    , base = 0.5
+    }
+
+
+
 -- Projectiles
 
 

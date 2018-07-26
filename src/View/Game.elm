@@ -20,8 +20,9 @@ import Svgl.Primitives
 import Svgl.Tree exposing (..)
 import Unit
 import Update
-import View.Sub
+import View.Base
 import View.Mech
+import View.Sub
 import WebGL exposing (Entity, Mesh, Shader)
 
 
@@ -75,6 +76,7 @@ view terrain viewport game =
             Nod []
                 [ Nod [] (List.map (viewSub game) subs)
                 , Nod [] (List.map (viewMech game) mechs)
+                , Nod [] (game.baseById |> Dict.values |> List.map (viewBase game))
                 ]
     in
     WebGL.toHtml
@@ -90,19 +92,29 @@ viewSub game ( unit, subRecord ) =
     let
         colorPattern =
             Game.teamColorPattern game unit.maybeTeamId
-    in
-    Nod
-        [ translate unit.position ]
-        [ View.Sub.sub
-            unit.lookAngle
-            unit.moveAngle
-            unit.fireAngle
-            colorPattern.brightV
-            colorPattern.darkV
-            subRecord.isBig
 
-        --, View.Sub.collider unit.moveAngle (vec2 0 0) |> View.renderCollider
-        ]
+        isOverBase =
+            case subRecord.mode of
+                UnitModeFree ->
+                    False
+
+                UnitModeBase _ ->
+                    True
+    in
+        Nod
+            [ translate unit.position ]
+            [ View.Sub.sub
+                { lookAngle = unit.lookAngle
+                , moveAngle = unit.moveAngle
+                , fireAngle = unit.fireAngle
+                , bright = colorPattern.brightV
+                , dark = colorPattern.darkV
+                , isBig = subRecord.isBig
+                , isOverBase = isOverBase
+                }
+
+            --, View.Sub.collider unit.moveAngle (vec2 0 0) |> View.renderCollider
+            ]
 
 
 viewMech : Game -> ( Unit, MechComponent ) -> Node
@@ -123,6 +135,59 @@ viewMech game ( unit, mech ) =
             }
 
         --, View.Mech.collider mechRecord.transformState unit.fireAngle (vec2 0 0) |> View.renderCollider
+        ]
+
+
+viewBase : Game -> Base -> Node
+viewBase game base =
+    let
+        colorPattern =
+            Base.colorPattern game base
+
+        ( buildTarget, completion ) =
+            case base.maybeOccupied of
+                Nothing ->
+                    ( Nothing, 0 )
+
+                Just occupied ->
+                    occupied.mechBuildCompletions
+                        |> List.Extra.maximumBy Tuple.second
+                        |> Maybe.map (Tuple.mapFirst Just)
+                        |> Maybe.withDefault ( Nothing, occupied.subBuildCompletion )
+    in
+    Nod
+        [ translate base.position ]
+        [ case base.type_ of
+            Game.BaseSmall ->
+                View.Base.small completion colorPattern.brightV colorPattern.darkV
+
+            Game.BaseMain ->
+                View.Base.main_ completion colorPattern.brightV colorPattern.darkV
+        , case buildTarget of
+            Nothing ->
+                Nod [] []
+
+            Just mech ->
+                Nod [] []
+
+        {- TODO
+           g
+               [ 0.9
+                   * completion
+                   + 0.1
+                   * sin (pi * completion * 10)
+                   |> opacity
+               ]
+               [ View.Mech.mech mech.class
+                   { transformState = 1
+                   , lookAngle = 0
+                   , fireAngle = 0
+                   , fill = neutral.dark
+                   , stroke = colorPattern.dark
+                   , time = game.time
+                   }
+               ]
+        -}
         ]
 
 
@@ -264,53 +329,6 @@ viewMech game ( unit, mech ) =
            ]
 
 
-   viewBase : Game -> Base -> Svg a
-   viewBase game base =
-       let
-           colorPattern =
-               Base.colorPattern game base
-
-           ( buildTarget, completion ) =
-               case base.maybeOccupied of
-                   Nothing ->
-                       ( Nothing, 0 )
-
-                   Just occupied ->
-                       occupied.mechBuildCompletions
-                           |> List.Extra.maximumBy Tuple.second
-                           |> Maybe.map (Tuple.mapFirst Just)
-                           |> Maybe.withDefault ( Nothing, occupied.subBuildCompletion )
-       in
-       Svg.g
-           [ transform [ translate base.position ] ]
-           [ case base.type_ of
-               Game.BaseSmall ->
-                   View.Base.small completion colorPattern.bright colorPattern.dark
-
-               Game.BaseMain ->
-                   View.Base.main_ completion colorPattern.bright colorPattern.dark
-           , case buildTarget of
-               Nothing ->
-                   text ""
-
-               Just mech ->
-                   g
-                       [ 0.9
-                           * completion
-                           + 0.1
-                           * sin (pi * completion * 10)
-                           |> opacity
-                       ]
-                       [ View.Mech.mech mech.class
-                           { transformState = 1
-                           , lookAngle = 0
-                           , fireAngle = 0
-                           , fill = neutral.dark
-                           , stroke = colorPattern.dark
-                           , time = game.time
-                           }
-                       ]
-           ]
 
 
    viewMapEditorBase : ( Tile2, BaseType ) -> Svg a

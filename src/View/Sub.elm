@@ -4,6 +4,7 @@ import Colors
 import Game exposing (Angle, normalizeAngle)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
+import Stats
 import Svgl.Tree exposing (..)
 
 
@@ -29,32 +30,49 @@ gunOffset torsoAngle =
 
 -- Render
 
-droneHeight = 0.2
+
+type alias Args =
+    { lookAngle : Angle
+    , moveAngle : Angle
+    , fireAngle : Angle
+    , bright : Vec3
+    , dark : Vec3
+    , isBig : Bool
+    , isOverBase : Bool
+    }
 
 
-sub : Angle -> Angle -> Angle -> Vec3 -> Vec3 -> Bool -> Node
-sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
+sub : Args -> Node
+sub { lookAngle, moveAngle, fireAngle, bright, dark, isBig, isOverBase } =
     let
         ( fillColor, strokeColor ) =
             if isBig then
-                ( darkColor, brightColor )
+                ( dark, bright )
             else
-                ( brightColor, darkColor )
+                ( bright, dark )
 
         gunOrigin =
             gunOffset moveAngle
+
+        dz =
+            if isOverBase then
+                Stats.maxHeight.base
+            else
+                0
+
+        height =
+            Stats.maxHeight.sub
     in
-    Nod
-        []
+    raiseList dz
         [ Nod
             -- gun
-            [ translate gunOrigin, rotateRad aimAngle ]
+            [ translate gunOrigin, rotateRad fireAngle ]
             [ rect
                 { fill = Colors.gunFill
                 , stroke = Colors.gunStroke
                 , x = 0
                 , y = 0.21
-                , z = 0.5 * droneHeight
+                , z = 0.5 * height
                 , rotate = 0
                 , w = 0.21
                 , h = 1.1
@@ -68,7 +86,7 @@ sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
                 , stroke = strokeColor
                 , x = 0
                 , y = 0
-                , z = 0.7 * droneHeight
+                , z = 0.7 * height
                 , rotate = 0
                 , w = 0.9
                 , h = 0.4
@@ -82,7 +100,7 @@ sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
                 , stroke = strokeColor
                 , x = 0
                 , y = 0
-                , z = 0.9 * droneHeight
+                , z = 0.9 * height
                 , rotate = 0
                 , w = 0.5
                 , h = 0.6
@@ -94,7 +112,7 @@ sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
                 , stroke = Colors.darkRed
                 , x = 0
                 , y = 0.135
-                , z = 1.0 * droneHeight
+                , z = 1.0 * height
                 , rotate = 0
                 , w = 0.25
                 , h = 0.3
