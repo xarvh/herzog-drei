@@ -7,8 +7,8 @@ import Svgl.Tree exposing (..)
 import View
 
 
-teeth : Float -> Float -> Float -> Vec3 -> Vec3 -> Node
-teeth completion z radius bright dark =
+teeth : Float -> Float -> Params -> Node
+teeth completion radius params =
     let
         n =
             30
@@ -32,14 +32,9 @@ teeth completion z radius bright dark =
                 , rotateDeg -90
                 ]
                 [ ellipse
-                    { fill = dark
-                    , stroke = bright
-                    , x = 0
-                    , y = 0
-                    , z = z
-                    , rotate = 0
-                    , w = 0.15
-                    , h = 0.1 * (1.1 + sin (1.7 * angle + phase))
+                    { params
+                        | w = 0.15
+                        , h = 0.1 * (1.1 + sin (1.7 * angle + phase))
                     }
                 ]
 
@@ -56,28 +51,30 @@ small completion bright dark =
         height =
             Stats.maxHeight.base
 
+        params =
+            { defaultParams
+                | fill = bright
+                , stroke = dark
+            }
+
         re { x, y, z, w, h } =
             rect
-                { fill = bright
-                , stroke = dark
-                , x = x
-                , y = y
-                , z = z * height
-                , rotate = 0
-                , w = w
-                , h = h
+                { params
+                    | x = x
+                    , y = y
+                    , z = z * height
+                    , w = w
+                    , h = h
                 }
 
         cir { x, y, z, r } =
             ellipse
-                { fill = bright
-                , stroke = dark
-                , x = x
-                , y = y
-                , z = z * height
-                , rotate = 0
-                , w = r * 2
-                , h = r * 2
+                { params
+                    | x = x
+                    , y = y
+                    , z = z * height
+                    , w = r * 2
+                    , h = r * 2
                 }
     in
     Nod []
@@ -88,16 +85,14 @@ small completion bright dark =
             , r = 1
             }
         , ellipse
-            { fill = dark
-            , stroke = dark
-            , x = 0
-            , y = 0
-            , z = 0.95
-            , rotate = 0
-            , w = 1.2 * completion
-            , h = 1.2 * completion
+            { params
+                | z = 0.95
+                , w = 1.2 * completion
+                , h = 1.2 * completion
+                , fill = dark
+                , opacity = 0.7
             }
-        , teeth completion (0.955 * height) 0.7 bright dark
+        , teeth completion 0.7 { params | z = 0.955 * height }
         , re
             { x = -1
             , y = 0
@@ -152,16 +147,17 @@ main_ completion bright dark =
         height =
             Stats.maxHeight.base
 
+        params =
+            { defaultParams | fill = bright, stroke = dark }
+
         re { x, y, z, w, h } =
             rect
-                { fill = bright
-                , stroke = dark
-                , x = x
-                , y = y
-                , z = z * height
-                , rotate = 0
-                , w = w
-                , h = h
+                { params
+                    | x = x
+                    , y = y
+                    , z = z * height
+                    , w = w
+                    , h = h
                 }
 
         tri { x, y, z } =
@@ -176,26 +172,22 @@ main_ completion bright dark =
                    []
             -}
             ellipse
-                { fill = bright
-                , stroke = dark
-                , x = x
-                , y = y
-                , z = z * height
-                , rotate = 0
-                , w = 0.4
-                , h = 0.1
+                { params
+                    | x = x
+                    , y = y
+                    , z = z * height
+                    , w = 0.4
+                    , h = 0.1
                 }
 
         cir { x, y, z, r } =
             ellipse
-                { fill = bright
-                , stroke = dark
-                , x = x
-                , y = y
-                , z = z * height
-                , rotate = 0
-                , w = r * 2
-                , h = r * 2
+                { params
+                    | x = x
+                    , y = y
+                    , z = z * height
+                    , w = r * 2
+                    , h = r * 2
                 }
 
         cirtri { z, a } =
@@ -377,16 +369,15 @@ main_ completion bright dark =
                []
         -}
         , ellipse
-            { fill = dark
-            , stroke = dark
-            , x = 0
-            , y = 0
-            , z = 0.97 * height
-            , rotate = 0
-            , w = 2.2 * completion
-            , h = 2.2 * completion
+            { params
+                | fill = dark
+                , stroke = dark
+                , z = 0.97 * height
+                , w = 2.2 * completion
+                , h = 2.2 * completion
+                , opacity = 0.7
             }
-        , teeth completion (0.98 * height) 1.1 dark bright
+        , teeth completion 1.1 { params | z = 0.98 * height }
 
         --
         , cir

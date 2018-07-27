@@ -1,4 +1,10 @@
-module Svgl.Primitives exposing (Uniforms, ellipse, rect)
+module Svgl.Primitives
+    exposing
+        ( Uniforms
+        , defaultUniforms
+        , ellipse
+        , rect
+        )
 
 import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
@@ -18,6 +24,18 @@ type alias Uniforms =
     , fill : Vec3
     , stroke : Vec3
     , strokeWidth : Float
+    , opacity : Float
+    }
+
+
+defaultUniforms : Uniforms
+defaultUniforms =
+    { entityToCamera = Mat4.identity
+    , dimensions = vec2 1 1
+    , fill = vec3 0.4 0.4 0.4
+    , stroke = vec3 0.6 0.6 0.6
+    , strokeWidth = 0.1
+    , opacity = 1
     }
 
 
@@ -87,6 +105,7 @@ rectFragmentShader =
         uniform vec3 fill;
         uniform vec3 stroke;
         uniform float strokeWidth;
+        uniform float opacity;
 
         varying vec2 localPosition;
 
@@ -111,7 +130,7 @@ rectFragmentShader =
           float strokeVsFill = mirrorStep(fillSize.x, localPosition.x) * mirrorStep(fillSize.y, localPosition.y);
           vec3 color = mix(stroke, fill, strokeVsFill);
 
-          gl_FragColor = alpha * vec4(color, 1.0);
+          gl_FragColor = opacity * alpha * vec4(color, 1.0);
         }
     |]
 
@@ -126,6 +145,7 @@ ellipseFragmentShader =
         uniform vec3 fill;
         uniform vec3 stroke;
         uniform float strokeWidth;
+        uniform float opacity;
 
         varying vec2 localPosition;
 
@@ -187,6 +207,6 @@ ellipseFragmentShader =
 
           vec3 color = mix(fill, stroke, fillVsStroke);
 
-          gl_FragColor = alpha * vec4(color, 1.0);
+          gl_FragColor = opacity * alpha * vec4(color, 1.0);
         }
     |]

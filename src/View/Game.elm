@@ -29,6 +29,12 @@ import WebGL exposing (Entity, Mesh, Shader)
 -- Main
 
 
+idToDz : { entity | id : Id } -> Float
+idToDz { id } =
+  0
+  --  toFloat id * 0.001
+
+
 tilesToViewport : { a | halfWidth : Int, halfHeight : Int } -> Viewport -> Float
 tilesToViewport { halfWidth, halfHeight } viewport =
     SplitScreen.fitWidthAndHeight (toFloat halfWidth * 2) (toFloat halfHeight * 2) viewport
@@ -52,7 +58,11 @@ view : q -> Viewport -> Game -> Svg a
 view terrain viewport game =
     let
         units =
-            game.unitById |> Dict.values
+            game.unitById
+              |> Dict.values
+              -- This sorting is necessary to keep rendering order
+              -- consistent when later we sort by Z
+              |> List.sortBy .id
 
         ( mechs, subs ) =
             mechVsUnit units
@@ -82,7 +92,7 @@ view terrain viewport game =
     WebGL.toHtml
         (SplitScreen.viewportToWebGLAttributes viewport)
         (treeToEntities worldToCamera node2
-            |> List.sortBy Tuple.first
+            |> List.sortBy (\(mat, entity) -> Mat4.transform mat (vec3 0 0 0) |> Vec3.getZ)
             |> List.map Tuple.second
         )
 
@@ -93,28 +103,27 @@ viewSub game ( unit, subRecord ) =
         colorPattern =
             Game.teamColorPattern game unit.maybeTeamId
 
-        isOverBase =
+        z =
             case subRecord.mode of
                 UnitModeFree ->
-                    False
+                    0
 
                 UnitModeBase _ ->
-                    True
+                    Stats.maxHeight.base
     in
-        Nod
-            [ translate unit.position ]
-            [ View.Sub.sub
-                { lookAngle = unit.lookAngle
-                , moveAngle = unit.moveAngle
-                , fireAngle = unit.fireAngle
-                , bright = colorPattern.brightV
-                , dark = colorPattern.darkV
-                , isBig = subRecord.isBig
-                , isOverBase = isOverBase
-                }
+    Nod
+        [ translateVz unit.position (z + idToDz unit) ]
+        [ View.Sub.sub
+            { lookAngle = unit.lookAngle
+            , moveAngle = unit.moveAngle
+            , fireAngle = unit.fireAngle
+            , bright = colorPattern.brightV
+            , dark = colorPattern.darkV
+            , isBig = subRecord.isBig
+            }
 
-            --, View.Sub.collider unit.moveAngle (vec2 0 0) |> View.renderCollider
-            ]
+        --, View.Sub.collider unit.moveAngle (vec2 0 0) |> View.renderCollider
+        ]
 
 
 viewMech : Game -> ( Unit, MechComponent ) -> Node
@@ -122,9 +131,12 @@ viewMech game ( unit, mech ) =
     let
         colorPattern =
             Game.teamColorPattern game unit.maybeTeamId
+
+        z =
+            mech.transformState * Stats.maxHeight.base
     in
     Nod
-        [ translate unit.position ]
+        [ translateVz unit.position (z + idToDz unit) ]
         [ View.Mech.mech mech.class
             { transformState = mech.transformState
             , lookAngle = unit.lookAngle
@@ -156,7 +168,7 @@ viewBase game base =
                         |> Maybe.withDefault ( Nothing, occupied.subBuildCompletion )
     in
     Nod
-        [ translate base.position ]
+        [ translateVz base.position 0 ]
         [ case base.type_ of
             Game.BaseSmall ->
                 View.Base.small completion colorPattern.brightV colorPattern.darkV
