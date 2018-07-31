@@ -62,6 +62,9 @@ view terrain viewport game =
         ( mechs, subs ) =
             mechVsUnit units
 
+        ( freeSubs, baseSubs ) =
+            List.partition (\( unit, sub ) -> sub.mode == UnitModeFree) subs
+
         normalizedSize =
             SplitScreen.normalizedSize viewport
 
@@ -79,16 +82,20 @@ view terrain viewport game =
 
         node2 =
             Nod []
-                [ Nod [] (List.map (viewSub game) subs)
+                [ Nod [] (List.map (viewSub game) freeSubs)
                 , Nod [] (List.map (viewMech game) mechs)
                 , Nod [] (game.baseById |> Dict.values |> List.map (viewBase game))
+                , Nod [] (List.map (viewSub game) baseSubs)
                 , Nod [] (game.projectileById |> Dict.values |> List.map (viewProjectile game))
                 ]
     in
-    WebGL.toHtml
+    WebGL.toHtmlWith
+        [ WebGL.alpha True
+        , WebGL.antialias
+        ]
         (SplitScreen.viewportToWebGLAttributes viewport)
         (treeToEntities worldToCamera node2
-            |> List.sortBy (\( mat, entity ) -> Mat4.transform mat (vec3 0 0 0) |> Vec3.getZ)
+            --|> List.sortBy (\( mat, entity ) -> Mat4.transform mat (vec3 0 0 0) |> Vec3.getZ)
             |> List.map Tuple.second
         )
 

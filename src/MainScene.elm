@@ -301,7 +301,7 @@ updateOnGamepad gamepadBlob shell model =
             { model
                 | game = game
                 , botStatesByKey = botStatesByKey
-                , fps = (1 / dt) :: List.take 20 model.fps
+                , fps = (1 / dt) :: List.take 120 model.fps
                 , previousInputStatesByKey = inputStatesByKey
             }
     in
