@@ -128,7 +128,7 @@ defaultParams =
 entity : (Primitives.Uniforms -> WebGL.Entity) -> Params -> Node
 entity primitive p =
     Nod
-        [ { translate = vec3 p.x p.y p.z
+        [ { translate = vec3 p.x p.y 0 --p.z
           , rotate = p.rotate
           }
         ]
