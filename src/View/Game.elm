@@ -55,8 +55,6 @@ view terrain viewport game =
         units =
             game.unitById
                 |> Dict.values
-                -- This sorting is necessary to keep rendering order
-                -- consistent when later we sort by Z
                 |> List.sortBy .id
 
         ( mechs, subs ) =
@@ -83,6 +81,20 @@ view terrain viewport game =
                 |> Mat4.scale (vec3 (viewportScale / normalizedSize.width) (viewportScale / normalizedSize.height) 1)
                 |> Mat4.translate (vec3 shake.x shake.y 0)
     in
+    -- TODO
+    --                , game.projectileById
+    --                    |> Dict.values
+    --                    |> List.map (viewProjectile game.time)
+    --                    |> g []
+    --                , game.cosmetics
+    --                    |> List.map View.Gfx.render
+    --                    |> g []
+    --                , units
+    --                    |> List.map viewHealthbar
+    --                    |> g []
+    --                , units
+    --                    |> List.map (viewCharge game)
+    --                    |> g []
     [ freeSubs |> List.map (viewSub game)
     , walkingMechs |> List.map (viewMech game)
     , game.wallTiles |> Set.toList |> List.map viewWall
@@ -90,6 +102,10 @@ view terrain viewport game =
     , baseSubs |> List.map (viewSub game)
     , flyingMechs |> List.map (viewMech game)
     , game.projectileById |> Dict.values |> List.map (viewProjectile game)
+    , if game.mode /= GameModeVersus then
+        []
+      else
+        [ game.leftTeam, game.rightTeam ] |> List.map (viewMarker game)
     ]
         |> List.concat
         |> Nod []
@@ -244,6 +260,54 @@ viewWall ( xi, yi ) =
             , w = 1.1
             , h = 1.1
         }
+
+
+viewMarker : Game -> Team -> Node
+viewMarker game team =
+    let
+        distance =
+            0.5 + 0.25 * periodHarmonic game.time 0 0.3
+
+        angle =
+            periodHarmonic game.time 0.1 20 * 180
+
+        params =
+            { defaultParams
+                | fill = team.colorPattern.darkV
+                , stroke = team.colorPattern.brightV
+            }
+
+        arrow a =
+            Nod
+                [ rotateDeg a
+                , translate2 0 -distance
+                ]
+                [ rect
+                    { params
+                        | w = 0.3
+                        , h = 0.3
+                    }
+                ]
+    in
+    Nod
+        [ translateVz team.markerPosition 0 ]
+        [ ellipse
+            { params
+                | w = 0.5
+                , h = 0.6
+            }
+        , ellipse
+            { params
+                | y = 0.13
+                , w = 0.25
+                , h = 0.3
+                , strokeWidth = 0.7 * params.strokeWidth
+            }
+        , arrow (angle + 45)
+        , arrow (angle + 135)
+        , arrow (angle + 225)
+        , arrow (angle + -45)
+        ]
 
 
 
