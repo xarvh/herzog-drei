@@ -31,10 +31,11 @@ teeth completion radius params =
                 , translate2 radius 0
                 , rotateDeg -90
                 ]
-                [ ellipse
+                [ rect
                     { params
-                        | w = 0.15
-                        , h = 0.1 * (1.1 + sin (1.7 * angle + phase))
+                        | w = 0.15 * radius
+                        , h = 0.1 * (1.1 + sin (1.7 * angle + phase)) * radius
+                        , strokeWidth = params.strokeWidth * radius
                     }
                 ]
 
