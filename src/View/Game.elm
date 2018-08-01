@@ -65,6 +65,9 @@ view terrain viewport game =
         ( freeSubs, baseSubs ) =
             List.partition (\( unit, sub ) -> sub.mode == UnitModeFree) subs
 
+        ( flyingMechs, walkingMechs ) =
+            List.partition (\( unit, mech ) -> Mech.transformMode mech == ToFlyer) mechs
+
         normalizedSize =
             SplitScreen.normalizedSize viewport
 
@@ -79,25 +82,24 @@ view terrain viewport game =
             Mat4.identity
                 |> Mat4.scale (vec3 (viewportScale / normalizedSize.width) (viewportScale / normalizedSize.height) 1)
                 |> Mat4.translate (vec3 shake.x shake.y 0)
-
-        node2 =
-            Nod []
-                [ Nod [] (List.map (viewSub game) freeSubs)
-                , Nod [] (List.map (viewMech game) mechs)
-                , Nod [] (game.baseById |> Dict.values |> List.map (viewBase game))
-                , Nod [] (List.map (viewSub game) baseSubs)
-                , Nod [] (game.projectileById |> Dict.values |> List.map (viewProjectile game))
-                ]
     in
-    WebGL.toHtmlWith
-        [ WebGL.alpha True
-        , WebGL.antialias
-        ]
-        (SplitScreen.viewportToWebGLAttributes viewport)
-        (treeToEntities worldToCamera node2
-            --|> List.sortBy (\( mat, entity ) -> Mat4.transform mat (vec3 0 0 0) |> Vec3.getZ)
-            |> List.map Tuple.second
-        )
+    [ freeSubs |> List.map (viewSub game)
+    , walkingMechs |> List.map (viewMech game)
+    , game.wallTiles |> Set.toList |> List.map viewWall
+    , game.baseById |> Dict.values |> List.map (viewBase game)
+    , baseSubs |> List.map (viewSub game)
+    , flyingMechs |> List.map (viewMech game)
+    , game.projectileById |> Dict.values |> List.map (viewProjectile game)
+    ]
+        |> List.concat
+        |> Nod []
+        |> treeToEntities worldToCamera
+        |> List.map Tuple.second
+        |> WebGL.toHtmlWith
+            [ WebGL.alpha True
+            , WebGL.antialias
+            ]
+            (SplitScreen.viewportToWebGLAttributes viewport)
 
 
 viewSub : Game -> ( Unit, SubComponent ) -> Node
@@ -209,6 +211,39 @@ viewBase game base =
 viewProjectile : Game -> Projectile -> Node
 viewProjectile game projectile =
     View.Projectile.projectile projectile.classId projectile.position projectile.angle (game.time - projectile.spawnTime)
+
+
+viewWall : Tile2 -> Node
+viewWall ( xi, yi ) =
+    let
+        xf =
+            toFloat xi
+
+        yf =
+            toFloat yi
+
+        c =
+            sin (xf * 9982399) + sin (yf * 17324650)
+
+        d =
+            sin (xf * 1372347) + sin (yf * 98325987)
+
+        rot =
+            5 * c
+
+        color =
+            (1 + d) / 4
+    in
+    rect
+        { defaultParams
+            | fill = vec3 color color color
+            , stroke = vec3 color color color
+            , x = xf + 0.5
+            , y = yf + 0.5
+            , rotate = degrees rot
+            , w = 1.1
+            , h = 1.1
+        }
 
 
 
