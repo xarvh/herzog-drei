@@ -1,13 +1,14 @@
 module View.Gfx exposing (..)
 
 import ColorPattern exposing (ColorPattern)
+import Colors exposing (..)
 import Ease
 import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
 import Random
-import Svg exposing (..)
-import View exposing (..)
+import Svgl.Tree exposing (..)
+import View
 import View.Mech
 
 
@@ -15,8 +16,8 @@ healingGreen : ColorPattern
 healingGreen =
     { bright = "#2d0"
     , dark = "#090"
-    , brightV = vec3 0 0 0
-    , darkV = vec3 0 0 0
+    , brightV = vec3 (34 / 255) (221 / 255) 0
+    , darkV = vec3 0 (153 / 255) 0
     , key = ""
     }
 
@@ -25,8 +26,8 @@ vampireRed : ColorPattern
 vampireRed =
     { bright = "#f11"
     , dark = "#c33"
-    , brightV = vec3 0 0 0
-    , darkV = vec3 0 0 0
+    , brightV = vec3 1 (17 / 255) (17 / 255)
+    , darkV = vec3 (204 / 255) (51 / 255) (51 / 255)
     , key = ""
     }
 
@@ -150,8 +151,8 @@ update dt cosmetic =
 -- Item Render
 
 
-fractalBeam : Vec2 -> Vec2 -> ColorPattern -> Float -> Svg a
-fractalBeam start end { bright, dark } t =
+fractalBeam : Vec2 -> Vec2 -> ColorPattern -> Float -> Node
+fractalBeam start end colorPattern t =
     let
         dp =
             Vec2.sub end start
@@ -167,47 +168,97 @@ fractalBeam start end { bright, dark } t =
 
         x2 =
             cos (50 * t)
-    in
-    path
-        [ transform [ translate start, rotateRad a, scale2 1 l ]
-        , d <| "M0,0 C" ++ String.fromFloat x1 ++ ",0.33 " ++ String.fromFloat x2 ++ ",0.66 0,1"
-        , fill "none"
-        , stroke bright
-        , strokeWidth 0.06
-        , opacity 0.8
-        ]
-        []
 
-
-cross : List (Svg.Attribute a) -> Svg a
-cross attrs =
-    let
         p =
-            [ "M 1,1"
-            , "L 3,1"
-            , "L 3,-1"
-            , "L 1,-1"
-            , "L 1,-3"
-            , "L -1,-3"
-            , "L -1,-1"
-            , "L -3,-1"
-            , "L -3,1"
-            , "L -1,1"
-            , "L -1,3"
-            , "L 1,3"
-            , "Z"
-            ]
-                |> String.join " "
-                |> d
+            Vec2.add (Vec2.scale t start) (Vec2.scale (1 - t) end)
     in
-    path (p :: attrs) []
+    Nod
+        [ translate p ]
+        [ rect
+            { defaultParams
+                | fill = colorPattern.brightV
+                , stroke = colorPattern.darkV
+                , rotate = 7 * x1
+                , w = 0.3
+                , h = 0.3
+            }
+        ]
+
+
+
+{-
+   path
+       [ transform [ translate start, rotateRad a, scale2 1 l ]
+       , d <| "M0,0 C" ++ String.fromFloat x1 ++ ",0.33 " ++ String.fromFloat x2 ++ ",0.66 0,1"
+       , fill "none"
+       , stroke bright
+       , strokeWidth 0.06
+       , opacity 0.8
+       ]
+       []
+-}
+{-
+   cross : List (Svg.Attribute a) -> Svg a
+   cross attrs =
+       let
+           p =
+               [ "M 1,1"
+               , "L 3,1"
+               , "L 3,-1"
+               , "L 1,-1"
+               , "L 1,-3"
+               , "L -1,-3"
+               , "L -1,-1"
+               , "L -3,-1"
+               , "L -3,1"
+               , "L -1,1"
+               , "L -1,3"
+               , "L 1,3"
+               , "Z"
+               ]
+                   |> String.join " "
+                   |> d
+       in
+       path (p :: attrs) []
+-}
+
+
+straightBeam : Float -> Vec2 -> Vec2 -> ColorPattern -> Node
+straightBeam t start end colorPattern =
+    let
+        difference =
+            Vec2.sub end start
+
+        { x, y } =
+            Vec2.add start end |> Vec2.scale 0.5 |> Vec2.toRecord
+
+        rotate =
+            vecToAngle difference
+
+        height =
+            Vec2.length difference
+
+        width =
+            0.1 * (1 + 3 * t)
+    in
+    rect
+        { defaultParams
+            | fill = colorPattern.brightV
+            , strokeWidth = 0
+            , x = x
+            , y = y
+            , rotate = rotate
+            , w = width
+            , h = height
+            , opacity = 1 - Ease.outExpo t
+        }
 
 
 
 -- Main Render
 
 
-render : Gfx -> Svg a
+render : Gfx -> Node
 render cosmetic =
     let
         t =
@@ -218,48 +269,39 @@ render cosmetic =
             fractalBeam start end colorPattern t
 
         GfxProjectileCase origin angle ->
-            rect
-                [ transform
-                    [ translate origin
-                    , rotateRad angle
-                    , translate2 t 0
-                    ]
-                , fill "yellow"
-                , stroke "#990"
-                , strokeWidth 0.02
-                , width 0.1
-                , height 0.15
+            Nod
+                [ translate origin
+                , rotateRad angle
+                , translate2 t 0
                 ]
-                []
+                [ rect
+                    { defaultParams
+                        | fill = yellow
+                        , stroke = darkYellow
+                        , strokeWidth = 0.02
+                        , w = 0.1
+                        , h = 0.15
+                    }
+                ]
 
         GfxBeam start end colorPattern ->
-            let
-                s =
-                    Vec2.toRecord start
+            straightBeam t start end colorPattern
 
-                e =
-                    Vec2.toRecord end
-            in
-            line
-                [ x1 s.x
-                , y1 s.y
-                , x2 e.x
-                , y2 e.y
-                , strokeWidth (0.1 * (1 + 3 * t))
-                , stroke colorPattern.bright
-                , opacity (1 - Ease.outExpo t)
-                ]
-                []
-
-        GfxExplosion position size ->
+        GfxExplosion position rawSize ->
             let
                 particleCount =
-                    5
+                    1.6 * rawSize |> ceiling
+
+                size =
+                    0.3 * rawSize
+
+                particleDiameter =
+                    2 * size * (t * 0.9 + 0.1)
 
                 particleByIndex index =
                     let
                         a =
-                            turns (toFloat index / particleCount)
+                            turns (toFloat index / toFloat particleCount)
 
                         x =
                             t * size * cos a
@@ -267,70 +309,72 @@ render cosmetic =
                         y =
                             t * size * sin a
                     in
-                    circle
-                        [ cx x
-                        , cy y
-                        , r <| size * (t * 0.9 + 0.1)
-                        , opacity (1 - t)
-                        , fill "yellow"
-                        , stroke "orange"
-                        , strokeWidth 0.1
-                        ]
-                        []
+                    ellipse
+                        { defaultParams
+                            | fill = yellow
+                            , stroke = orange
+                            , x = x
+                            , y = y
+                            , w = particleDiameter
+                            , h = particleDiameter
+                            , opacity = 1 - t
+                        }
             in
             List.range 0 (particleCount - 1)
                 |> List.map particleByIndex
-                |> g
-                    [ transform
-                        [ translate position
-                        , "scale(0.3,0.3)"
-                        ]
-                    ]
+                |> Nod [ translate position ]
 
         GfxFlyingHead class origin destination colorPattern ->
-            let
-                headPosition =
-                    Vec2.add (Vec2.scale t destination) (Vec2.scale (1 - t) origin)
+            Nod [] []
 
-                angle =
-                    vecToAngle (Vec2.sub destination origin)
-            in
-            g
-                []
-                [ fractalBeam destination headPosition healingGreen t
-                , g
-                    [ transform [ translate headPosition ]
-                    , opacity (1 - t * t)
-                    ]
-                    []
-                    {- TODO
-                    [ View.Mech.head class 0 colorPattern.dark colorPattern.bright angle
-                    View.Mech.headOverlay (0.3 + 0.3 * sin (cosmetic.age * 30)) angle
-                    ]
-                    -}
-                ]
+        {-
+           let
+               headPosition =
+                   Vec2.add (Vec2.scale t destination) (Vec2.scale (1 - t) origin)
 
+               angle =
+                   vecToAngle (Vec2.sub destination origin)
+           in
+           g
+               []
+               [ fractalBeam destination headPosition healingGreen t
+               , g
+                   [ transform [ translate headPosition ]
+                   , opacity (1 - t * t)
+                   ]
+                   []
+
+               {- TODO
+                  [ View.Mech.head class 0 colorPattern.dark colorPattern.bright angle
+                  View.Mech.headOverlay (0.3 + 0.3 * sin (cosmetic.age * 30)) angle
+                  ]
+               -}
+               ]
+        -}
         GfxRepairBubble position ->
-            cross
-                [ opacity (1 - t * t)
-                , transform
-                    [ translate position
-                    , translate2 0 t
-                    , scale 0.05
-                    ]
-                , fill healingGreen.bright
-                , stroke healingGreen.dark
-                , strokeWidth 0.5
-                ]
+            Nod [] []
 
+        {-
+           cross
+               [ opacity (1 - t * t)
+               , transform
+                   [ translate position
+                   , translate2 0 t
+                   , scale 0.05
+                   ]
+               , fill healingGreen.bright
+               , stroke healingGreen.dark
+               , strokeWidth 0.5
+               ]
+        -}
         GfxTrail position angle stretch ->
             ellipse
-                [ transform [ translate position, rotateRad angle ]
-                , opacity (0.05 * (1 - t * t))
-
-                --
-                , rx (0.1 + t * 0.2)
-                , ry ((1.5 - t) * stretch)
-                , fill "#666"
-                ]
-                []
+                { defaultParams
+                    | fill = smokeFill
+                    , x = Vec2.getX position
+                    , y = Vec2.getY position
+                    , rotate = angle
+                    , w = 0.1 + t * 0.2
+                    , h = (1.5 - t) * stretch
+                    , opacity = 0.05 * (1 - t * t)
+                }

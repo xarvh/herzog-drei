@@ -70,6 +70,13 @@ recursiveTreeToEntities node transformSoFar entitiesSoFar =
 --
 
 
+translate : Vec2 -> Transform
+translate v =
+    { translate = vec3 (Vec2.getX v) (Vec2.getY v) 0
+    , rotate = 0
+    }
+
+
 translateVz : Vec2 -> Float -> Transform
 translateVz v z =
     { translate = vec3 (Vec2.getX v) (Vec2.getY v) z
