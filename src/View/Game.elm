@@ -21,6 +21,7 @@ import Svgl.Tree exposing (..)
 import Unit
 import Update
 import View.Base
+import View.Gfx
 import View.Mech
 import View.Projectile
 import View.Sub
@@ -81,20 +82,6 @@ view terrain viewport game =
                 |> Mat4.scale (vec3 (viewportScale / normalizedSize.width) (viewportScale / normalizedSize.height) 1)
                 |> Mat4.translate (vec3 shake.x shake.y 0)
     in
-    -- TODO
-    --                , game.projectileById
-    --                    |> Dict.values
-    --                    |> List.map (viewProjectile game.time)
-    --                    |> g []
-    --                , game.cosmetics
-    --                    |> List.map View.Gfx.render
-    --                    |> g []
-    --                , units
-    --                    |> List.map viewHealthbar
-    --                    |> g []
-    --                , units
-    --                    |> List.map (viewCharge game)
-    --                    |> g []
     [ freeSubs |> List.map (viewSub game)
     , walkingMechs |> List.map (viewMech game)
     , game.wallTiles |> Set.toList |> List.map viewWall
@@ -106,6 +93,15 @@ view terrain viewport game =
         []
       else
         [ game.leftTeam, game.rightTeam ] |> List.map (viewMarker game)
+    , game.cosmetics |> List.map View.Gfx.render
+
+    -- TODO
+    --                , units
+    --                    |> List.map viewHealthbar
+    --                    |> g []
+    --                , units
+    --                    |> List.map (viewCharge game)
+    --                    |> g []
     ]
         |> List.concat
         |> Nod []
