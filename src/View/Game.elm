@@ -22,6 +22,7 @@ import Unit
 import Update
 import View.Base
 import View.Gfx
+import View.Hud
 import View.Mech
 import View.Projectile
 import View.Sub
@@ -94,14 +95,8 @@ view terrain viewport game =
       else
         [ game.leftTeam, game.rightTeam ] |> List.map (viewMarker game)
     , game.cosmetics |> List.map View.Gfx.render
-
-    -- TODO
-    --                , units
-    --                    |> List.map viewHealthbar
-    --                    |> g []
-    --                , units
-    --                    |> List.map (viewCharge game)
-    --                    |> g []
+    , units |> List.map viewHealthbar
+    , units |> List.map (viewCharge game)
     ]
         |> List.concat
         |> Nod []
@@ -306,69 +301,37 @@ viewMarker game team =
         ]
 
 
+viewHealthbar : Unit -> Node
+viewHealthbar unit =
+    if unit.integrity > 0.95 then
+        Nod [] []
+    else
+        Nod
+            [ translate unit.position ]
+            [ View.Hud.healthBar unit.integrity ]
 
-{-
-   Nod
-       []
-       [ rect
-           { fill = vec3 0 0 0
-           , z = 0
-           , stroke = vec3 0 0 0
-           , x = 0
-           , y = 0
-           , rotate = 0
-           , w = 4
-           , h = 2
-           }
-       ,
-       ]
--}
-{-
-   e1 =
-       Svgl.Primitives.rect
-           { dimensions = vec2 10 3
-           , z = 0
-           , fill = vec3 1 0 0
-           , stroke = vec3 0.5 0 0
-           , strokeWidth = 0.5
-           , entityToCamera =
-               Mat4.identity
-                   |> Mat4.translate (vec3 1 0 0)
-                   |> Mat4.rotate (turns 0.3) (vec3 0 0 1)
-                   |> Mat4.mul worldToCamera
-           }
 
-   e2 =
-       Svgl.Primitives.ellipse
-           { dimensions = vec2 10 3
-           , z = 0
-           , fill = vec3 0 1 0
-           , stroke = vec3 0 0.5 0
-           , strokeWidth = 0.5
-           , entityToCamera =
-               Mat4.identity
-                   |> Mat4.translate (vec3 -1 0 0)
-                   |> Mat4.rotate (degrees 20) (vec3 0 0 1)
-                   |> Mat4.mul worldToCamera
-           }
+viewCharge : Game -> Unit -> Node
+viewCharge game unit =
+    case unit.maybeCharge of
+        Just (Charging startTime) ->
+            if game.time - startTime < 0.3 then
+                Nod [] []
+            else
+                Nod
+                    [ translate unit.position ]
+                    [ View.Hud.chargeBar ((game.time - startTime) / Stats.heli.chargeTime) ]
 
-   node1 =
-       Nod
-           [ rotateRad (degrees 20), translate2 10 0 ]
-           [ rect
-               { fill = Colors.gunFill
-               , z = 0
-               , stroke = Colors.gunStroke
-               , x = 0
-               , y = 0
-               , rotate = game.time / 4
-               , w = 6
-               , h = 2
-               }
-           ]
+        Just (Stretching _ startTime) ->
+            Mech.heliSalvoPositions (game.time - startTime) unit
+                |> List.map (View.Hud.salvoMark game.time (Unit.colorPattern game unit))
+                |> Nod []
 
--}
---
+        _ ->
+            Nod [] []
+
+
+
 {-
    maybeOpacity game =
        case game.maybeTransition of
@@ -434,115 +397,6 @@ viewMarker game team =
            []
 
 
-   viewMarker : Game -> Team -> Svg a
-   viewMarker game team =
-       let
-           fillColor =
-               team.colorPattern.dark
-
-           strokeColor =
-               team.colorPattern.bright
-
-           distance =
-               2 + 1 * periodHarmonic game.time 0 1.2
-
-           an =
-               periodHarmonic game.time 0.1 20 * 180
-
-           arrow angle =
-               g
-                   [ transform
-                       [ rotateDeg angle
-                       , scale 0.4
-                       , translate2 0 -distance
-                       ]
-                   ]
-                   [ arrowUp fillColor strokeColor ]
-       in
-       g
-           [ transform [ translate team.markerPosition, scale -0.5 ]
-           ]
-           [ ellipse
-               [ fill fillColor
-               , stroke strokeColor
-               , strokeWidth 0.1
-               , rx 0.5
-               , ry 0.6
-               ]
-               []
-           , ellipse
-               [ fill fillColor
-               , stroke strokeColor
-               , strokeWidth 0.07
-               , cy 0.27
-               , rx 0.25
-               , ry 0.3
-               ]
-               []
-           , arrow (an + 45)
-           , arrow (an + 135)
-           , arrow (an + 225)
-           , arrow (an + -45)
-           ]
-
-
-
-   viewHealthbar : Unit -> Svg a
-   viewHealthbar unit =
-       if unit.integrity > 0.95 then
-           Svg.text ""
-       else
-           View.Hud.healthBar unit.position unit.integrity
-
-
-   viewCharge : Game -> Unit -> Svg a
-   viewCharge game unit =
-       case unit.maybeCharge of
-           Just (Charging startTime) ->
-               if game.time - startTime < 0.3 then
-                   text ""
-               else
-                   View.Hud.chargeBar unit.position ((game.time - startTime) / Stats.heli.chargeTime)
-
-           Just (Stretching _ startTime) ->
-               Mech.heliSalvoPositions (game.time - startTime) unit
-                   |> List.map (View.Hud.salvoMark game.time (Unit.colorPattern game unit))
-                   |> g []
-
-           _ ->
-               Svg.text ""
-
-
-   wall : Tile2 -> Svg a
-   wall ( xi, yi ) =
-       let
-           xf =
-               toFloat xi
-
-           yf =
-               toFloat yi
-
-           c =
-               sin (xf * 9982399) + sin (yf * 17324650)
-
-           d =
-               sin (xf * 1372347) + sin (yf * 98325987)
-
-           rot =
-               5 * c
-
-           color =
-               (1 + d) / 4 * 255 |> floor |> String.fromInt
-       in
-       Svg.rect
-           [ transform [ translate2 (xf + 0.5) (yf + 0.5), rotateDeg rot ]
-           , x -0.55
-           , y -0.55
-           , width 1.1
-           , height 1.1
-           , fill <| "rgb(" ++ color ++ "," ++ color ++ "," ++ color ++ ")"
-           ]
-           []
 
 
 
@@ -586,91 +440,9 @@ viewMarker game team =
 
 
 -}
-{-
-   Svg.svg
-       (SplitScreen.viewportToSvgAttributes viewport)
-       [ Svg.g
-           [ transform
-             [ "scale(1 -1)", scale (1 / tilesToViewport game viewport)
-             , translate game.shakeVector
-             ]
-           ]
-           [ Svg.Lazy.lazy View.Background.terrain terrain
-           , g (maybeOpacity game)
-               [ case game.mode of
-                   GameModeTeamSelection _ ->
-                       SetupPhase.view terrain game
-
-                   _ ->
-                       text ""
-               , subs
-                   |> List.filter (\( u, s ) -> s.mode == UnitModeFree)
-                   |> List.map (viewSub game)
-                   |> g []
-               , game.wallTiles
-                   |> Set.toList
-                   |> List.map wall
-                   |> g []
-               , game.baseById
-                   |> Dict.values
-                   |> List.map (viewBase game)
-                   |> g []
-               , subs
-                   |> List.filter (\( u, s ) -> s.mode /= UnitModeFree)
-                   |> List.map (viewSub game)
-                   |> g []
-               , mechs
-                   |> List.map (viewMech game)
-                   |> g []
-               , if game.mode /= GameModeVersus then
-                   text ""
-                 else
-                   [ game.leftTeam, game.rightTeam ]
-                       |> List.map (viewMarker game)
-                       |> g []
-               , game.projectileById
-                   |> Dict.values
-                   |> List.map (viewProjectile game.time)
-                   |> g []
-               , game.cosmetics
-                   |> List.map View.Gfx.render
-                   |> g []
-               , units
-                   |> List.map viewHealthbar
-                   |> g []
-               , units
-                   |> List.map (viewCharge game)
-                   |> g []
-               ]
-           ]
-       , viewVictory game
-       ]
--}
 -- Map editor
 
 
 viewMap : b -> Viewport -> Map -> Svg a
 viewMap terrain viewport map =
     Svg.svg [] []
-
-
-
-{-
-   (SplitScreen.viewportToSvgAttributes viewport)
-   [ Svg.g
-       [ transform [ "scale(1 -1)", scale (1 / tilesToViewport map viewport) ]
-       ]
-       [ Svg.Lazy.lazy View.Background.terrain terrain
-       , g []
-           [ map.wallTiles
-               |> Set.toList
-               |> List.map wall
-               |> g []
-           , map.bases
-               |> Dict.toList
-               |> List.map viewMapEditorBase
-               |> g []
-           ]
-       ]
-   ]
--}

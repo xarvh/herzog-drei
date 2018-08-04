@@ -4,15 +4,15 @@ import Math.Vector3 as Vec3 exposing (Vec3, vec3)
 
 
 gunFill =
-    gray 0.5
+    grey 0.5
 
 
 gunStroke =
-    gray 0.4
+    grey 0.4
 
 
 smokeFill =
-    gray 0.4
+    grey 0.4
 
 
 
@@ -23,7 +23,7 @@ dark =
     0.6
 
 
-gray g =
+grey g =
     vec3 g g g
 
 
@@ -37,6 +37,14 @@ red =
 
 darkRed =
     vec3 dark 0 0
+
+
+green =
+    vec3 0 1 0
+
+
+blue =
+    vec3 0 0 1
 
 
 yellow =
