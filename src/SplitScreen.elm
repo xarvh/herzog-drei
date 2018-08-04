@@ -1,5 +1,7 @@
 module SplitScreen exposing (..)
 
+-- TODO: Split Svg and WebGL code
+
 import Html exposing (Html)
 import Html.Attributes
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)

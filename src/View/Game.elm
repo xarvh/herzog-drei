@@ -5,6 +5,7 @@ import ColorPattern exposing (ColorPattern, neutral)
 import Colors
 import Dict exposing (Dict)
 import Game exposing (..)
+import Html exposing (Html)
 import List.Extra
 import Map exposing (Map)
 import Math.Matrix4 as Mat4 exposing (Mat4)
@@ -15,7 +16,6 @@ import Set exposing (Set)
 import SetupPhase
 import SplitScreen exposing (Viewport)
 import Stats
-import Svg exposing (Svg)
 import Svgl.Primitives
 import Svgl.Tree exposing (..)
 import Unit
@@ -51,7 +51,19 @@ mechVsUnit units =
     List.foldl folder ( [], [] ) units
 
 
-view : q -> Viewport -> Game -> Svg a
+worldToCameraMatrix : { a | halfWidth : Int, halfHeight : Int } -> Viewport -> Mat4
+worldToCameraMatrix size viewport =
+    let
+        normalizedSize =
+            SplitScreen.normalizedSize viewport
+
+        viewportScale =
+            2 / tilesToViewport size viewport
+    in
+    Mat4.makeScale (vec3 (viewportScale / normalizedSize.width) (viewportScale / normalizedSize.height) 1)
+
+
+view : q -> Viewport -> Game -> Html a
 view terrain viewport game =
     let
         units =
@@ -68,19 +80,11 @@ view terrain viewport game =
         ( flyingMechs, walkingMechs ) =
             List.partition (\( unit, mech ) -> Mech.transformMode mech == ToFlyer) mechs
 
-        normalizedSize =
-            SplitScreen.normalizedSize viewport
-
-        viewportScale =
-            2 / tilesToViewport game viewport
-
         shake =
-            -- TODO: Vec2.toRecord game.shakeVector
-            Vec2.toRecord (vec2 0 0)
+            Vec2.toRecord game.shakeVector
 
         worldToCamera =
-            Mat4.identity
-                |> Mat4.scale (vec3 (viewportScale / normalizedSize.width) (viewportScale / normalizedSize.height) 1)
+            worldToCameraMatrix game viewport
                 |> Mat4.translate (vec3 shake.x shake.y 0)
     in
     [ freeSubs |> List.map (viewSub game)
@@ -311,31 +315,42 @@ viewCharge game unit =
                                1 - t
                in
                [ opacity o ]
-
-
-
-
-
-
-   viewMapEditorBase : ( Tile2, BaseType ) -> Svg a
-   viewMapEditorBase ( tile, baseType ) =
-       let
-           colorPattern =
-               ColorPattern.neutral
-       in
-       Svg.g
-           [ transform [ translate (tile2Vec tile) ] ]
-           [ case baseType of
-               Game.BaseSmall ->
-                   View.Base.small 0 colorPattern.bright colorPattern.dark
-
-               Game.BaseMain ->
-                   View.Base.main_ 0 colorPattern.bright colorPattern.dark
-           ]
 -}
 -- Map editor
 
 
-viewMap : b -> Viewport -> Map -> Svg a
+viewMap : terrain -> Viewport -> Map -> Html a
 viewMap terrain viewport map =
-    Svg.svg [] []
+    let
+        worldToCamera =
+            worldToCameraMatrix map viewport
+    in
+    [ map.wallTiles |> Set.toList |> List.map viewWall
+    , map.bases |> Dict.toList |> List.map viewMapEditorBase
+    ]
+        |> List.concat
+        |> Nod []
+        |> treeToEntities worldToCamera
+        |> List.map Tuple.second
+        |> WebGL.toHtmlWith
+            [ WebGL.alpha True
+            , WebGL.antialias
+            ]
+            (SplitScreen.viewportToWebGLAttributes viewport)
+
+
+viewMapEditorBase : ( Tile2, BaseType ) -> Node
+viewMapEditorBase ( tile, baseType ) =
+    let
+        colorPattern =
+            ColorPattern.neutral
+    in
+    Nod
+        [ translate (tile2Vec tile) ]
+        [ case baseType of
+            Game.BaseSmall ->
+                View.Base.small 0 colorPattern.brightV colorPattern.darkV
+
+            Game.BaseMain ->
+                View.Base.main_ 0 colorPattern.brightV colorPattern.darkV
+        ]
