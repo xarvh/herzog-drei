@@ -93,7 +93,7 @@ view terrain viewport game =
     , if game.mode /= GameModeVersus then
         []
       else
-        [ game.leftTeam, game.rightTeam ] |> List.map (viewMarker game)
+        [ game.leftTeam, game.rightTeam ] |> List.map (viewRallyPoint game)
     , game.cosmetics |> List.map View.Gfx.render
     , units |> List.map viewHealthbar
     , units |> List.map (viewCharge game)
@@ -253,52 +253,11 @@ viewWall ( xi, yi ) =
         }
 
 
-viewMarker : Game -> Team -> Node
-viewMarker game team =
-    let
-        distance =
-            0.5 + 0.25 * periodHarmonic game.time 0 0.3
-
-        angle =
-            periodHarmonic game.time 0.1 20 * 180
-
-        params =
-            { defaultParams
-                | fill = team.colorPattern.darkV
-                , stroke = team.colorPattern.brightV
-            }
-
-        arrow a =
-            Nod
-                [ rotateDeg a
-                , translate2 0 -distance
-                ]
-                [ rect
-                    { params
-                        | w = 0.3
-                        , h = 0.3
-                    }
-                ]
-    in
+viewRallyPoint : Game -> Team -> Node
+viewRallyPoint game team =
     Nod
-        [ translateVz team.markerPosition 0 ]
-        [ ellipse
-            { params
-                | w = 0.5
-                , h = 0.6
-            }
-        , ellipse
-            { params
-                | y = 0.13
-                , w = 0.25
-                , h = 0.3
-                , strokeWidth = 0.7 * params.strokeWidth
-            }
-        , arrow (angle + 45)
-        , arrow (angle + 135)
-        , arrow (angle + 225)
-        , arrow (angle + -45)
-        ]
+        [ translate team.markerPosition ]
+        [ View.Hud.rallyPoint game.time team.colorPattern.darkV team.colorPattern.brightV ]
 
 
 viewHealthbar : Unit -> Node

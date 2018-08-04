@@ -95,3 +95,69 @@ salvoMark time { brightV, darkV } position =
             , w = 0.2
             , h = 0.2
         }
+
+
+
+-- Rally point
+
+
+arrow : Params -> Node
+arrow params =
+    Nod
+        []
+        [ rect
+            { params
+                | w = 0.25
+                , h = 0.25
+                , y = -0.08
+            }
+        , rightTri
+            { params
+                | rotate = degrees 135
+                , w = 0.35
+                , h = 0.35
+            }
+        ]
+
+
+rallyPoint : Seconds -> Vec3 -> Vec3 -> Node
+rallyPoint t fill stroke =
+    let
+        distance =
+            0.5 + 0.25 * periodHarmonic t 0 0.3
+
+        angle =
+            periodHarmonic t 0.1 20 * 180
+
+        params =
+            { defaultParams
+                | fill = fill
+                , stroke = stroke
+            }
+
+        arro a =
+            Nod
+                [ rotateDeg a
+                , translate2 0 -distance
+                ]
+                [ arrow params ]
+    in
+    Nod
+        []
+        [ ellipse
+            { params
+                | w = 0.5
+                , h = 0.6
+            }
+        , ellipse
+            { params
+                | y = 0.13
+                , w = 0.25
+                , h = 0.3
+                , strokeWidth = 0.7 * params.strokeWidth
+            }
+        , arro (angle + 45)
+        , arro (angle + 135)
+        , arro (angle + 225)
+        , arro (angle + -45)
+        ]

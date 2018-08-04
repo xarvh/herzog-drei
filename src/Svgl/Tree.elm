@@ -49,27 +49,6 @@ recursiveTreeToEntities node transformSoFar entitiesSoFar =
             List.foldr (\child enli -> recursiveTreeToEntities child newTransform enli) entitiesSoFar children
 
 
-
---
-{-
-   raise : Float -> Node -> Node
-   raise dz node =
-       case node of
-           Nod transforms children ->
-               Nod transforms (List.map (raise dz) children)
-
-           end ->
-             ent
-               Ent (f >> Tuple.mapFirst ((+) dz))
-
-
-   raiseList : Float -> List Node -> Node
-   raiseList dz list =
-       raise dz (Nod [] list)
--}
---
-
-
 translate : Vec2 -> Transform
 translate v =
     { translate = vec3 (Vec2.getX v) (Vec2.getY v) 0
@@ -157,6 +136,11 @@ entity primitive p =
 rect : Params -> Node
 rect =
     entity Primitives.rect
+
+
+rightTri : Params -> Node
+rightTri =
+    entity Primitives.rightTri
 
 
 ellipse : Params -> Node
