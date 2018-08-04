@@ -16,7 +16,7 @@ import SetupPhase
 import SplitScreen exposing (Viewport)
 import Stats
 import Svg exposing (Svg)
-import Svgl.Primitives
+import Svgl.Primitives as Primitives exposing (defaultUniforms)
 import Svgl.Tree exposing (..)
 import Unit
 import Update
@@ -81,37 +81,158 @@ view terrain viewport game =
             Mat4.identity
                 |> Mat4.scale (vec3 (viewportScale / normalizedSize.width) (viewportScale / normalizedSize.height) 1)
                 |> Mat4.translate (vec3 shake.x shake.y 0)
-    in
-    [ freeSubs |> List.map (viewSub game)
-    , walkingMechs |> List.map (viewMech game)
-    , game.wallTiles |> Set.toList |> List.map viewWall
-    , game.baseById |> Dict.values |> List.map (viewBase game)
-    , baseSubs |> List.map (viewSub game)
-    , flyingMechs |> List.map (viewMech game)
-    , game.projectileById |> Dict.values |> List.map (viewProjectile game)
-    , if game.mode /= GameModeVersus then
-        []
-      else
-        [ game.leftTeam, game.rightTeam ] |> List.map (viewMarker game)
-    , game.cosmetics |> List.map View.Gfx.render
 
-    -- TODO
-    --                , units
-    --                    |> List.map viewHealthbar
-    --                    |> g []
-    --                , units
-    --                    |> List.map (viewCharge game)
-    --                    |> g []
-    ]
-        |> List.concat
-        |> Nod []
-        |> treeToEntities worldToCamera
-        |> List.map Tuple.second
+        node =
+            WebGL.entity quadVertexShader
+                rectFragmentShader
+                Primitives.normalizedQuadMesh
+                { defaultUniforms
+                    | entityToCamera = Mat4.scale3 20 5 1 worldToCamera
+                }
+    in
+    [ node ]
+        --         |> treeToEntities worldToCamera
+        --         |> List.map Tuple.second
         |> WebGL.toHtmlWith
             [ WebGL.alpha True
             , WebGL.antialias
             ]
             (SplitScreen.viewportToWebGLAttributes viewport)
+
+
+quadVertexShader : Shader Primitives.Attributes Primitives.Uniforms Primitives.Varying
+quadVertexShader =
+    [glsl|
+        precision mediump float;
+
+        attribute vec2 position;
+
+        uniform mat4 entityToCamera;
+        uniform vec2 dimensions;
+        uniform vec3 fill;
+        uniform vec3 stroke;
+        uniform float strokeWidth;
+
+        varying vec2 localPosition;
+
+        void main () {
+            localPosition = position;
+            gl_Position = entityToCamera * vec4(localPosition, 0, 1);
+        }
+    |]
+
+
+rectFragmentShader : Shader {} Primitives.Uniforms Primitives.Varying
+rectFragmentShader =
+    [glsl|
+        precision mediump float;
+
+        vec3 random3(vec3 c) {
+                float j = 4096.0*sin(dot(c,vec3(17.0, 59.4, 15.0)));
+                vec3 r;
+                r.z = fract(512.0*j);
+                j *= .125;
+                r.x = fract(512.0*j);
+                j *= .125;
+                r.y = fract(512.0*j);
+                return r-0.5;
+        }
+
+        /* skew constants for 3d simplex functions */
+        const float F3 =  0.3333333;
+        const float G3 =  0.1666667;
+
+        /* 3d simplex noise */
+        float simplex3d(vec3 p) {
+                 /* 1. find current tetrahedron T and its four vertices */
+                 /* s, s+i1, s+i2, s+1.0 - absolute skewed (integer) coordinates of T vertices */
+                 /* x, x1, x2, x3 - unskewed coordinates of p relative to each of T vertices*/
+
+                 /* calculate s and x */
+                 vec3 s = floor(p + dot(p, vec3(F3)));
+                 vec3 x = p - s + dot(s, vec3(G3));
+
+                 /* calculate i1 and i2 */
+                 vec3 e = step(vec3(0.0), x - x.yzx);
+                 vec3 i1 = e*(1.0 - e.zxy);
+                 vec3 i2 = 1.0 - e.zxy*(1.0 - e);
+
+                 /* x1, x2, x3 */
+                 vec3 x1 = x - i1 + G3;
+                 vec3 x2 = x - i2 + 2.0*G3;
+                 vec3 x3 = x - 1.0 + 3.0*G3;
+
+                 /* 2. find four surflets and store them in d */
+                 vec4 w, d;
+
+                 /* calculate surflet weights */
+                 w.x = dot(x, x);
+                 w.y = dot(x1, x1);
+                 w.z = dot(x2, x2);
+                 w.w = dot(x3, x3);
+
+                 /* w fades from 0.6 at the center of the surflet to 0.0 at the margin */
+                 w = max(0.6 - w, 0.0);
+
+                 /* calculate surflet components */
+                 d.x = dot(random3(s), x);
+                 d.y = dot(random3(s + i1), x1);
+                 d.z = dot(random3(s + i2), x2);
+                 d.w = dot(random3(s + 1.0), x3);
+
+                 /* multiply d by w^4 */
+                 w *= w;
+                 w *= w;
+                 d *= w;
+
+                 /* 3. return the sum of the four surflets */
+                 return dot(d, vec4(52.0));
+        }
+
+        float noise(vec3 m) {
+            return   0.5333333*simplex3d(m) +0.2666667*simplex3d(2.0*m) +0.1333333*simplex3d(4.0*m) +0.0666667*simplex3d(8.0*m);
+        }
+
+
+        uniform mat4 entityToCamera;
+        uniform vec2 dimensions;
+        uniform vec3 fill;
+        uniform vec3 stroke;
+        uniform float strokeWidth;
+        uniform float opacity;
+
+        varying vec2 localPosition;
+
+
+
+        void main () {
+            vec4 fragColor;
+            float iTime = 1000.0;
+            float detailDensity = 20.0;
+
+            // point used to get the noise
+            vec3 p3 = detailDensity * vec3(localPosition, iTime * 0.4);
+
+            float xx = localPosition.x;
+            float yy = localPosition.y;
+
+            // reduce dispersion towards the x extremes
+            float reducedX = clamp(-0.46 * xx * xx + 0.15, 0., 1.);
+
+            // ????
+            float combinedCoordinates = yy - reducedX * noise(p3);
+
+            // concentrate along the y axis
+            float g = pow(combinedCoordinates, 0.2);
+            float a = clamp(1.0 - g, 0.0, 1.0);
+
+            vec3 col = a * vec3(1.10, 1.48, 1.78);
+
+            fragColor.rgb = a * col * col * col * col;
+            fragColor.a = a - 0.2;
+
+            gl_FragColor = fragColor;}
+    |]
 
 
 viewSub : Game -> ( Unit, SubComponent ) -> Node

@@ -1,10 +1,4 @@
-module Svgl.Primitives
-    exposing
-        ( Uniforms
-        , defaultUniforms
-        , ellipse
-        , rect
-        )
+module Svgl.Primitives exposing (..)
 
 import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
