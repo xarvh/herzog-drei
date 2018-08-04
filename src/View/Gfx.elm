@@ -185,44 +185,6 @@ fractalBeam start end colorPattern t =
         ]
 
 
-
-{-
-   path
-       [ transform [ translate start, rotateRad a, scale2 1 l ]
-       , d <| "M0,0 C" ++ String.fromFloat x1 ++ ",0.33 " ++ String.fromFloat x2 ++ ",0.66 0,1"
-       , fill "none"
-       , stroke bright
-       , strokeWidth 0.06
-       , opacity 0.8
-       ]
-       []
--}
-{-
-   cross : List (Svg.Attribute a) -> Svg a
-   cross attrs =
-       let
-           p =
-               [ "M 1,1"
-               , "L 3,1"
-               , "L 3,-1"
-               , "L 1,-1"
-               , "L 1,-3"
-               , "L -1,-3"
-               , "L -1,-1"
-               , "L -3,-1"
-               , "L -3,1"
-               , "L -1,1"
-               , "L -1,3"
-               , "L 1,3"
-               , "Z"
-               ]
-                   |> String.join " "
-                   |> d
-       in
-       path (p :: attrs) []
--}
-
-
 straightBeam : Float -> Vec2 -> Vec2 -> ColorPattern -> Node
 straightBeam t start end colorPattern =
     let
@@ -352,21 +314,44 @@ render cosmetic =
                ]
         -}
         GfxRepairBubble position ->
-            Nod [] []
+            let
+                params =
+                    { defaultParams
+                        | fill = healingGreen.brightV
+                        , stroke = healingGreen.brightV
+                        , strokeWidth = 0
+                        , opacity = 1 - t * t
+                    }
 
-        {-
-           cross
-               [ opacity (1 - t * t)
-               , transform
-                   [ translate position
-                   , translate2 0 t
-                   , scale 0.05
-                   ]
-               , fill healingGreen.bright
-               , stroke healingGreen.dark
-               , strokeWidth 0.5
-               ]
-        -}
+                short =
+                    0.1
+
+                long =
+                    3 * short
+            in
+            Nod
+                [ translate position
+                , translate2 0 t
+                ]
+                [ rect
+                    { params
+                        | w = short
+                        , h = long
+                    }
+                , rect
+                    { params
+                        | w = short
+                        , h = short
+                        , x = short
+                    }
+                , rect
+                    { params
+                        | w = short
+                        , h = short
+                        , x = -short
+                    }
+                ]
+
         GfxTrail position angle stretch ->
             ellipse
                 { defaultParams
