@@ -4,6 +4,7 @@ module Svgl.Primitives
         , defaultUniforms
         , ellipse
         , rect
+        , rightTri
         )
 
 import Math.Matrix4 as Mat4 exposing (Mat4)
@@ -59,16 +60,57 @@ ellipse =
     WebGL.entityWith settings quadVertexShader ellipseFragmentShader normalizedQuadMesh
 
 
+rightTri : Uniforms -> Entity
+rightTri =
+    WebGL.entityWith settings quadVertexShader colorShader normalizedRightTriMesh
+
+
+colorShader : Shader {} Uniforms Varying
+colorShader =
+    [glsl|
+        precision mediump float;
+
+        uniform mat4 entityToCamera;
+        uniform vec2 dimensions;
+        uniform vec3 fill;
+        uniform vec3 stroke;
+        uniform float strokeWidth;
+        uniform float opacity;
+
+        varying vec2 localPosition;
+
+        void main () {
+          gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        }
+    |]
+
+
+
+
+
+
+
 normalizedQuadMesh : Mesh Attributes
 normalizedQuadMesh =
     WebGL.triangles
+        []
+--         [ ( Attributes (vec2 -0.5 -0.5)
+--           , Attributes (vec2 0.5 -0.5)
+--           , Attributes (vec2 0.5 0.5)
+--           )
+--         , ( Attributes (vec2 -0.5 -0.5)
+--           , Attributes (vec2 -0.5 0.5)
+--           , Attributes (vec2 0.5 0.5)
+--           )
+--         ]
+
+
+normalizedRightTriMesh : Mesh Attributes
+normalizedRightTriMesh =
+    WebGL.triangles
         [ ( Attributes (vec2 -0.5 -0.5)
-          , Attributes (vec2 0.5 -0.5)
-          , Attributes (vec2 0.5 0.5)
-          )
-        , ( Attributes (vec2 -0.5 -0.5)
           , Attributes (vec2 -0.5 0.5)
-          , Attributes (vec2 0.5 0.5)
+          , Attributes (vec2 0.5 -0.5)
           )
         ]
 

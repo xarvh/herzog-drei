@@ -159,6 +159,11 @@ rect =
     entity Primitives.rect
 
 
+rightTri : Params -> Node
+rightTri =
+    entity Primitives.rightTri
+
+
 ellipse : Params -> Node
 ellipse =
     entity Primitives.ellipse

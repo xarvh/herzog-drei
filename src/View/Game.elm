@@ -93,7 +93,7 @@ view terrain viewport game =
     , if game.mode /= GameModeVersus then
         []
       else
-        [ game.leftTeam, game.rightTeam ] |> List.map (viewMarker game)
+        [ game.leftTeam, game.rightTeam ] |> List.map (viewRallyPoint game)
     , game.cosmetics |> List.map View.Gfx.render
     , units |> List.map viewHealthbar
     , units |> List.map (viewCharge game)
@@ -253,8 +253,8 @@ viewWall ( xi, yi ) =
         }
 
 
-viewMarker : Game -> Team -> Node
-viewMarker game team =
+viewRallyPoint : Game -> Team -> Node
+viewRallyPoint game team =
     let
         distance =
             0.5 + 0.25 * periodHarmonic game.time 0 0.3
@@ -273,7 +273,7 @@ viewMarker game team =
                 [ rotateDeg a
                 , translate2 0 -distance
                 ]
-                [ rect
+                [ rightTri
                     { params
                         | w = 0.3
                         , h = 0.3
