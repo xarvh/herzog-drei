@@ -14,12 +14,24 @@ type alias ColorPattern =
     }
 
 
+vecToRgb : Vec3 -> String
+vecToRgb v =
+    let
+        { x, y, z } =
+            Vec3.toRecord v
+
+        f2s f =
+            f * 255 |> ceiling |> String.fromInt
+    in
+    "rgb(" ++ f2s x ++ "," ++ f2s y ++ "," ++ f2s z ++ ")"
+
+
 pattern : Vec3 -> Vec3 -> String -> ColorPattern
 pattern bright dark key =
     { brightV = bright
     , darkV = dark
-    , bright = "black"
-    , dark = "white"
+    , bright = vecToRgb bright
+    , dark = vecToRgb dark
     , key = key
     }
 
