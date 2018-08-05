@@ -6,7 +6,6 @@ import Math.Vector3 as Vec3 exposing (Vec3, vec3)
 import Projectile
 import Stats
 import Svgl.Tree exposing (..)
-import View
 
 
 yellow =

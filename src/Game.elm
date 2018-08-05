@@ -2,13 +2,13 @@ module Game exposing (..)
 
 import ColorPattern exposing (ColorPattern)
 import Dict exposing (Dict)
+import Ease
 import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
 import Random
 import Random.List
 import Set exposing (Set)
-import Svg exposing (Svg)
 
 
 -- Basic Types
@@ -815,6 +815,27 @@ rotateVector angle v =
     vec2
         (x * cosA - y * sinA)
         (x * sinA + y * cosA)
+
+
+
+-- Shader aliases
+
+
+smooth : Float -> Float -> Float -> Float
+smooth t a b =
+    let
+        tt =
+            Ease.inOutCubic t
+    in
+    tt * b + (1 - tt) * a
+
+
+step : Float -> Float -> Float -> Float -> Float
+step t threshold a b =
+    if t > threshold then
+        b
+    else
+        a
 
 
 mix2 : Vec3 -> Vec3 -> Float -> Vec3

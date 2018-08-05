@@ -29,8 +29,8 @@ import View.Sub
 import WebGL exposing (Entity, Mesh, Shader)
 
 
-view : q -> Viewport -> Game -> Html a
-view terrain viewport game =
+view : Viewport -> Game -> Html a
+view viewport game =
     let
         units =
             game.unitById
@@ -324,8 +324,8 @@ viewCharge game unit =
 -- Map editor
 
 
-viewMap : terrain -> Viewport -> Map -> Html a
-viewMap terrain viewport map =
+viewMap : Viewport -> Map -> Html a
+viewMap viewport map =
     let
         worldToCamera =
             worldToCameraMatrix map viewport

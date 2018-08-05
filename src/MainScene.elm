@@ -18,7 +18,6 @@ import Set exposing (Set)
 import Shell exposing (Shell)
 import SplitScreen exposing (Viewport)
 import Update
-import View.Background
 import View.Game
 
 
@@ -26,7 +25,6 @@ type alias Model =
     { game : Game
     , botStatesByKey : Dict String Bot.Dummy.State
     , fps : List Float
-    , terrain : List View.Background.Rect
     , previousInputStatesByKey : Dict String InputState
     }
 
@@ -44,7 +42,6 @@ initDemo seed map =
     { game = game
     , botStatesByKey = Dict.empty
     , fps = [ 1 ]
-    , terrain = View.Background.initRects seed map
     , previousInputStatesByKey = Dict.empty
     }
         |> initBots
@@ -55,7 +52,6 @@ initTeamSelection seed map =
     { game = Init.asTeamSelection seed map
     , botStatesByKey = Dict.empty
     , fps = [ 1 ]
-    , terrain = View.Background.initRects seed map
     , previousInputStatesByKey = Dict.empty
     }
 
@@ -395,7 +391,7 @@ view shell model =
         [ class "game-area" ]
         -- TODO rename to scene-area
         [ SplitScreen.viewportsWrapper
-            [ View.Game.view model.terrain shell.viewport model.game ]
+            [ View.Game.view shell.viewport model.game ]
         ]
     , viewFps model shell
     , viewVictory shell.viewport model.game

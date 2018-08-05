@@ -963,7 +963,7 @@ viewMapPreview model map =
     in
     div
         []
-        [ View.Game.viewMap [] viewport mmmap ]
+        [ View.Game.viewMap viewport mmmap ]
 
 
 

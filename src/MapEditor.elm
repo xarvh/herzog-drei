@@ -15,7 +15,6 @@ import Set exposing (Set)
 import Shell exposing (Shell)
 import SplitScreen exposing (Viewport)
 import Task
-import View.Background
 import View.Game
 
 
@@ -435,25 +434,6 @@ updateOnTextInput inputField string model =
 -- View
 
 
-terrain : Model -> List View.Background.Rect
-terrain { map } =
-    let
-        hW =
-            toFloat map.halfWidth
-
-        hH =
-            toFloat map.halfHeight
-    in
-    [ { x = -hW
-      , y = -hH
-      , w = 2 * hW
-      , h = 2 * hH
-      , color = "red"
-      , class = ""
-      }
-    ]
-
-
 symmetryRadio : Model -> ( String, Symmetry ) -> Html Msg
 symmetryRadio model ( name, symmetry ) =
     div
@@ -530,7 +510,7 @@ view shell model =
         [ class "flex relative" ]
         [ div
             [ Html.Events.onClick OnMapClick ]
-            [ SplitScreen.viewportsWrapper [ View.Game.viewMap (terrain model) (viewport shell) model.map ]
+            [ SplitScreen.viewportsWrapper [ View.Game.viewMap (viewport shell) model.map ]
             ]
         , div
             [ style "height" (String.fromInt toolbarHeightInPixels ++ "px")
