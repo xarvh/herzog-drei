@@ -61,6 +61,13 @@ sub { lookAngle, moveAngle, fireAngle, bright, dark, isBig } =
                 | fill = fillColor
                 , stroke = strokeColor
             }
+
+        eyeParams =
+            { defaultParams
+                | fill = Colors.red
+                , stroke = Colors.darkRed
+                , strokeWidth = 0.02
+            }
     in
     Nod []
         [ Nod
@@ -96,16 +103,41 @@ sub { lookAngle, moveAngle, fireAngle, bright, dark, isBig } =
                     , h = 0.6
                 }
 
-            -- eye
-            , ellipse
-                { defaultParams
-                    | fill = Colors.red
-                    , stroke = Colors.darkRed
-                    , strokeWidth = 0.02
-                    , y = 0.135
-                    , z = 1.0 * height
-                    , w = 0.25
-                    , h = 0.3
-                }
+            -- eye(s)
+            , if not isBig then
+                ellipse
+                    { eyeParams
+                        | y = 0.135
+                        , w = 0.25
+                        , h = 0.3
+                    }
+              else
+                Nod
+                    []
+                    [ ellipse
+                        { eyeParams
+                            | x = -0.08
+                            , y = 0.1
+                            , rotate = degrees 30
+                            , w = 0.1
+                            , h = 0.2
+                        }
+                    , ellipse
+                        { eyeParams
+                            | x = 0.1
+                            , y = 0.13
+                            , rotate = degrees -20
+                            , w = 0.09
+                            , h = 0.16
+                        }
+                    , ellipse
+                        { eyeParams
+                            | x = 0.1
+                            , y = -0.05
+                            , rotate = degrees -20
+                            , w = 0.09
+                            , h = 0.16
+                        }
+                    ]
             ]
         ]
