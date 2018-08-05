@@ -147,12 +147,9 @@ viewMech game ( unit, mech ) =
     let
         colorPattern =
             Game.teamColorPattern game unit.maybeTeamId
-
-        z =
-            mech.transformState * Stats.maxHeight.base
     in
     Nod
-        [ translateVz unit.position z ]
+        [ translate unit.position ]
         [ View.Mech.mech mech.class
             { transformState = mech.transformState
             , lookAngle = unit.lookAngle
@@ -196,26 +193,14 @@ viewBase game base =
                 Nod [] []
 
             Just mech ->
-                Nod [] []
-
-        {- TODO
-           g
-               [ 0.9
-                   * completion
-                   + 0.1
-                   * sin (pi * completion * 10)
-                   |> opacity
-               ]
-               [ View.Mech.mech mech.class
-                   { transformState = 1
-                   , lookAngle = 0
-                   , fireAngle = 0
-                   , fill = neutral.dark
-                   , stroke = colorPattern.dark
-                   , time = game.time
-                   }
-               ]
-        -}
+                View.Mech.mech mech.class
+                    { transformState = 1
+                    , lookAngle = 0
+                    , fireAngle = 0
+                    , fill = mix3 colorPattern.brightV colorPattern.darkV completion
+                    , stroke = mix3 colorPattern.darkV colorPattern.brightV completion
+                    , time = 0
+                    }
         ]
 
 
