@@ -78,6 +78,18 @@ type alias Team =
     }
 
 
+newTeam : TeamId -> ColorPattern -> Dict InputKey MechClass -> Team
+newTeam id colorPattern mechs =
+    { id = id
+    , colorPattern = colorPattern
+    , markerPosition = vec2 0 0
+    , markerTime = 0
+    , pathing = Dict.empty
+    , mechClassByInputKey = mechs
+    , bigSubsToSpawn = 0
+    }
+
+
 getTeam : Game -> TeamId -> Team
 getTeam game teamId =
     case teamId of
@@ -365,6 +377,19 @@ deltaShake shake =
     deltaGame (\g -> { g | shake = max g.shake shake })
 
 
+deltaSlowMotion : Seconds -> Delta
+deltaSlowMotion duration =
+    deltaGame (\g -> { g | slowMotionEnd = max (g.time + duration) g.slowMotionEnd })
+
+
+deltaSlowMotionBig =
+    deltaGame (\g -> { g | slowMotionEnd = g.time + 1, timeMultiplier = 0.2 })
+
+
+deltaSlowMotionSubtle =
+    deltaSlowMotion 0.1
+
+
 
 -- Bases
 
@@ -433,7 +458,7 @@ type alias Game =
     , time : Seconds
     , leftTeam : Team
     , rightTeam : Team
-    , maybeWinnerTeamId : Maybe TeamId
+    , maybeVictory : Maybe ( TeamId, Seconds )
 
     --
     , halfWidth : Int
@@ -442,7 +467,7 @@ type alias Game =
     , wallTiles : Set Tile2
 
     -- deferred deltas
-    , laters : List ( Seconds, SerialisedDelta )
+    , laters : List ( Seconds, Delta )
 
     -- entities
     , baseById : Dict Id Base
@@ -461,6 +486,50 @@ type alias Game =
     , seed : Random.Seed
     , shake : Float
     , shakeVector : Vec2
+
+    --
+    , timeMultiplier : Float
+    , slowMotionEnd : Seconds
+    }
+
+
+defaultGame : Game
+defaultGame =
+    { mode = GameModeVersus
+    , maybeTransition = Nothing
+    , time = 0
+    , leftTeam = newTeam TeamLeft ColorPattern.neutral Dict.empty
+    , rightTeam = newTeam TeamRight ColorPattern.neutral Dict.empty
+    , maybeVictory = Nothing
+    , laters = []
+
+    --
+    , halfWidth = 20
+    , halfHeight = 10
+    , subBuildMultiplier = 2
+    , wallTiles = Set.empty
+
+    -- entities
+    , baseById = Dict.empty
+    , projectileById = Dict.empty
+    , unitById = Dict.empty
+    , lastId = 0
+    , cosmetics = []
+
+    -- includes walls and bases
+    , staticObstacles = Set.empty
+
+    -- land units
+    , dynamicObstacles = Set.empty
+
+    -- random, used only for cosmetics
+    , seed = Random.initialSeed 0
+    , shake = 0
+    , shakeVector = vec2 0 0
+
+    --
+    , timeMultiplier = 1
+    , slowMotionEnd = 0
     }
 
 
@@ -471,19 +540,17 @@ type alias Game =
 type Delta
     = DeltaNone
     | DeltaList (List Delta)
-    | DeltaLater Seconds SerialisedDelta
+    | DeltaLater Seconds Delta
     | DeltaGame (Game -> Game)
     | DeltaRandom (Random.Generator Delta)
     | DeltaOutcome Outcome
+      -- This is a way to allow update functions to produce Deltas. Not too happy about it.
+    | DeltaNeedsUpdatedGame (Game -> Delta)
 
 
 type Outcome
     = OutcomeCanAddBots
     | OutcomeCanInitBots
-
-
-type SerialisedDelta
-    = SpawnDownwardRocket { maybeTeamId : Maybe TeamId, target : Vec2 }
 
 
 deltaNone : Delta
@@ -496,7 +563,7 @@ deltaList =
     DeltaList
 
 
-deltaLater : Seconds -> SerialisedDelta -> Delta
+deltaLater : Seconds -> Delta -> Delta
 deltaLater =
     DeltaLater
 

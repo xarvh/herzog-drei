@@ -251,7 +251,7 @@ render cosmetic =
         GfxExplosion position rawSize ->
             let
                 particleCount =
-                    1.6 * rawSize |> ceiling
+                    1.6 * rawSize |> ceiling |> min 6
 
                 size =
                     0.3 * rawSize

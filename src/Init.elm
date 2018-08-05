@@ -24,37 +24,17 @@ asTeamSelection seed map =
         ( leftTeamColor, rightTeamColor ) =
             Random.step ColorPattern.twoDifferent seed |> Tuple.first
     in
-    { mode = GameModeTeamSelection map
-    , maybeTransition = Just { start = time, fade = GameFadeIn }
-    , time = time
-    , leftTeam = newTeam TeamLeft leftTeamColor Dict.empty
-    , rightTeam = newTeam TeamRight rightTeamColor Dict.empty
-    , maybeWinnerTeamId = Nothing
-    , laters = []
+    { defaultGame
+        | mode = GameModeTeamSelection map
+        , maybeTransition = Just { start = time, fade = GameFadeIn }
+        , time = time
+        , leftTeam = newTeam TeamLeft leftTeamColor Dict.empty
+        , rightTeam = newTeam TeamRight rightTeamColor Dict.empty
 
-    --
-    , halfWidth = map.halfWidth
-    , halfHeight = map.halfHeight
-    , subBuildMultiplier = 1
-    , wallTiles = Set.empty
-
-    -- entities
-    , baseById = Dict.empty
-    , projectileById = Dict.empty
-    , unitById = Dict.empty
-    , lastId = 0
-    , cosmetics = []
-
-    -- includes walls and bases
-    , staticObstacles = Set.empty
-
-    -- land units
-    , dynamicObstacles = Set.empty
-
-    -- random, used only for cosmetics
-    , seed = seed
-    , shake = 0
-    , shakeVector = vec2 0 0
+        --
+        , halfWidth = map.halfWidth
+        , halfHeight = map.halfHeight
+        , seed = seed
     }
 
 
@@ -68,37 +48,21 @@ asVersus randomSeed time leftTeam rightTeam map =
         team id teamSeed =
             newTeam id teamSeed.colorPattern teamSeed.mechClassByInputKey
     in
-    { mode = GameModeVersus
-    , maybeTransition = Just { start = time, fade = GameFadeIn }
-    , time = time
-    , leftTeam = team TeamLeft leftTeam
-    , rightTeam = team TeamRight rightTeam
-    , maybeWinnerTeamId = Nothing
-    , laters = []
+    { defaultGame
+        | mode = GameModeVersus
+        , maybeTransition = Just { start = time, fade = GameFadeIn }
+        , time = time
+        , leftTeam = team TeamLeft leftTeam
+        , rightTeam = team TeamRight rightTeam
 
-    --
-    , halfWidth = map.halfWidth
-    , halfHeight = map.halfHeight
-    , subBuildMultiplier = 2
-    , wallTiles = map.wallTiles
+        --
+        , halfWidth = map.halfWidth
+        , halfHeight = map.halfHeight
+        , wallTiles = map.wallTiles
 
-    -- entities
-    , baseById = Dict.empty
-    , projectileById = Dict.empty
-    , unitById = Dict.empty
-    , lastId = 0
-    , cosmetics = []
-
-    -- includes walls and bases
-    , staticObstacles = map.wallTiles
-
-    -- land units
-    , dynamicObstacles = Set.empty
-
-    -- random, used only for cosmetics
-    , seed = randomSeed
-    , shake = 0
-    , shakeVector = vec2 0 0
+        -- includes walls and bases
+        , staticObstacles = map.wallTiles
+        , seed = randomSeed
     }
         |> (\g -> Set.foldl addSmallBase g map.smallBases)
         |> addMainBase (Just TeamLeft) map.leftBase
@@ -122,18 +86,6 @@ asVersusFromTeamSelection map game =
 
 
 -- Teams
-
-
-newTeam : TeamId -> ColorPattern -> Dict InputKey MechClass -> Team
-newTeam id colorPattern mechs =
-    { id = id
-    , colorPattern = colorPattern
-    , markerPosition = vec2 0 0
-    , markerTime = 0
-    , pathing = Dict.empty
-    , mechClassByInputKey = mechs
-    , bigSubsToSpawn = 0
-    }
 
 
 initMarkerPosition : TeamId -> Game -> Game
@@ -161,13 +113,15 @@ initMarkerPosition id game =
 -- Units
 
 
-addEmbeddedSub : Maybe TeamId -> Base -> Game -> Game
-addEmbeddedSub maybeTeamId base game =
-    let
-        ( game_, unit ) =
-            Game.addSub maybeTeamId (vec2 0 0) False game
-    in
-    SubThink.deltaGameUnitEntersBase unit.id base.id game_
+addEmbeddedSub : Maybe TeamId -> Id -> Game -> Game
+addEmbeddedSub maybeTeamId baseId game =
+    Game.withBase game baseId <|
+        \base ->
+            let
+                ( game_, unit ) =
+                    Game.addSub maybeTeamId (vec2 0 0) False game
+            in
+            SubThink.updateUnitEntersBase unit base game_
 
 
 
@@ -181,10 +135,10 @@ addSmallBase tile game =
             Base.add BaseSmall tile game
     in
     game_
-        |> addEmbeddedSub Nothing base
-        |> addEmbeddedSub Nothing base
-        |> addEmbeddedSub Nothing base
-        |> addEmbeddedSub Nothing base
+        |> addEmbeddedSub Nothing base.id
+        |> addEmbeddedSub Nothing base.id
+        |> addEmbeddedSub Nothing base.id
+        |> addEmbeddedSub Nothing base.id
 
 
 addMainBase : Maybe TeamId -> Tile2 -> Game -> Game
@@ -194,10 +148,10 @@ addMainBase maybeTeamId tile game =
             Base.add BaseMain tile game
     in
     game_
-        |> addEmbeddedSub maybeTeamId base
-        |> addEmbeddedSub maybeTeamId base
-        |> addEmbeddedSub maybeTeamId base
-        |> addEmbeddedSub maybeTeamId base
+        |> addEmbeddedSub maybeTeamId base.id
+        |> addEmbeddedSub maybeTeamId base.id
+        |> addEmbeddedSub maybeTeamId base.id
+        |> addEmbeddedSub maybeTeamId base.id
 
 
 

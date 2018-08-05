@@ -478,7 +478,7 @@ mainMenuButtons model =
         ( isPlaying, isFinished ) =
             case model.scene of
                 SceneMain subScene scene ->
-                    ( subScene == SubSceneGameplay, scene.game.maybeWinnerTeamId /= Nothing )
+                    ( subScene == SubSceneGameplay, scene.game.maybeVictory /= Nothing )
 
                 _ ->
                     ( False, False )

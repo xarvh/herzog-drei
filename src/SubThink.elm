@@ -11,6 +11,7 @@ import List.Extra
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Pathfinding
 import Projectile
+import Random
 import Set exposing (Set)
 import Stats
 import Unit
@@ -58,34 +59,103 @@ thinkRegenerate dt game unit sub =
 -- Destroy
 
 
-updateBaseLosesUnit : Id -> Game -> Base -> Base
-updateBaseLosesUnit unitId game base =
-    case base.maybeOccupied of
-        Nothing ->
-            base
-
-        Just occupied ->
-            let
-                unitIds =
-                    Set.remove unitId occupied.unitIds
-            in
-            { base
-                | maybeOccupied =
-                    if unitIds == Set.empty then
-                        Nothing
-                    else
-                        Just { occupied | unitIds = unitIds }
-            }
-
-
 destroy : Game -> Unit -> SubComponent -> Delta
 destroy game unit sub =
     case sub.mode of
         UnitModeBase baseId ->
-            deltaBase baseId (updateBaseLosesUnit unit.id)
+            DeltaNeedsUpdatedGame (deltaBaseLosesUnit unit.id baseId)
 
         _ ->
             deltaNone
+
+
+deltaBaseLosesUnit : Id -> Id -> Game -> Delta
+deltaBaseLosesUnit unitId baseId game =
+    case Dict.get baseId game.baseById of
+        Nothing ->
+            deltaNone
+
+        Just base ->
+            case base.maybeOccupied of
+                Nothing ->
+                    deltaNone
+
+                Just occupied ->
+                    if occupied.unitIds /= Set.singleton unitId then
+                        Base.deltaOccupied baseId (\o -> { o | unitIds = Set.remove unitId o.unitIds })
+                    else
+                        deltaList
+                            [ deltaBase baseId (\g b -> { b | maybeOccupied = Nothing })
+                            , if base.type_ /= BaseMain then
+                                deltaNone
+                              else
+                                deltaList
+                                    [ deltaDefeat occupied.maybeTeamId
+                                    , deltaExplosions base.position
+                                    , deltaSlowMotionBig
+                                    ]
+                            ]
+
+
+
+-- Victory and defeat
+
+
+deltaDefeat : Maybe TeamId -> Delta
+deltaDefeat maybeTeamId =
+    case maybeTeamId of
+        Nothing ->
+            deltaNone
+
+        Just defeatedTeamId ->
+            let
+                winnerTeamId =
+                    case defeatedTeamId of
+                        TeamLeft ->
+                            TeamRight
+
+                        TeamRight ->
+                            TeamLeft
+            in
+            deltaGame (\g -> { g | maybeVictory = Just ( winnerTeamId, g.time ) })
+
+
+deltaExplosions : Vec2 -> Delta
+deltaExplosions position =
+    let
+        skewedFloat =
+            Random.float 0 1 |> Random.map (\n -> n ^ 4)
+
+        delayGenerator =
+            Random.float 0.1 5
+
+        sizeGenerator =
+            Random.float 0.5 5
+
+        dpGenerator =
+            Random.float -2 2
+
+        positionGenerator =
+            Random.pair dpGenerator dpGenerator
+                |> Random.map (\( dx, dy ) -> Vec2.add position (vec2 dx dy))
+
+        deltaSecondary size pos =
+            deltaList
+                [ View.Gfx.deltaAddExplosion pos size
+                , deltaShake (0.1 * size)
+                ]
+
+        deltaRandomSecondary =
+            deltaRandom2 deltaSecondary sizeGenerator positionGenerator
+    in
+    deltaList
+        [ View.Gfx.deltaAddExplosion position 20
+        , deltaShake 0.5
+        , delayGenerator
+            |> deltaRandom (\delay -> deltaLater delay deltaRandomSecondary)
+            |> List.repeat 50
+            |> deltaList
+        ]
 
 
 
