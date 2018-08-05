@@ -1,9 +1,11 @@
 module View.Sub exposing (..)
 
+import Colors
 import Game exposing (Angle, normalizeAngle)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
-import Svg exposing (..)
-import View exposing (..)
+import Math.Vector3 as Vec3 exposing (Vec3, vec3)
+import Stats
+import Svgl.Tree exposing (..)
 
 
 -- Physics
@@ -29,85 +31,113 @@ gunOffset torsoAngle =
 -- Render
 
 
-sub : Angle -> Angle -> Angle -> String -> String -> Bool -> Svg a
-sub lookAngle moveAngle aimAngle brightColor darkColor isBig =
+type alias Args =
+    { lookAngle : Angle
+    , moveAngle : Angle
+    , fireAngle : Angle
+    , bright : Vec3
+    , dark : Vec3
+    , isBig : Bool
+    }
+
+
+sub : Args -> Node
+sub { lookAngle, moveAngle, fireAngle, bright, dark, isBig } =
     let
         ( fillColor, strokeColor ) =
             if isBig then
-                ( darkColor, brightColor )
+                ( dark, bright )
             else
-                ( brightColor, darkColor )
+                ( bright, dark )
 
-        {-
-           -- aimAngle - moveAngle
-           am =
-               normalizeAngle (aimAngle - moveAngle)
-
-           -- near threshold
-           thn =
-               pi / 4
-
-           -- far threshold
-           thf =
-               pi / 2
-
-           torsoDelta =
-               if am < -thf then
-                   am + thf
-               else if am < -thn then
-                   (am + thn) / 2
-               else
-                   0
-        -}
-        {- TODO
-           torsoAngle =
-               normalizeAngle (moveAngle + torsoDelta)
-        -}
         gunOrigin =
             gunOffset moveAngle
-                |> Vec2.scale 2
+
+        height =
+            Stats.maxHeight.sub
+
+        params =
+            { defaultParams
+                | fill = fillColor
+                , stroke = strokeColor
+            }
+
+        eyeParams =
+            { defaultParams
+                | fill = Colors.red
+                , stroke = Colors.darkRed
+                , strokeWidth = 0.02
+            }
     in
-    g
-        [ transform [ scale 0.5 ] ]
-        [ rect
-            [ transform [ translate gunOrigin, rotateRad aimAngle ]
-            , fill "#808080"
-            , stroke "#666"
-            , strokeWidth 0.1
-            , width 0.42
-            , height 2.2
-            , x -0.21
-            , y -0.7
+    Nod []
+        [ Nod
+            -- gun
+            [ translateVz gunOrigin 0, rotateRad fireAngle ]
+            [ rect
+                { defaultParams
+                    | fill = Colors.gunFill
+                    , stroke = Colors.gunStroke
+                    , y = 0.21
+                    , z = 0.5 * height
+                    , w = 0.21
+                    , h = 1.1
+                }
             ]
-            []
-        , rect
-            [ transform [ rotateRad moveAngle ]
-            , height 0.8
-            , width 1.8
-            , y -0.4
-            , x -0.9
-            , fill fillColor
-            , stroke strokeColor
-            , strokeWidth 0.1
+        , Nod
+            -- torso
+            [ rotateRad moveAngle ]
+            [ rect
+                { params
+                    | z = 0.7 * height
+                    , w = 0.9
+                    , h = 0.4
+                }
             ]
-            []
-        , ellipse
-            [ transform [ rotateRad lookAngle ]
-            , fill fillColor
-            , stroke strokeColor
-            , strokeWidth 0.1
-            , rx 0.5
-            , ry 0.6
+        , Nod
+            [ rotateRad lookAngle ]
+            -- head
+            [ ellipse
+                { params
+                    | z = 0.9 * height
+                    , w = 0.5
+                    , h = 0.6
+                }
+
+            -- eye(s)
+            , if not isBig then
+                ellipse
+                    { eyeParams
+                        | y = 0.135
+                        , w = 0.25
+                        , h = 0.3
+                    }
+              else
+                Nod
+                    []
+                    [ ellipse
+                        { eyeParams
+                            | x = -0.08
+                            , y = 0.1
+                            , rotate = degrees 30
+                            , w = 0.1
+                            , h = 0.2
+                        }
+                    , ellipse
+                        { eyeParams
+                            | x = 0.1
+                            , y = 0.13
+                            , rotate = degrees -20
+                            , w = 0.09
+                            , h = 0.16
+                        }
+                    , ellipse
+                        { eyeParams
+                            | x = 0.1
+                            , y = -0.05
+                            , rotate = degrees -20
+                            , w = 0.09
+                            , h = 0.16
+                        }
+                    ]
             ]
-            []
-        , ellipse
-            [ transform [ rotateRad lookAngle ]
-            , fill "#f00"
-            , stroke "#900"
-            , strokeWidth 0.07
-            , cy 0.27
-            , rx 0.25
-            , ry 0.3
-            ]
-            []
         ]

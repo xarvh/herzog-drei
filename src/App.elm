@@ -94,7 +94,7 @@ init flags =
     in
     noCmd
         { scene = scene
-        , maybeMenu = Just MenuMain
+        , maybeMenu = Nothing --Just MenuMain
         , selectedButton = SelectedButton ""
         , seed = seed
 
@@ -963,7 +963,7 @@ viewMapPreview model map =
     in
     div
         []
-        [ View.Game.viewMap [] viewport mmmap ]
+        [ View.Game.viewMap viewport mmmap ]
 
 
 

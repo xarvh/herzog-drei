@@ -8,7 +8,7 @@ import Game exposing (..)
 import Gamepad exposing (Gamepad)
 import GamepadPort
 import Html exposing (..)
-import Html.Attributes exposing (class)
+import Html.Attributes exposing (class, style)
 import Init
 import Input
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
@@ -18,7 +18,6 @@ import Set exposing (Set)
 import Shell exposing (Shell)
 import SplitScreen exposing (Viewport)
 import Update
-import View.Background
 import View.Game
 
 
@@ -26,7 +25,6 @@ type alias Model =
     { game : Game
     , botStatesByKey : Dict String Bot.Dummy.State
     , fps : List Float
-    , terrain : List View.Background.Rect
     , previousInputStatesByKey : Dict String InputState
     }
 
@@ -44,7 +42,6 @@ initDemo seed map =
     { game = game
     , botStatesByKey = Dict.empty
     , fps = [ 1 ]
-    , terrain = View.Background.initRects seed map
     , previousInputStatesByKey = Dict.empty
     }
         |> initBots
@@ -55,7 +52,6 @@ initTeamSelection seed map =
     { game = Init.asTeamSelection seed map
     , botStatesByKey = Dict.empty
     , fps = [ 1 ]
-    , terrain = View.Background.initRects seed map
     , previousInputStatesByKey = Dict.empty
     }
 
@@ -301,7 +297,7 @@ updateOnGamepad gamepadBlob shell model =
             { model
                 | game = game
                 , botStatesByKey = botStatesByKey
-                , fps = (1 / dt) :: List.take 20 model.fps
+                , fps = (1 / dt) :: List.take 120 model.fps
                 , previousInputStatesByKey = inputStatesByKey
             }
     in
@@ -391,20 +387,61 @@ addPlayers botClasses team =
 
 view : Shell -> Model -> List (Html a)
 view shell model =
-    let
-        fps =
-            List.sum model.fps / toFloat (List.length model.fps) |> round
-    in
     [ div
         [ class "game-area" ]
         -- TODO rename to scene-area
         [ SplitScreen.viewportsWrapper
-            [ View.Game.view model.terrain shell.viewport model.game ]
+            [ View.Game.view shell.viewport model.game ]
         ]
-    , if shell.config.showFps then
+    , viewFps model shell
+    , viewVictory shell.viewport model.game
+    ]
+
+
+viewFps : Model -> Shell -> Html a
+viewFps model shell =
+    if not shell.config.showFps then
+        text ""
+    else
+        let
+            fps =
+                List.sum model.fps / toFloat (List.length model.fps) |> round
+        in
         div
             [ class "fps nonSelectable" ]
             [ text ("FPS " ++ String.fromInt fps) ]
-      else
-        text ""
-    ]
+
+
+viewVictory : Viewport -> Game -> Html a
+viewVictory viewport game =
+    case maybeGetTeam game game.maybeWinnerTeamId of
+        Nothing ->
+            text ""
+
+        Just team ->
+            let
+                size =
+                    min viewport.w viewport.h |> toFloat
+
+                toPx f =
+                    (size * f |> String.fromFloat) ++ "px"
+
+                pattern =
+                    team.colorPattern
+            in
+            div
+                [ class "fullWindow flex justifyCenter academy"
+                ]
+                [ span
+                    [ class "nonSelectable mt2"
+                    , style "   -moz-text-fill-color" pattern.bright
+                    , style "-webkit-text-fill-color" pattern.bright
+                    , style "   -moz-text-stroke-color" pattern.dark
+                    , style "-webkit-text-stroke-color" pattern.dark
+                    , style "   -moz-text-stroke-width" (toPx 0.0055)
+                    , style "-webkit-text-stroke-width" (toPx 0.0055)
+                    , style "font-size" (toPx 0.16)
+                    ]
+                    --TODO [ String.Extra.toTitleCase pattern.key ++ " wins!" |> text ]
+                    [ pattern.key ++ " wins!" |> text ]
+                ]

@@ -37,6 +37,7 @@
 .relative { position: relative; }
 .fullWindow { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 .invisible { visibility: hidden; }
+.academy { font-family: 'NewAcademy', sans-serif; }
 
 .nonSelectable {
   user-select: none;
