@@ -29,40 +29,6 @@ import View.Sub
 import WebGL exposing (Entity, Mesh, Shader)
 
 
--- Main
-
-
-tilesToViewport : { a | halfWidth : Int, halfHeight : Int } -> Viewport -> Float
-tilesToViewport { halfWidth, halfHeight } viewport =
-    SplitScreen.fitWidthAndHeight (toFloat halfWidth * 2) (toFloat halfHeight * 2) viewport
-
-
-mechVsUnit : List Unit -> ( List ( Unit, MechComponent ), List ( Unit, SubComponent ) )
-mechVsUnit units =
-    let
-        folder unit ( mechs, subs ) =
-            case unit.component of
-                UnitMech mechRecord ->
-                    ( ( unit, mechRecord ) :: mechs, subs )
-
-                UnitSub subRecord ->
-                    ( mechs, ( unit, subRecord ) :: subs )
-    in
-    List.foldl folder ( [], [] ) units
-
-
-worldToCameraMatrix : { a | halfWidth : Int, halfHeight : Int } -> Viewport -> Mat4
-worldToCameraMatrix size viewport =
-    let
-        normalizedSize =
-            SplitScreen.normalizedSize viewport
-
-        viewportScale =
-            2 / tilesToViewport size viewport
-    in
-    Mat4.makeScale (vec3 (viewportScale / normalizedSize.width) (viewportScale / normalizedSize.height) 1)
-
-
 view : q -> Viewport -> Game -> Html a
 view terrain viewport game =
     let
@@ -87,7 +53,8 @@ view terrain viewport game =
             worldToCameraMatrix game viewport
                 |> Mat4.translate (vec3 shake.x shake.y 0)
     in
-    [ freeSubs |> List.map (viewSub game)
+    [ viewSetup game
+    , freeSubs |> List.map (viewSub game)
     , walkingMechs |> List.map (viewMech game)
     , game.wallTiles |> Set.toList |> List.map viewWall
     , game.baseById |> Dict.values |> List.map (viewBase game)
@@ -111,6 +78,59 @@ view terrain viewport game =
             , WebGL.antialias
             ]
             (SplitScreen.viewportToWebGLAttributes viewport)
+
+
+
+-- Viewport
+
+
+tilesToViewport : { a | halfWidth : Int, halfHeight : Int } -> Viewport -> Float
+tilesToViewport { halfWidth, halfHeight } viewport =
+    SplitScreen.fitWidthAndHeight (toFloat halfWidth * 2) (toFloat halfHeight * 2) viewport
+
+
+worldToCameraMatrix : { a | halfWidth : Int, halfHeight : Int } -> Viewport -> Mat4
+worldToCameraMatrix size viewport =
+    let
+        normalizedSize =
+            SplitScreen.normalizedSize viewport
+
+        viewportScale =
+            2 / tilesToViewport size viewport
+    in
+    Mat4.makeScale (vec3 (viewportScale / normalizedSize.width) (viewportScale / normalizedSize.height) 1)
+
+
+
+-- Helpers
+
+
+mechVsUnit : List Unit -> ( List ( Unit, MechComponent ), List ( Unit, SubComponent ) )
+mechVsUnit units =
+    let
+        folder unit ( mechs, subs ) =
+            case unit.component of
+                UnitMech mechRecord ->
+                    ( ( unit, mechRecord ) :: mechs, subs )
+
+                UnitSub subRecord ->
+                    ( mechs, ( unit, subRecord ) :: subs )
+    in
+    List.foldl folder ( [], [] ) units
+
+
+
+-- Views
+
+
+viewSetup : Game -> List Node
+viewSetup game =
+    case game.mode of
+        GameModeTeamSelection _ ->
+            SetupPhase.view game
+
+        _ ->
+            []
 
 
 viewSub : Game -> ( Unit, SubComponent ) -> Node

@@ -7,11 +7,9 @@ import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Mech
 import Random
 import Set exposing (Set)
-import Svg exposing (..)
-import Svg.Attributes as SA
+import Svgl.Tree exposing (..)
 import Unit
-import View exposing (..)
-import View.Background
+import View.Hud
 
 
 neutralTilesHalfWidth =
@@ -193,119 +191,31 @@ startTransition game =
 -- View
 
 
-drawRect : String -> String -> View.Background.Rect -> Svg a
-drawRect fillColor strokeColor rect =
-    Svg.rect
-        [ x rect.x
-        , y rect.y
-        , width rect.w
-        , height rect.h
-        , fill fillColor
-        , strokeWidth 0.04
-        , stroke strokeColor
-        ]
-        []
-
-
-viewTeamRects : ColorPattern -> List View.Background.Rect -> Svg a
-viewTeamRects pattern rects =
+viewArrows : Angle -> ColorPattern -> Float -> Game -> Node
+viewArrows direction colorPattern x game =
     let
-        gradientId =
-            pattern.key ++ "AnimatedGradient"
+        hh =
+            game.halfHeight - 1
 
-        rectFillColor =
-            "url(#" ++ gradientId ++ ")"
-    in
-    g
-        []
-        [ defs
-            []
-            [ linearGradient
-                [ SA.id gradientId
-                , SA.spreadMethod "reflect"
-                , SA.x1 "0%"
-                , SA.y1 "0%"
-                , SA.x2 "100%"
-                , SA.y2 "0%"
+        params =
+            { fill = colorPattern.darkV
+            , stroke = colorPattern.brightV
+            }
+
+        arrow y =
+            Nod
+                [ translate2 (x + 0.1 * periodHarmonic game.time (0.17 * toFloat y) 1) (toFloat y)
+                , rotateRad direction
                 ]
-                [ stop
-                    [ SA.offset "0"
-                    , SA.style <| "stop-color:" ++ pattern.bright
-                    ]
-                    [ animate
-                        [ SA.id "left1"
-                        , SA.attributeName "stop-color"
-                        , [ pattern.dark, pattern.bright, pattern.dark ]
-                            |> String.join ";"
-                            |> SA.values
-                        , SA.from "1"
-                        , SA.to "0"
-                        , SA.dur "5s"
-                        , SA.repeatCount "indefinite"
-                        ]
-                        []
-                    ]
-                , stop
-                    [ SA.offset "1"
-                    , SA.style <| "stop-color:" ++ pattern.dark
-                    ]
-                    [ animate
-                        [ SA.id "left1"
-                        , SA.attributeName "stop-color"
-                        , [ pattern.bright, pattern.dark, pattern.bright ]
-                            |> String.join ";"
-                            |> SA.values
-                        , SA.from "1"
-                        , SA.to "0"
-                        , SA.dur "5s"
-                        , SA.repeatCount "indefinite"
-                        ]
-                        []
-                    ]
-                ]
-            ]
-        , rects
-            |> List.map (drawRect rectFillColor pattern.dark)
-            |> g []
-        ]
-
-
-view : List View.Background.Rect -> Game -> Svg a
-view rects game =
-    let
-        leftRects =
-            rects
-                |> List.filter (\rect -> rect.x + rect.w / 2 < -neutralTilesHalfWidth)
-                |> List.sortBy (\r -> -r.x)
+                [ View.Hud.arrow colorPattern.darkV colorPattern.brightV ]
     in
-    g
-        []
-        [ rects
-            |> List.filter (\rect -> rect.x + rect.w / 2 < -neutralTilesHalfWidth)
-            |> List.sortBy (\r -> -r.x)
-            |> viewTeamRects game.leftTeam.colorPattern
-        , rects
-            |> List.filter (\rect -> rect.x + rect.w / 2 > neutralTilesHalfWidth)
-            |> List.sortBy .x
-            |> viewTeamRects game.rightTeam.colorPattern
-        , text_
-            [ transform [ scale2 1 -1 ]
-            , y (2 - toFloat game.halfHeight)
-            , SA.textAnchor "middle"
-            , SA.fontSize "1"
-            , SA.fontFamily "'NewAcademy', sans-serif"
-            , SA.fontWeight "700"
-            , textNotSelectable
-            ]
-            [ text "Move to a color" ]
-        , text_
-            [ transform [ scale2 1 -1 ]
-            , y (-2 + toFloat game.halfHeight)
-            , SA.textAnchor "middle"
-            , SA.fontSize "0.7"
-            , SA.fontFamily "'NewAcademy', sans-serif"
-            , SA.fontWeight "700"
-            , textNotSelectable
-            ]
-            [ text "Press Q or Rally to change mech" ]
-        ]
+    List.range -hh hh
+        |> List.map arrow
+        |> Nod []
+
+
+view : Game -> List Node
+view game =
+    [ viewArrows (degrees -90) game.leftTeam.colorPattern -neutralTilesHalfWidth game
+    , viewArrows (degrees 90) game.rightTeam.colorPattern neutralTilesHalfWidth game
+    ]

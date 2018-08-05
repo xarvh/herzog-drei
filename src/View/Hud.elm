@@ -101,8 +101,12 @@ salvoMark time { brightV, darkV } position =
 -- Rally point
 
 
-arrow : Params -> Node
-arrow params =
+arrow : Vec3 -> Vec3 -> Node
+arrow fill stroke =
+    let
+        params =
+            { defaultParams | fill = fill, stroke = stroke }
+    in
     Nod
         []
         [ rect
@@ -140,7 +144,7 @@ rallyPoint t fill stroke =
                 [ rotateDeg a
                 , translate2 0 -distance
                 ]
-                [ arrow params ]
+                [ arrow fill stroke ]
     in
     Nod
         []
