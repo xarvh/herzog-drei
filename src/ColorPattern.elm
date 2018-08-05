@@ -53,6 +53,7 @@ patterns =
     , pattern (n 1 0 1) (n 0.5 0 0.5) "purple"
     , pattern (b 238 238 0) (n 0.5 0.5 0) "yellow"
     , pattern (b 0 238 238) (n 0.5 0 0.5) "octarine"
+    , pattern (b 50 50 50) (b 224 156 31) "brass"
     ]
 
 
