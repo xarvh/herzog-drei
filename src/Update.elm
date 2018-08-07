@@ -12,7 +12,6 @@ import Random
 import Set exposing (Set)
 import SetupPhase
 import UnitThink
-import VictoryThink
 import View.Gfx
 
 
@@ -24,7 +23,7 @@ update uncappedDt pairedInputStatesByKey oldGame =
     let
         -- Cap dt to 0.1 secs to avoid time integration problems
         dt =
-            min 0.1 uncappedDt
+            oldGame.timeMultiplier * min 0.1 uncappedDt
 
         newTime =
             oldGame.time + dt
@@ -48,7 +47,7 @@ update uncappedDt pairedInputStatesByKey oldGame =
                 |> updateGfxs dt
     in
     [ latersToExecute
-        |> List.map laterToDelta
+        |> List.map Tuple.second
     , units
         |> List.map (UnitThink.think dt pairedInputStatesByKey tempGame)
 
@@ -58,12 +57,13 @@ update uncappedDt pairedInputStatesByKey oldGame =
                 SetupPhase.think (Dict.keys pairedInputStatesByKey) tempGame
 
             GameModeVersus ->
-                VictoryThink.think dt tempGame
+                deltaNone
       ]
 
     --
     , [ transitionThink tempGame
       , deltaGame (screenShake dt)
+      , deltaGame (slowMotion dt)
       ]
 
     --
@@ -76,6 +76,28 @@ update uncappedDt pairedInputStatesByKey oldGame =
     ]
         |> List.map deltaList
         |> applyGameDeltas tempGame
+
+
+slowMotion : Seconds -> Game -> Game
+slowMotion dt game =
+    let
+        targetMultiplier =
+            0.2
+
+        -- This is in slowed, in-game time
+        timeToReachTarget =
+            0.3
+
+        dm =
+            (1 - targetMultiplier) * dt / timeToReachTarget
+
+        timeMultiplier =
+            if game.time > game.slowMotionEnd then
+                min (game.timeMultiplier + dm) 1
+            else
+                max (game.timeMultiplier - dm) targetMultiplier
+    in
+    { game | timeMultiplier = timeMultiplier }
 
 
 screenShake : Seconds -> Game -> Game
@@ -140,17 +162,6 @@ transitionThink game =
 
 
 
--- Laters
-
-
-laterToDelta : ( Seconds, SerialisedDelta ) -> Delta
-laterToDelta ( scheduledTime, serialisedDelta ) =
-    case serialisedDelta of
-        SpawnDownwardRocket args ->
-            MechThink.spawnDownwardRocket args
-
-
-
 -- Gfxs
 
 
@@ -191,6 +202,9 @@ applyDelta delta ( game, outcomes ) =
                     Random.step deltaGenerator game.seed
             in
             applyDelta d ( { game | seed = seed }, outcomes )
+
+        DeltaNeedsUpdatedGame gameToDelta ->
+            applyDelta (gameToDelta game) ( game, outcomes )
 
 
 applyGameDeltas : Game -> List Delta -> ( Game, List Outcome )

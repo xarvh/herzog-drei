@@ -414,12 +414,15 @@ viewFps model shell =
 
 viewVictory : Viewport -> Game -> Html a
 viewVictory viewport game =
-    case maybeGetTeam game game.maybeWinnerTeamId of
+    case game.maybeVictory of
         Nothing ->
             text ""
 
-        Just team ->
+        Just ( teamId, victoryTime ) ->
             let
+                team =
+                    getTeam game teamId
+
                 size =
                     min viewport.w viewport.h |> toFloat
 
@@ -428,6 +431,15 @@ viewVictory viewport game =
 
                 pattern =
                     team.colorPattern
+
+                dt =
+                    game.time - victoryTime
+
+                fadeInDuration =
+                    1
+
+                opacity =
+                    dt / fadeInDuration |> min 1
             in
             div
                 [ class "fullWindow flex justifyCenter academy"
@@ -441,6 +453,7 @@ viewVictory viewport game =
                     , style "   -moz-text-stroke-width" (toPx 0.0055)
                     , style "-webkit-text-stroke-width" (toPx 0.0055)
                     , style "font-size" (toPx 0.16)
+                    , style "opacity" (String.fromFloat opacity)
                     ]
                     --TODO [ String.Extra.toTitleCase pattern.key ++ " wins!" |> text ]
                     [ pattern.key ++ " wins!" |> text ]

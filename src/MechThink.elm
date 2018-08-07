@@ -345,7 +345,7 @@ spawnDownwardRocketLater unit index destination =
         delay =
             toFloat index * 0.06
     in
-    deltaLater delay (SpawnDownwardRocket { target = destination, maybeTeamId = unit.maybeTeamId })
+    deltaLater delay (spawnDownwardRocket { target = destination, maybeTeamId = unit.maybeTeamId })
 
 
 spawnDownwardRocket : { target : Vec2, maybeTeamId : Maybe TeamId } -> Delta

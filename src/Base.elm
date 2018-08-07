@@ -64,7 +64,7 @@ unitCanEnter : Unit -> Base -> Bool
 unitCanEnter unit base =
     case base.maybeOccupied of
         Nothing ->
-            True
+            base.type_ /= BaseMain
 
         Just occupied ->
             occupied.maybeTeamId == unit.maybeTeamId && Set.size occupied.unitIds < maxContainedUnits
@@ -136,6 +136,11 @@ teamMainBase game maybeTeamId =
 updateOccupied : (BaseOccupied -> BaseOccupied) -> Game -> Base -> Base
 updateOccupied update game base =
     { base | maybeOccupied = Maybe.map update base.maybeOccupied }
+
+
+deltaOccupied : Id -> (BaseOccupied -> BaseOccupied) -> Delta
+deltaOccupied baseId update =
+    deltaBase baseId (updateOccupied update)
 
 
 deltaRepairUnit : Seconds -> Id -> Id -> Delta
