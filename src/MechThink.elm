@@ -424,7 +424,7 @@ repairSelf dt unit =
     else
         let
             repairRate =
-                0.05
+                0.15
 
             repair =
                 dt * repairRate
