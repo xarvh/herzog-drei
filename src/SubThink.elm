@@ -83,17 +83,15 @@ deltaBaseLosesUnit unitId baseId game =
                 Just occupied ->
                     if occupied.unitIds /= Set.singleton unitId then
                         Base.deltaOccupied baseId (\o -> { o | unitIds = Set.remove unitId o.unitIds })
+                    else if base.type_ /= BaseMain then
+                        deltaBase baseId (\g b -> { b | maybeOccupied = Nothing })
                     else
                         deltaList
-                            [ deltaBase baseId (\g b -> { b | maybeOccupied = Nothing })
-                            , if base.type_ /= BaseMain then
-                                deltaNone
-                              else
-                                deltaList
-                                    [ deltaDefeat occupied.maybeTeamId
-                                    , deltaExplosions base.position
-                                    , deltaSlowMotionBig
-                                    ]
+                            [ deltaDefeat occupied.maybeTeamId
+                            , deltaExplosions base.position
+                            , View.Gfx.deltaAddFrags game 400 base.position occupied.maybeTeamId
+                            , deltaLater 0.6 (deltaGame (\g -> { g | baseById = Dict.remove base.id g.baseById }))
+                            , deltaSlowMotionBig
                             ]
 
 

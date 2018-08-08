@@ -64,7 +64,7 @@ pickTargetBase game state baseIds =
         baseId :: bs ->
             case Dict.get baseId game.baseById of
                 Nothing ->
-                    Nothing
+                    pickTargetBase game state bs
 
                 Just base ->
                     case base.maybeOccupied of
