@@ -433,6 +433,7 @@ heli args =
                 }
             ]
         , heliHead args.transformState args.fill args.stroke (st args.lookAngle args.fireAngle)
+        , heliPropeller (2.4 * args.transformState) args.time
 
         {-
            , g
@@ -443,6 +444,54 @@ heli args =
                ]
                [ View.Propeller.propeller (2.4 * args.transformState) args.time ]
         -}
+        ]
+
+
+heliPropeller : Float -> Seconds -> Node
+heliPropeller diameter t =
+    let
+        w =
+            0.05 * diameter
+
+        h =
+            0.5 * diameter
+
+        da =
+            360 * periodLinear t 0 0.037
+
+        prop a =
+            Nod
+                [ rotateDeg (a + da) ]
+                [ rect
+                    { defaultParams
+                        | fill = Colors.gunFill
+                        , stroke = Colors.gunStroke
+                        , x = w / 2
+                        , y = h / 2
+                        , w = w
+                        , h = h
+                        , strokeWidth = 0.01
+                    }
+                ]
+    in
+    Nod
+        []
+        [ prop 0
+        , prop 72
+        , prop 142
+        , prop -142
+        , prop -72
+
+        --
+        , ellipse
+            { defaultParams
+                | fill = Colors.gunFill
+                , stroke = Colors.gunFill
+                , w = diameter
+                , h = diameter
+                , strokeWidth = 0.01
+                , opacity = 0.1
+            }
         ]
 
 
