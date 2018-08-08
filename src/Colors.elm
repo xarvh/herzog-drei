@@ -31,6 +31,10 @@ grey g =
 --
 
 
+white =
+    grey 1
+
+
 red =
     vec3 1 0 0
 

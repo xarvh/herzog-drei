@@ -226,7 +226,13 @@ viewBase game base =
 
 viewProjectile : Game -> Projectile -> Node
 viewProjectile game projectile =
-    View.Projectile.projectile projectile.classId projectile.position projectile.angle (game.time - projectile.spawnTime)
+    View.Projectile.projectile
+      { classId = projectile.classId
+      , position = projectile.position
+      , angle = projectile.angle
+      , age =  game.time - projectile.spawnTime
+      , colorPattern = teamColorPattern game projectile.maybeTeamId
+      }
 
 
 viewWall : Tile2 -> Node

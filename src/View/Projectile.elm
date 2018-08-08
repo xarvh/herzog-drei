@@ -1,5 +1,7 @@
 module View.Projectile exposing (..)
 
+import ColorPattern exposing (ColorPattern)
+import Colors exposing (..)
 import Game exposing (..)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
 import Math.Vector3 as Vec3 exposing (Vec3, vec3)
@@ -26,7 +28,7 @@ black =
 
 bullet : Vec2 -> Angle -> Node
 bullet position angle =
-    rect
+    ellipse
         { defaultParams
             | fill = yellow
             , stroke = red
@@ -35,19 +37,19 @@ bullet position angle =
             , y = Vec2.getY position
             , z = Stats.maxHeight.projectile
             , rotate = angle
-            , w = 0.15
-            , h = 0.2
+            , w = 0.25
+            , h = 0.45
         }
 
 
-rocket : Vec2 -> Angle -> Vec3 -> Vec3 -> Seconds -> Node
-rocket position angle primary secondary time =
+rocket : Vec2 -> Angle -> Vec3 -> Vec3 -> Vec3 -> Seconds -> Node
+rocket position angle bodyColor fillColor strokeColor time =
     let
         w =
-            0.15
+            0.3
 
         h =
-            0.2
+            0.4
 
         hh =
             h / 2
@@ -59,38 +61,44 @@ rocket position angle primary secondary time =
             { defaultParams | strokeWidth = 0.01 }
     in
     Nod
-        [ translateVz position Stats.maxHeight.projectile, rotateRad angle ]
+        [ translate position, rotateRad angle ]
         [ ellipse
             { params
                 | fill = yellow
                 , stroke = yellow
                 , y = -hh
-                , z = 0.01
                 , w = w
                 , h = exhaust * h
             }
         , ellipse
             { params
                 | y = hh
-                , z = 0.02
-                , w = w
+                , w = w - 0.02
                 , h = w
-                , fill = secondary
-                , stroke = secondary
+                , fill = fillColor
+                , stroke = fillColor
             }
         , rect
             { params
-                | z = 0.03
-                , w = w
+                | w = w
                 , h = h
-                , fill = primary
-                , stroke = primary
+                , fill = bodyColor
+                , stroke = bodyColor
             }
         ]
 
 
-projectile : ProjectileClassId -> Vec2 -> Angle -> Seconds -> Node
-projectile classId position angle t =
+type alias Args =
+    { classId : ProjectileClassId
+    , position : Vec2
+    , angle : Angle
+    , age : Seconds
+    , colorPattern : ColorPattern
+    }
+
+
+projectile : Args -> Node
+projectile { classId, position, angle, age, colorPattern } =
     case classId of
         PlaneBullet ->
             bullet position angle
@@ -99,13 +107,20 @@ projectile classId position angle t =
             bullet position angle
 
         HeliRocket ->
-            rocket position angle gray black t
+            rocket position angle gray colorPattern.brightV colorPattern.darkV age
 
         HeliMissile ->
-            rocket position angle gray red t
+            let
+                ( a, b ) =
+                    if periodLinear age 0 0.1 > 0.5 then
+                        ( white, colorPattern.brightV )
+                    else
+                        ( colorPattern.darkV, white )
+            in
+            rocket position angle a b a age
 
         UpwardSalvo ->
-            rocket position angle gray black t
+            rocket position angle gray colorPattern.brightV colorPattern.darkV age
 
         DownwardSalvo ->
-            rocket position angle gray black t
+            rocket position angle gray colorPattern.brightV colorPattern.darkV age

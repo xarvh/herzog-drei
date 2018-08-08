@@ -35,7 +35,7 @@ rocket : ProjectileClass
 rocket =
     { speed = 0
     , range = 8
-    , effect = ProjectileSplashDamage { radius = 3, damage = 10 }
+    , effect = ProjectileSplashDamage { radius = 3, damage = 12 }
     , trail = True
     , acceleration = 30
     , travelsAlongZ = False
@@ -46,7 +46,7 @@ missile : ProjectileClass
 missile =
     { speed = 10
     , range = 8
-    , effect = ProjectileSplashDamage { radius = 2, damage = 40 }
+    , effect = ProjectileSplashDamage { radius = 2, damage = 30 }
     , trail = True
     , acceleration = 0
     , travelsAlongZ = False
@@ -68,7 +68,7 @@ downwardSalvo : ProjectileClass
 downwardSalvo =
     { speed = 20
     , range = 20
-    , effect = ProjectileSplashDamage { radius = 5, damage = 30 }
+    , effect = ProjectileSplashDamage { radius = 5, damage = 25 }
     , trail = True
     , acceleration = 30
     , travelsAlongZ = True
@@ -131,6 +131,6 @@ heli =
 
 plane =
     { walkReload = 0.05
-    , flyReload = 0.075
+    , flyReload = 0.05
     , repairRange = 5
     }
