@@ -250,6 +250,7 @@ type alias Unit =
     , position : Vec2
     , reloadEndTime : Seconds
     , maybeCharge : Maybe Charge
+    , lastDamaged : Seconds
 
     --
     , fireAngle : Float
@@ -278,6 +279,7 @@ addUnit component maybeTeamId position startAngle game =
             , position = position
             , reloadEndTime = game.time
             , maybeCharge = Nothing
+            , lastDamaged = -99
 
             --
             , lookAngle = startAngle

@@ -40,7 +40,10 @@ removeIntegrity integrityLoss game unit =
             unit
 
         _ ->
-            { unit | integrity = unit.integrity - integrityLoss }
+            { unit
+                | integrity = unit.integrity - integrityLoss
+                , lastDamaged = game.time
+            }
 
 
 takePiercingDamage : Float -> Game -> Unit -> Unit

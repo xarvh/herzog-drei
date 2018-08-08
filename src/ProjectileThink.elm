@@ -144,5 +144,5 @@ thinkExplode game class projectile position =
                     ]
 
             _ ->
-                View.Gfx.deltaAddExplosion position 0.2
+                deltaNone
         ]

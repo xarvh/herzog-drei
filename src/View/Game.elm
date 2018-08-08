@@ -2,7 +2,7 @@ module View.Game exposing (..)
 
 import Base
 import ColorPattern exposing (ColorPattern, neutral)
-import Colors
+import Colors exposing (..)
 import Dict exposing (Dict)
 import Game exposing (..)
 import Html exposing (Html)
@@ -133,11 +133,27 @@ viewSetup game =
             []
 
 
+unitColors : Game -> Unit -> { bright : Vec3, dark : Vec3 }
+unitColors game unit =
+    if game.time - unit.lastDamaged < 0.5 && periodLinear game.time (toFloat unit.id / 77) 0.1 < 0.1 then
+        { bright = white
+        , dark = white
+        }
+    else
+        let
+            colorPattern =
+                Game.teamColorPattern game unit.maybeTeamId
+        in
+        { bright = colorPattern.brightV
+        , dark = colorPattern.darkV
+        }
+
+
 viewSub : Game -> ( Unit, SubComponent ) -> Node
 viewSub game ( unit, subRecord ) =
     let
-        colorPattern =
-            Game.teamColorPattern game unit.maybeTeamId
+        { bright, dark } =
+            unitColors game unit
 
         z =
             case subRecord.mode of
@@ -153,8 +169,8 @@ viewSub game ( unit, subRecord ) =
             { lookAngle = unit.lookAngle
             , moveAngle = unit.moveAngle
             , fireAngle = unit.fireAngle
-            , bright = colorPattern.brightV
-            , dark = colorPattern.darkV
+            , bright = bright
+            , dark = dark
             , isBig = subRecord.isBig
             }
 
@@ -165,8 +181,8 @@ viewSub game ( unit, subRecord ) =
 viewMech : Game -> ( Unit, MechComponent ) -> Node
 viewMech game ( unit, mech ) =
     let
-        colorPattern =
-            Game.teamColorPattern game unit.maybeTeamId
+        { bright, dark } =
+            unitColors game unit
     in
     Nod
         [ translate unit.position ]
@@ -174,8 +190,8 @@ viewMech game ( unit, mech ) =
             { transformState = mech.transformState
             , lookAngle = unit.lookAngle
             , fireAngle = unit.fireAngle
-            , fill = colorPattern.brightV
-            , stroke = colorPattern.darkV
+            , fill = bright
+            , stroke = dark
             , time = game.time
             }
 
@@ -227,12 +243,12 @@ viewBase game base =
 viewProjectile : Game -> Projectile -> Node
 viewProjectile game projectile =
     View.Projectile.projectile
-      { classId = projectile.classId
-      , position = projectile.position
-      , angle = projectile.angle
-      , age =  game.time - projectile.spawnTime
-      , colorPattern = teamColorPattern game projectile.maybeTeamId
-      }
+        { classId = projectile.classId
+        , position = projectile.position
+        , angle = projectile.angle
+        , age = game.time - projectile.spawnTime
+        , colorPattern = teamColorPattern game projectile.maybeTeamId
+        }
 
 
 viewWall : Tile2 -> Node
