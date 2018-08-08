@@ -35,8 +35,27 @@ nextClass class =
             Plane
 
 
-mechCanMoveOrTransform : Game -> Unit -> MechComponent -> Bool
-mechCanMoveOrTransform game unit mech =
+mechCanMove : Game -> Unit -> MechComponent -> Bool
+mechCanMove game unit mech =
+    case ( mech.class, Mech.transformMode mech ) of
+        ( Heli, ToMech ) ->
+            case unit.maybeCharge of
+                Just (Charging chargeStart) ->
+                    -- Allow movement if player is clicking instead than holding down
+                    game.time - chargeStart < 0.2
+
+                Just (Stretching stretchStart) ->
+                    False
+
+                _ ->
+                    True
+
+        _ ->
+            True
+
+
+mechCanTransform : Game -> Unit -> MechComponent -> Bool
+mechCanTransform game unit mech =
     case ( mech.class, Mech.transformMode mech ) of
         ( Heli, ToMech ) ->
             case unit.maybeCharge of
@@ -101,14 +120,17 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
         mode =
             Mech.transformMode mech
 
-        canMoveOrTransform =
-            mechCanMoveOrTransform game unit mech
+        canMove =
+            mechCanMove game unit mech
+
+        canTransform =
+            mechCanTransform game unit mech
 
         isAiming =
             Vec2.length aimDirection > controlThreshold
 
         isMoving =
-            canMoveOrTransform && Vec2.length currentInput.move > controlThreshold
+            canMove && Vec2.length currentInput.move > controlThreshold
 
         newPosition =
             if not isMoving then
@@ -135,7 +157,7 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
             Set.member (vec2Tile newPosition) game.staticObstacles |> not
 
         transformingTo =
-            if not (currentInput.transform && canMoveOrTransform) then
+            if not (currentInput.transform && canTransform) then
                 mech.transformingTo
             else
                 mechTransformTo hasFreeGround mech
