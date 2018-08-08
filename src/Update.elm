@@ -36,15 +36,14 @@ update uncappedDt pairedInputStatesByKey oldGame =
 
         tempGame =
             { oldGame
-                | time = oldGame.time + dt
+                | time = newTime
                 , laters = latersToStore
+                , cosmetics = List.filter (\c -> newTime < c.removeTime) oldGame.cosmetics
                 , dynamicObstacles =
                     units
                         |> List.map (.position >> vec2Tile)
                         |> Set.fromList
             }
-                -- TODO: this should become a lot nicer once all GFX are using game time
-                |> updateGfxs dt
     in
     [ latersToExecute
         |> List.map Tuple.second
@@ -159,15 +158,6 @@ transitionThink game =
 
                             GameModeVersus ->
                                 deltaNone
-
-
-
--- Gfxs
-
-
-updateGfxs : Seconds -> Game -> Game
-updateGfxs dt game =
-    { game | cosmetics = List.filterMap (View.Gfx.update dt) game.cosmetics }
 
 
 

@@ -35,21 +35,27 @@ vampireRed =
 --
 
 
-addGfx : Gfx -> Game -> Game
-addGfx gfx game =
+addGfx : { duration : Seconds, render : GfxRender } -> Game -> Game
+addGfx { duration, render } game =
+    let
+        gfx =
+            { spawnTime = game.time
+            , removeTime = game.time + duration
+            , render = render
+            }
+    in
     { game | cosmetics = gfx :: game.cosmetics }
 
 
-deltaAddGfx : Gfx -> Delta
-deltaAddGfx gfx =
-    deltaGame (addGfx gfx)
+deltaAddGfx : { duration : Seconds, render : GfxRender } -> Delta
+deltaAddGfx seed =
+    deltaGame (addGfx seed)
 
 
 deltaAddProjectileCase : Vec2 -> Angle -> Delta
 deltaAddProjectileCase origin angle =
     deltaAddGfx
-        { age = 0
-        , maxAge = 0.2
+        { duration = 0.2
         , render = GfxProjectileCase origin angle
         }
 
@@ -57,8 +63,7 @@ deltaAddProjectileCase origin angle =
 deltaAddBeam : Vec2 -> Vec2 -> ColorPattern -> Delta
 deltaAddBeam start end colorPattern =
     deltaAddGfx
-        { age = 0
-        , maxAge = 2.0
+        { duration = 2.0
         , render = GfxBeam start end colorPattern
         }
 
@@ -66,8 +71,7 @@ deltaAddBeam start end colorPattern =
 deltaAddRepairBeam : Vec2 -> Vec2 -> Delta
 deltaAddRepairBeam start end =
     deltaAddGfx
-        { age = 0
-        , maxAge = 0.04
+        { duration = 0.04
         , render = GfxFractalBeam start end healingGreen
         }
 
@@ -75,19 +79,21 @@ deltaAddRepairBeam start end =
 deltaAddVampireBeam : Vec2 -> Vec2 -> Delta
 deltaAddVampireBeam start end =
     deltaAddGfx
-        { age = 0
-        , maxAge = 0.02
+        { duration = 0.02
         , render = GfxFractalBeam start end vampireRed
         }
 
 
 deltaAddExplosion : Vec2 -> Float -> Delta
 deltaAddExplosion position size =
-    deltaAddGfx
-        { age = 0
-        , maxAge = 1.0
-        , render = GfxExplosion position size
-        }
+    let
+        angleToDelta a =
+            deltaAddGfx
+                { duration = 1.0
+                , render = GfxExplosion position size a
+                }
+    in
+    deltaRandom angleToDelta (Random.float -pi pi)
 
 
 deltaAddFlyingHead : MechClass -> Vec2 -> Vec2 -> ColorPattern -> Delta
@@ -96,12 +102,11 @@ deltaAddFlyingHead class origin destination colorPattern =
         speed =
             30
 
-        maxAge =
+        duration =
             Vec2.distance origin destination / speed
     in
     deltaAddGfx
-        { age = 0
-        , maxAge = maxAge
+        { duration = duration
         , render = GfxFlyingHead class origin destination colorPattern
         }
 
@@ -109,10 +114,8 @@ deltaAddFlyingHead class origin destination colorPattern =
 deltaAddRepairBubbles : Float -> Seconds -> Vec2 -> Delta
 deltaAddRepairBubbles bubblesPerSecond dt position =
     let
-        displacementToGfx : Float -> Gfx
         displacementToGfx randomDx =
-            { age = 0
-            , maxAge = 1
+            { duration = 1
             , render = GfxRepairBubble (Vec2.add position (vec2 randomDx 0))
             }
     in
@@ -124,26 +127,9 @@ deltaAddRepairBubbles bubblesPerSecond dt position =
 deltaAddTrail : { position : Vec2, angle : Angle, stretch : Float } -> Delta
 deltaAddTrail { position, angle, stretch } =
     deltaAddGfx
-        { age = 0
-        , maxAge = 1
+        { duration = 1
         , render = GfxTrail position angle stretch
         }
-
-
-
--- Update
-
-
-update : Seconds -> Gfx -> Maybe Gfx
-update dt cosmetic =
-    let
-        age =
-            cosmetic.age + dt
-    in
-    if age > cosmetic.maxAge then
-        Nothing
-    else
-        Just { cosmetic | age = age }
 
 
 
@@ -219,11 +205,11 @@ straightBeam t start end colorPattern =
 -- Main Render
 
 
-render : Gfx -> Node
-render cosmetic =
+view : Game -> Gfx -> Node
+view game cosmetic =
     let
         t =
-            cosmetic.age / cosmetic.maxAge
+            (game.time - cosmetic.spawnTime) / (cosmetic.removeTime - cosmetic.spawnTime)
     in
     case cosmetic.render of
         GfxFractalBeam start end colorPattern ->
@@ -248,7 +234,7 @@ render cosmetic =
         GfxBeam start end colorPattern ->
             straightBeam t start end colorPattern
 
-        GfxExplosion position rawSize ->
+        GfxExplosion position rawSize angle ->
             let
                 particleCount =
                     1.6 * rawSize |> ceiling |> min 6
@@ -262,7 +248,7 @@ render cosmetic =
                 particleByIndex index =
                     let
                         a =
-                            turns (toFloat index / toFloat particleCount)
+                            angle + turns (toFloat index / toFloat particleCount)
 
                         x =
                             t * size * cos a

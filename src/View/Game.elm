@@ -65,7 +65,7 @@ view viewport game =
         []
       else
         [ game.leftTeam, game.rightTeam ] |> List.map (viewRallyPoint game)
-    , game.cosmetics |> List.map View.Gfx.render
+    , game.cosmetics |> List.map (View.Gfx.view game)
     , units |> List.map viewHealthbar
     , units |> List.map (viewCharge game)
     ]

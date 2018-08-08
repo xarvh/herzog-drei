@@ -487,8 +487,7 @@ randomVampire dt unit game angle =
             Vec2.add start (vec2 0 Stats.blimp.vampireRange |> rotateVector angle)
 
         gfx =
-            { age = 0
-            , maxAge = dt
+            { duration = dt
             , render = GfxFractalBeam start end View.Gfx.vampireRed
             }
     in

@@ -423,7 +423,7 @@ type alias Base =
 
 type GfxRender
     = GfxBeam Vec2 Vec2 ColorPattern
-    | GfxExplosion Vec2 Float
+    | GfxExplosion Vec2 Float Angle
     | GfxProjectileCase Vec2 Angle
     | GfxFractalBeam Vec2 Vec2 ColorPattern
     | GfxFlyingHead MechClass Vec2 Vec2 ColorPattern
@@ -432,8 +432,8 @@ type GfxRender
 
 
 type alias Gfx =
-    { age : Seconds
-    , maxAge : Seconds
+    { spawnTime : Seconds
+    , removeTime : Seconds
     , render : GfxRender
     }
 
