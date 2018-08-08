@@ -129,7 +129,8 @@ screenShake dt game =
 
 transitionDuration : Float
 transitionDuration =
-    1.0
+    --1.0
+    0.1
 
 
 transitionThink : Game -> Delta
