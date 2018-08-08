@@ -35,101 +35,110 @@ nextClass class =
             Plane
 
 
+mechCanMoveOrTransform : Game -> Unit -> MechComponent -> Bool
+mechCanMoveOrTransform game unit mech =
+    case ( mech.class, Mech.transformMode mech ) of
+        ( Heli, ToMech ) ->
+            case unit.maybeCharge of
+                Just (Charging chargeStart) ->
+                    False
+
+                Just (Stretching stretchStart) ->
+                    False
+
+                _ ->
+                    True
+
+        _ ->
+            True
+
+
+mechSpeed : MechComponent -> Float
+mechSpeed mech =
+    case Mech.transformMode mech of
+        ToMech ->
+            case mech.class of
+                Plane ->
+                    5.0
+
+                Heli ->
+                    7.0
+
+                Blimp ->
+                    5.0
+
+        ToFlyer ->
+            case mech.class of
+                Plane ->
+                    18.0
+
+                Heli ->
+                    12.0
+
+                Blimp ->
+                    8.0
+
+
+mechTransformTo : Bool -> MechComponent -> TransformMode
+mechTransformTo hasFreeGround mech =
+    case mech.transformingTo of
+        ToFlyer ->
+            if mech.transformState == 1 && hasFreeGround then
+                ToMech
+            else
+                mech.transformingTo
+
+        ToMech ->
+            if mech.transformState == 0 then
+                ToFlyer
+            else
+                mech.transformingTo
+
+
 mechThink : ( InputState, InputState ) -> Seconds -> Game -> Unit -> MechComponent -> Delta
 mechThink ( previousInput, currentInput ) dt game unit mech =
     let
         mode =
             Mech.transformMode mech
 
+        canMoveOrTransform =
+            mechCanMoveOrTransform game unit mech
+
         isAiming =
             Vec2.length aimDirection > controlThreshold
 
         isMoving =
-            Vec2.length currentInput.move > controlThreshold
-
-        speed =
-            case mode of
-                ToMech ->
-                    5.0
-
-                ToFlyer ->
-                    case mech.class of
-                        Plane ->
-                            18.0
-
-                        Heli ->
-                            12.0
-
-                        Blimp ->
-                            8.0
-
-        dx =
-            currentInput.move
-                |> clampToRadius 1
-                |> Vec2.scale (speed * dt)
-
-        rally =
-            if currentInput.rally && not previousInput.rally then
-                case game.mode of
-                    GameModeTeamSelection _ ->
-                        deltaUnit unit.id (\g u -> Game.updateMech (\m -> { m | class = nextClass m.class }) g { u | maybeCharge = Nothing })
-
-                    GameModeVersus ->
-                        case unit.maybeTeamId of
-                            Nothing ->
-                                deltaNone
-
-                            Just teamId ->
-                                deltaTeam teamId
-                                    (\g t ->
-                                        if g.time - t.markerTime < 0.2 then
-                                            t
-                                        else
-                                            { t
-                                                | markerPosition = unit.position
-                                                , markerTime = g.time
-                                                , pathing = Pathfinding.makePaths g (vec2Tile unit.position)
-                                            }
-                                    )
-            else
-                deltaNone
-
-        updatePosition =
-            case mode of
-                ToMech ->
-                    walk
-
-                ToFlyer ->
-                    fly
+            canMoveOrTransform && Vec2.length currentInput.move > controlThreshold
 
         newPosition =
-            updatePosition dx game unit |> Game.clampToGameSize game 1
-
-        moveMech =
-            if isMoving then
-                deltaUnit unit.id (\g u -> { u | position = newPosition })
+            if not isMoving then
+                unit.position
             else
-                deltaNone
+                let
+                    updatePosition =
+                        case mode of
+                            ToMech ->
+                                walk
 
-        hasFreeGround u =
+                            ToFlyer ->
+                                fly
+
+                    dx =
+                        currentInput.move
+                            |> clampToRadius 1
+                            |> Vec2.scale (mechSpeed mech * dt)
+                in
+                updatePosition dx game unit |> Game.clampToGameSize game 1
+
+        -- Transform
+        hasFreeGround =
             Set.member (vec2Tile newPosition) game.staticObstacles |> not
 
         transformingTo =
-            if currentInput.transform then
-                case mech.transformingTo of
-                    ToFlyer ->
-                        if mech.transformState == 1 && hasFreeGround unit then
-                            ToMech
-                        else
-                            mech.transformingTo
-
-                    ToMech ->
-                        if mech.transformState == 0 then
-                            ToFlyer
-                        else
-                            mech.transformingTo
-            else
+            if not (currentInput.transform && canMoveOrTransform) then
                 mech.transformingTo
+            else
+                mechTransformTo hasFreeGround mech
 
         transformDirection =
             case transformingTo of
@@ -139,16 +148,13 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
                 ToFlyer ->
                     (+)
 
-        transform =
-            (\m ->
-                { m
-                    | transformingTo = transformingTo
-                    , transformState = clamp 0 1 (transformDirection mech.transformState (dt / Stats.transformTime))
-                }
-            )
-                |> Game.updateMech
-                |> deltaUnit unit.id
+        updateTransform m =
+            { m
+                | transformingTo = transformingTo
+                , transformState = clamp 0 1 (transformDirection mech.transformState (dt / Stats.transformTime))
+            }
 
+        -- Aiming
         aimDirection =
             case currentInput.aim of
                 AimAbsolute direction ->
@@ -166,18 +172,16 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
                 -- Keep old value
                 unit.fireAngle
 
-        aimDelta =
-            (\g u ->
-                { u
-                    | lookAngle = Game.turnTo (5 * pi * dt) aimAngle u.lookAngle
-                    , fireAngle = Game.turnTo (2 * pi * dt) aimAngle u.fireAngle
-                }
-            )
-                |> deltaUnit unit.id
+        updateAim u =
+            { u
+                | lookAngle = Game.turnTo (5 * pi * dt) aimAngle u.lookAngle
+                , fireAngle = Game.turnTo (2 * pi * dt) aimAngle u.fireAngle
+            }
 
+        -- Fire
         fire =
             if mech.class == Heli then
-                heliFireDelta dt game unit mech isMoving currentInput.fire
+                heliFireDelta dt game unit mech currentInput.fire
             else if not currentInput.fire then
                 deltaNone
             else if mech.class == Blimp && mode == ToFlyer then
@@ -185,6 +189,7 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
             else
                 attackDelta game unit mech
 
+        -- Passive
         deltaPassive =
             case mech.class of
                 Plane ->
@@ -200,16 +205,52 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
 
                 Blimp ->
                     deltaNone
+
+        -- Rally
+        rally =
+            if currentInput.rally && not previousInput.rally then
+                deltaRally game unit
+            else
+                deltaNone
+
+        -- Unit
+        update g u =
+            { u | position = newPosition }
+                |> updateAim
+                |> updateMech updateTransform g
     in
     deltaList
-        [ rally
-        , moveMech
-        , aimDelta
+        [ deltaUnit unit.id update
+        , rally
         , fire
-        , transform
         , repairDelta dt game unit mech
         , deltaPassive
         ]
+
+
+deltaRally : Game -> Unit -> Delta
+deltaRally game unit =
+    case game.mode of
+        GameModeTeamSelection _ ->
+            deltaUnit unit.id (\g u -> Game.updateMech (\m -> { m | class = nextClass m.class }) g { u | maybeCharge = Nothing })
+
+        GameModeVersus ->
+            case unit.maybeTeamId of
+                Nothing ->
+                    deltaNone
+
+                Just teamId ->
+                    deltaTeam teamId
+                        (\g t ->
+                            if g.time - t.markerTime < 0.2 then
+                                t
+                            else
+                                { t
+                                    | markerPosition = unit.position
+                                    , markerTime = g.time
+                                    , pathing = Pathfinding.makePaths g (vec2Tile unit.position)
+                                }
+                        )
 
 
 
@@ -230,90 +271,68 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
 -}
 
 
-heliFireDelta : Seconds -> Game -> Unit -> MechComponent -> Bool -> Bool -> Delta
-heliFireDelta dt game unit mech isMoving isFiring =
+heliFireDelta : Seconds -> Game -> Unit -> MechComponent -> Bool -> Delta
+heliFireDelta dt game unit mech isFiring =
     let
-        canMove =
-            case unit.maybeCharge of
-                Just (Cooldown _) ->
-                    True
+        deltaCharge : Charge -> Delta
+        deltaCharge charge =
+            deltaUnit unit.id (\g u -> { u | maybeCharge = Just charge })
 
-                _ ->
-                    False
-
-        reset =
+        deltaResetCharge : Delta
+        deltaResetCharge =
             deltaUnit unit.id (\g u -> { u | maybeCharge = Nothing })
-
-        setCharge : Maybe Charge -> Delta
-        setCharge maybeCharge =
-            deltaUnit unit.id (\g u -> { u | maybeCharge = maybeCharge })
-
-        switchTo : (Seconds -> Charge) -> Delta
-        switchTo chargeConstructor =
-            game.time |> chargeConstructor |> Just |> setCharge
     in
-    if Mech.transformMode mech == ToFlyer || (not canMove && isMoving) then
-        deltaList
-            [ reset
-            , if isFiring then
-                attackDelta game unit mech
-              else
+    case unit.maybeCharge of
+        Nothing ->
+            if not isFiring then
                 deltaNone
-            ]
-    else
-        case unit.maybeCharge of
-            Nothing ->
-                if isFiring then
-                    deltaList
-                        [ switchTo Charging
-                        , attackDelta game unit mech
-                        ]
-                else
-                    deltaNone
-
-            Just (Charging startTime) ->
-                if not isFiring then
-                    reset
-                else if game.time - startTime < Stats.heli.chargeTime then
-                    deltaNone
-                else
-                    switchTo (Stretching 0)
-
-            Just (Stretching rocketsActuallyFiredSoFar startTime) ->
-                let
-                    intervalBetweenRockets =
-                        0.1
-
-                    rocketsToBeFiredSoFar =
-                        (game.time - startTime + dt) / intervalBetweenRockets |> floor |> min Stats.heli.salvoSize
-
-                    rocketsToBeFiredNow =
-                        rocketsToBeFiredSoFar - rocketsActuallyFiredSoFar
-                in
+            else if Mech.transformMode mech == ToFlyer then
+                attackDelta game unit mech
+            else
                 deltaList
-                    [ if rocketsToBeFiredNow < 1 then
-                        deltaNone
-                      else
-                        deltaList
-                            [ spawnUpwardRocket game unit rocketsActuallyFiredSoFar
-                            , setCharge <| Just <| Stretching rocketsToBeFiredSoFar startTime
-                            ]
-
-                    -- Can't start cooldown until all salvo has been fired
-                    , if rocketsToBeFiredSoFar < Stats.heli.salvoSize || (isFiring && game.time - startTime < Stats.heli.stretchTime) then
-                        deltaNone
-                      else
-                        deltaList
-                            [ switchTo Cooldown
-                            , spawnDownwardSalvo game unit (game.time - startTime)
-                            ]
+                    [ deltaCharge (Charging game.time)
+                    , attackDelta game unit mech
                     ]
 
-            Just (Cooldown startTime) ->
-                if game.time - startTime > Stats.heli.cooldown then
-                    setCharge Nothing
-                else
-                    deltaNone
+        Just (Charging startTime) ->
+            if not isFiring then
+                deltaResetCharge
+            else if game.time - startTime >= Stats.heli.chargeTime then
+                deltaList
+                    [ deltaCharge (Stretching game.time)
+                    , fireUpwardSalvo game unit
+                    ]
+            else
+                deltaNone
+
+        Just (Stretching startTime) ->
+            if isFiring && game.time - startTime < Stats.heli.maxStretchTime then
+                deltaNone
+            else
+                deltaList
+                    [ deltaCharge (Cooldown game.time)
+                    , spawnDownwardSalvo game unit (game.time - startTime)
+                    ]
+
+        Just (Cooldown startTime) ->
+            if game.time - startTime > Stats.heli.cooldown then
+                deltaResetCharge
+            else
+                deltaNone
+
+
+fireUpwardSalvo : Game -> Unit -> Delta
+fireUpwardSalvo game unit =
+    let
+        intervalBetweenRockets =
+            0.1
+
+        indexToDelta index =
+            deltaLater (intervalBetweenRockets * toFloat index) (spawnUpwardRocket game unit index)
+    in
+    List.range 0 (Stats.heli.salvoSize - 1)
+        |> List.map indexToDelta
+        |> deltaList
 
 
 spawnUpwardRocket : Game -> Unit -> Int -> Delta
@@ -451,26 +470,6 @@ emptyVampire dt unit newPosition game =
             Vec2.add start (vec2 0 Stats.blimp.vampireRange |> rotateVector angle)
     in
     View.Gfx.deltaAddVampireBeam start end
-
-
-{-| TODO move to game.elm?
-angleGenerator : Random.Generator Angle
-angleGenerator =
-Random.float -pi pi
-
-updateRandom : Random.Generator a -> (Game -> a -> Game) -> Game -> Game
-updateRandom generator update game =
-let
-( value, seed ) =
-Random.step generator game.seed
-in
-update { game | seed = seed } value
-
-deltaRandom : Random.Generator a -> (Game -> a -> Game) -> Delta
-deltaRandom generator update =
-deltaGame (updateRandom generator update)
-
--}
 
 
 

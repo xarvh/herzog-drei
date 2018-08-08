@@ -37,7 +37,7 @@ heliSalvoPositions stretchTime unit =
             maxRange / Stats.heli.salvoSize
 
         spacing =
-            minimumSpacing + (maximumSpacing - minimumSpacing) * (stretchTime / Stats.heli.stretchTime)
+            minimumSpacing + (maximumSpacing - minimumSpacing) * (stretchTime / Stats.heli.maxStretchTime)
 
         distanceFromMech =
             2

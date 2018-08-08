@@ -238,7 +238,7 @@ type UnitComponent
 
 type Charge
     = Charging Seconds
-    | Stretching Int Seconds
+    | Stretching Seconds
     | Cooldown Seconds
 
 

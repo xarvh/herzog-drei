@@ -290,7 +290,7 @@ viewCharge game unit =
                     [ translate unit.position ]
                     [ View.Hud.chargeBar ((game.time - startTime) / Stats.heli.chargeTime) ]
 
-        Just (Stretching _ startTime) ->
+        Just (Stretching startTime) ->
             Mech.heliSalvoPositions (game.time - startTime) unit
                 |> List.map (View.Hud.salvoMark game.time (Unit.colorPattern game unit))
                 |> Nod []
