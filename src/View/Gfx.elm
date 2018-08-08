@@ -132,6 +132,59 @@ deltaAddTrail { position, angle, stretch } =
         }
 
 
+deltaAddFrags : Game -> Int -> Vec2 -> Maybe TeamId -> Delta
+deltaAddFrags game n origin maybeTeamId =
+    let
+        colorPattern =
+            teamColorPattern game maybeTeamId
+
+        -- TODO move these somewhere out
+        generateBool =
+            Random.int 0 1 |> Random.map (\i -> i == 0)
+
+        generateInterval =
+            Random.float -1 1
+
+        generateVector =
+            Random.map2 vec2 generateInterval generateInterval
+
+        generateSize =
+            Random.pair (Random.float 0.1 0.5) (Random.float 0.1 0.5)
+
+        generateAngle =
+            Random.float -pi pi
+
+        generateDelta =
+            Random.map5 makeGfx
+                generateSize
+                generateVector
+                generateAngle
+                generateInterval
+                generateBool
+
+        makeGfx ( w, h ) v a va isTris =
+            deltaAddGfx
+                { duration = 2
+                , render =
+                    GfxFrag
+                        { fill = colorPattern.brightV
+                        , stroke = colorPattern.darkV
+                        , w = w
+                        , h = h
+                        , origin = origin
+                        , angle = a
+                        , speed = Vec2.scale 6 v
+                        , angularVelocity = 2 * pi * va
+                        , isTris = isTris
+                        }
+                }
+
+        addFrag =
+            DeltaRandom generateDelta
+    in
+    deltaList (List.repeat n addFrag)
+
+
 
 -- Item Render
 
@@ -347,4 +400,33 @@ view game cosmetic =
                     , w = 0.1 + t * 0.2
                     , h = (1.5 - t) * stretch
                     , opacity = 0.05 * (1 - t * t)
+                }
+
+        GfxFrag { fill, stroke, w, h, origin, angle, speed, angularVelocity, isTris } ->
+            let
+                a =
+                    angle + t * angularVelocity
+
+                { x, y } =
+                    speed
+                        |> Vec2.scale t
+                        |> Vec2.add origin
+                        |> Vec2.toRecord
+
+                prim =
+                    if isTris then
+                        rightTri
+                    else
+                        rect
+            in
+            prim
+                { defaultParams
+                    | fill = fill
+                    , stroke = stroke
+                    , w = w
+                    , h = h
+                    , rotate = a
+                    , x = x
+                    , y = y
+                    , opacity = 1 - t
                 }

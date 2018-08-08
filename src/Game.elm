@@ -431,6 +431,17 @@ type GfxRender
     | GfxFlyingHead MechClass Vec2 Vec2 ColorPattern
     | GfxRepairBubble Vec2
     | GfxTrail Vec2 Angle Float
+    | GfxFrag
+        { fill : Vec3
+        , stroke : Vec3
+        , w : Float
+        , h : Float
+        , origin : Vec2
+        , angle : Angle
+        , speed : Vec2
+        , angularVelocity : Float
+        , isTris : Bool
+        }
 
 
 type alias Gfx =

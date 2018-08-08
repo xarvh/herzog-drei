@@ -20,12 +20,17 @@ think dt pairedInputStates game unit =
             , View.Gfx.deltaAddExplosion unit.position 1.0
             , case unit.component of
                 UnitSub sub ->
-                    SubThink.destroy game unit sub
+                    deltaList
+                        [ SubThink.destroy game unit sub
+                        , View.Gfx.deltaAddFrags game 10 unit.position unit.maybeTeamId
+                        ]
 
                 UnitMech mech ->
                     deltaList
                         [ respawnMech game unit mech
                         , addBigSubsToEnemyTeam unit
+                        , View.Gfx.deltaAddFrags game 40 unit.position unit.maybeTeamId
+                        , deltaShake 0.06
                         ]
             ]
     else
