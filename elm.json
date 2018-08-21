@@ -16,9 +16,9 @@
             "elm/svg": "1.0.0",
             "elm/time": "1.0.0",
             "elm-community/list-extra": "8.0.0",
-            "elm-explorations/linear-algebra": "1.0.1",
-            "elm-explorations/webgl": "1.0.1",
-            "xarvh/elm-gamepad": "2.0.3"
+            "elm-explorations/linear-algebra": "1.0.0",
+            "elm-explorations/webgl": "1.0.0",
+            "xarvh/elm-gamepad": "2.0.0"
         },
         "indirect": {
             "elm/url": "1.0.0",
