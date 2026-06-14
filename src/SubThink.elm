@@ -1,7 +1,7 @@
 module SubThink exposing (..)
 
 {-| This module contains all the deltas that can be originated by Units
-and the Unit.think that decudes which deltas to output.
+and the Unit.think that decides which deltas to output.
 -}
 
 import Base
@@ -482,7 +482,7 @@ updateUnitEntersBase unit base game =
 
                 updatedUnit =
                     unit
-                        |> updateSub (\s -> { s | mode = Game.UnitModeBase base.id }) game
+                        |> updateSub (\s -> { s | mode = Game.UnitModeBase base.id, isBig = False }) game
                         |> (\u -> { u | position = corner, moveAngle = angle })
 
                 updatedBase =
@@ -517,10 +517,10 @@ thinkMovement dt game unit sub =
                         deltaNone
 
                     Just team ->
-                        if sub.isBig then
-                            -- big subs never enter in bases
-                            movePath dt game team.pathing unit
-                        else
+--                         if sub.isBig then
+--                             -- big subs never enter in bases
+--                             movePath dt game team.pathing unit
+--                         else
                             let
                                 conquerBaseDistanceThreshold =
                                     3.0
