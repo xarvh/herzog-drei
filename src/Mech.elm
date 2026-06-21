@@ -54,6 +54,9 @@ heliSalvoPositions stretchTime unit =
 reloadTime : MechComponent -> Seconds
 reloadTime mech =
     case mech.class of
+        Wing ->
+            Stats.wing.reload
+
         Blimp ->
             Stats.blimp.reload
 

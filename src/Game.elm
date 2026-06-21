@@ -214,6 +214,7 @@ type MechClass
     = Plane
     | Heli
     | Blimp
+    | Wing
 
 
 type alias MechComponent =
@@ -236,10 +237,11 @@ type UnitComponent
     | UnitSub SubComponent
 
 
-type Charge
+type Animation
     = Charging Seconds
     | Stretching Seconds
     | Cooldown Seconds
+    | Swipe Seconds { isLeftSide : Bool, victims : Set Id }
 
 
 type alias Unit =
@@ -249,7 +251,7 @@ type alias Unit =
     , integrity : Float
     , position : Vec2
     , reloadEndTime : Seconds
-    , maybeCharge : Maybe Charge
+    , maybeAnimation : Maybe Animation
     , lastDamaged : Seconds
 
     --
@@ -278,7 +280,7 @@ addUnit component maybeTeamId position startAngle game =
             , integrity = 1
             , position = position
             , reloadEndTime = game.time
-            , maybeCharge = Nothing
+            , maybeAnimation = Nothing
             , lastDamaged = -99
 
             --

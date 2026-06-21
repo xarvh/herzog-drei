@@ -8,6 +8,7 @@ import Stats
 import Svgl.Tree exposing (..)
 
 
+
 -- import View.Propeller
 
 
@@ -625,6 +626,89 @@ planeHead t fillColor strokeColor angle =
 
 
 
+-- Wing ======================================================================
+
+
+wing : Args -> Node
+wing args =
+    let
+        sm =
+            smooth args.transformState
+
+        st =
+            step args.transformState 0
+
+        rectangle =
+            rectangleColor args.fill args.stroke
+
+        mirrorRectangles =
+            mirrorRectanglesColor args.fill args.stroke
+
+        ellipse =
+            ellipseColor args.fill args.stroke
+    in
+    Nod []
+        [ Nod
+            [ rotateRad args.fireAngle ]
+            [ -- main body
+              mirrorRectangles
+                { x = sm 0.5 0.4
+                , y = sm 0.3 0.16
+                , z = 0.91 * height
+                , w = 0.7
+                , h = 0.3
+                , a = sm -90 20
+                }
+            , ellipse
+                { x = 0
+                , y = sm -0.04 0
+                , z = 0.92 * height
+                , w = 0.6
+                , h = 1
+                , a = 0
+                }
+            ]
+        ]
+
+
+wingHead : Float -> Vec3 -> Vec3 -> Angle -> Node
+wingHead t fillColor strokeColor angle =
+    let
+        sm =
+            smooth t
+    in
+    Nod
+        [ rotateRad angle ]
+        -- cockpit / head
+        [ ellipseColor
+            fillColor
+            strokeColor
+            { x = 0
+            , y = sm 0.03 0.75
+            , z = 0.99 * height
+            , w = sm 0.48 0.22
+            , h = sm 0.8 0.4
+            , a = 0
+            }
+        , eye
+            { x = 0
+            , y = sm 0.32 0.85
+            , a = sm 0 0
+            }
+        , eye
+            { x = sm -0.14 -0.09
+            , y = sm 0.18 0.7
+            , a = sm 15 -10
+            }
+        , eye
+            { x = sm 0.14 0.09
+            , y = sm 0.18 0.7
+            , a = sm -15 10
+            }
+        ]
+
+
+
 -- Overlay
 {-
    headOverlay : Float -> Angle -> Svg a
@@ -657,6 +741,9 @@ mech class =
         Blimp ->
             blimp
 
+        Wing ->
+            wing
+
 
 head class =
     case class of
@@ -668,3 +755,6 @@ head class =
 
         Blimp ->
             blimpHead
+
+        Wing ->
+            wingHead

@@ -10,6 +10,7 @@ type alias Flags =
     { config : String
     , customMaps : String
     , dateNow : Int
+    , hash : String
     , mapEditorCurrentMap : String
     , windowWidth : Int
     , windowHeight : Int

@@ -33,6 +33,9 @@ nextClass class =
             Blimp
 
         Blimp ->
+            Wing
+
+        Wing ->
             Plane
 
 
@@ -40,7 +43,7 @@ mechCanMove : Game -> Unit -> MechComponent -> Bool
 mechCanMove game unit mech =
     case ( mech.class, Mech.transformMode mech ) of
         ( Heli, ToMech ) ->
-            case unit.maybeCharge of
+            case unit.maybeAnimation of
                 Just (Charging chargeStart) ->
                     -- Allow movement if player is clicking instead than holding down
                     game.time - chargeStart < 0.2
@@ -59,11 +62,19 @@ mechCanTransform : Game -> Unit -> MechComponent -> Bool
 mechCanTransform game unit mech =
     case ( mech.class, Mech.transformMode mech ) of
         ( Heli, ToMech ) ->
-            case unit.maybeCharge of
+            case unit.maybeAnimation of
                 Just (Charging chargeStart) ->
                     False
 
                 Just (Stretching stretchStart) ->
+                    False
+
+                _ ->
+                    True
+
+        ( Wing, ToMech ) ->
+            case unit.maybeAnimation of
+                Just (Swipe _ _) ->
                     False
 
                 _ ->
@@ -87,6 +98,9 @@ mechSpeed mech =
                 Blimp ->
                     5.0
 
+                Wing ->
+                    6.0
+
         ToFlyer ->
             case mech.class of
                 Plane ->
@@ -98,6 +112,9 @@ mechSpeed mech =
                 Blimp ->
                     8.0
 
+                Wing ->
+                    9.0
+
 
 mechTransformTo : Bool -> MechComponent -> TransformMode
 mechTransformTo hasFreeGround mech =
@@ -105,12 +122,14 @@ mechTransformTo hasFreeGround mech =
         ToFlyer ->
             if mech.transformState == 1 && hasFreeGround then
                 ToMech
+
             else
                 mech.transformingTo
 
         ToMech ->
             if mech.transformState == 0 then
                 ToFlyer
+
             else
                 mech.transformingTo
 
@@ -136,6 +155,7 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
         newPosition =
             if not isMoving then
                 unit.position
+
             else
                 let
                     updatePosition =
@@ -160,6 +180,7 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
         transformingTo =
             if not (currentInput.transform && canTransform) then
                 mech.transformingTo
+
             else
                 mechTransformTo hasFreeGround mech
 
@@ -189,8 +210,10 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
         aimAngle =
             if isAiming then
                 vecToAngle aimDirection
+
             else if isMoving then
                 vecToAngle currentInput.move
+
             else
                 -- Keep old value
                 unit.fireAngle
@@ -205,10 +228,13 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
         fire =
             if mech.class == Heli then
                 heliFireDelta dt game unit mech currentInput.fire
+
             else if not currentInput.fire then
                 deltaNone
+
             else if mech.class == Blimp && mode == ToFlyer then
                 vampireDelta dt game unit mech newPosition
+
             else
                 attackDelta game unit mech
 
@@ -229,10 +255,14 @@ mechThink ( previousInput, currentInput ) dt game unit mech =
                 Blimp ->
                     deltaNone
 
+                Wing ->
+                    deltaNone
+
         -- Rally
         rally =
             if currentInput.rally && not previousInput.rally then
                 deltaRally game unit
+
             else
                 deltaNone
 
@@ -255,7 +285,7 @@ deltaRally : Game -> Unit -> Delta
 deltaRally game unit =
     case game.mode of
         GameModeTeamSelection _ ->
-            deltaUnit unit.id (\g u -> Game.updateMech (\m -> { m | class = nextClass m.class }) g { u | maybeCharge = Nothing })
+            deltaUnit unit.id (\g u -> Game.updateMech (\m -> { m | class = nextClass m.class }) g { u | maybeAnimation = Nothing })
 
         GameModeVersus ->
             case unit.maybeTeamId of
@@ -267,6 +297,7 @@ deltaRally game unit =
                         (\g t ->
                             if g.time - t.markerTime < 0.2 then
                                 t
+
                             else
                                 { t
                                     | markerPosition = unit.position
@@ -297,20 +328,22 @@ deltaRally game unit =
 heliFireDelta : Seconds -> Game -> Unit -> MechComponent -> Bool -> Delta
 heliFireDelta dt game unit mech isFiring =
     let
-        deltaCharge : Charge -> Delta
+        deltaCharge : Animation -> Delta
         deltaCharge charge =
-            deltaUnit unit.id (\g u -> { u | maybeCharge = Just charge })
+            deltaUnit unit.id (\g u -> { u | maybeAnimation = Just charge })
 
         deltaResetCharge : Delta
         deltaResetCharge =
-            deltaUnit unit.id (\g u -> { u | maybeCharge = Nothing })
+            deltaUnit unit.id (\g u -> { u | maybeAnimation = Nothing })
     in
-    case unit.maybeCharge of
+    case unit.maybeAnimation of
         Nothing ->
             if not isFiring then
                 deltaNone
+
             else if Mech.transformMode mech == ToFlyer then
                 attackDelta game unit mech
+
             else
                 deltaList
                     [ deltaCharge (Charging game.time)
@@ -320,17 +353,20 @@ heliFireDelta dt game unit mech isFiring =
         Just (Charging startTime) ->
             if not isFiring then
                 deltaResetCharge
+
             else if game.time - startTime >= Stats.heli.chargeTime then
                 deltaList
                     [ deltaCharge (Stretching game.time)
                     , fireUpwardSalvo game unit
                     ]
+
             else
                 deltaNone
 
         Just (Stretching startTime) ->
             if isFiring && game.time - startTime < Stats.heli.maxStretchTime then
                 deltaNone
+
             else
                 deltaList
                     [ deltaCharge (Cooldown game.time)
@@ -340,8 +376,12 @@ heliFireDelta dt game unit mech isFiring =
         Just (Cooldown startTime) ->
             if game.time - startTime > Stats.heli.cooldown then
                 deltaResetCharge
+
             else
                 deltaNone
+
+        _ ->
+            deltaNone
 
 
 fireUpwardSalvo : Game -> Unit -> Delta
@@ -422,6 +462,7 @@ repairSelf : Seconds -> Unit -> Delta
 repairSelf dt unit =
     if unit.integrity >= 1 then
         deltaNone
+
     else
         let
             repairRate =
@@ -448,6 +489,7 @@ repairTargetDelta : Seconds -> Unit -> Unit -> Delta
 repairTargetDelta dt healer target =
     if healer == target || target.integrity >= 1 then
         deltaNone
+
     else
         let
             repairRate =
@@ -467,6 +509,7 @@ vampireDelta : Seconds -> Game -> Unit -> MechComponent -> Vec2 -> Delta
 vampireDelta dt game unit mech newPosition =
     if Mech.transformMode mech == ToMech then
         deltaNone
+
     else
         let
             deltas =
@@ -476,6 +519,7 @@ vampireDelta dt game unit mech newPosition =
         in
         if deltas /= [] then
             deltaList deltas
+
         else
             emptyVampire dt unit newPosition game
 
@@ -548,6 +592,7 @@ attackDelta : Game -> Unit -> MechComponent -> Delta
 attackDelta game unit mech =
     if game.time < unit.reloadEndTime then
         deltaNone
+
     else
         let
             leftOrigin =
@@ -608,6 +653,9 @@ attackDelta game unit mech =
                         , View.Gfx.deltaAddProjectileCase rightOrigin (unit.fireAngle + pi / 12)
                         , deltaShake 0.02
                         ]
+
+                Wing ->
+                    deltaNone
             ]
 
 
@@ -688,6 +736,7 @@ repairDelta : Seconds -> Game -> Unit -> MechComponent -> Delta
 repairDelta dt game unit mech =
     if unit.integrity >= 1 then
         deltaNone
+
     else
         let
             canRepair base =
@@ -742,6 +791,7 @@ walk dp game unit =
     in
     if didNotChangeTile || not idealPositionIsObstacle then
         idealPosition
+
     else
         let
             ( tX, tY ) =
@@ -768,24 +818,28 @@ walk dp game unit =
             minX =
                 if isObstacle leftTile then
                     oX
+
                 else
                     oX - 1
 
             maxX =
                 if isObstacle rightTile then
                     oX + 0.99
+
                 else
                     oX + 1.99
 
             minY =
                 if isObstacle bottomTile then
                     oY
+
                 else
                     oY - 1
 
             maxY =
                 if isObstacle topTile then
                     oY + 0.99
+
                 else
                     oY + 1.99
 

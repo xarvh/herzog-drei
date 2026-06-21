@@ -52,6 +52,7 @@ type alias ImportModel =
 type SubScene
     = SubSceneDemo
     | SubSceneGameplay
+    | SubSceneDev
 
 
 type Scene
@@ -85,7 +86,13 @@ init flags =
             Config.fromString flags.config
 
         ( scene, seed ) =
-            demoScene (Random.initialSeed flags.dateNow)
+            if flags.hash == "#dev" then
+                ( SceneMain SubSceneDev MainScene.initDev
+                , Random.initialSeed 0
+                )
+
+            else
+                demoScene (Random.initialSeed flags.dateNow)
 
         windowSize =
             { width = flags.windowWidth
@@ -271,6 +278,7 @@ updateMainScene blob model =
             if model.maybeMenu == Nothing || subScene == SubSceneDemo then
                 MainScene.updateOnGamepad blob (shell model) scene
                     |> Tuple.mapFirst (\newScene -> { model | scene = SceneMain subScene newScene })
+
             else
                 noCmd model
 
@@ -308,10 +316,13 @@ updateMenuOnGamepad blob model =
     in
     if isRemapping then
         noCmd model
+
     else if buttonClick Gamepad.Start then
         updateOnKeyUp "Escape" model
+
     else if model.maybeMenu == Nothing then
         noCmd model
+
     else
         case List.Extra.find (\( b, k ) -> buttonClick b) buttonToKey of
             Nothing ->
@@ -741,6 +752,7 @@ updateConfig updater model =
         cmd =
             if newConfig == oldConfig then
                 Cmd.none
+
             else
                 LocalStoragePort.set "config" (Config.toString newConfig)
     in
@@ -893,6 +905,7 @@ viewMenuButton model b =
         borderColor =
             if isSelected then
                 "black"
+
             else
                 "transparent"
 
@@ -930,6 +943,7 @@ viewToggle label state =
         [ text <|
             if state then
                 "Yes"
+
             else
                 "No"
         ]
@@ -984,6 +998,7 @@ subscriptions model =
                 Just (MenuGamepads remap) ->
                     if Gamepad.isRemapping remap then
                         remapGamepadSub
+
                     else
                         Sub.batch
                             [ appGamepadSub

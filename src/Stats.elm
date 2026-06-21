@@ -3,6 +3,7 @@ module Stats exposing (..)
 import Game exposing (..)
 
 
+
 -- Heights
 -- mech + base < 1
 
@@ -83,6 +84,7 @@ subReloadTime : SubComponent -> Seconds
 subReloadTime sub =
     if sub.isBig then
         0.4
+
     else
         4.0
 
@@ -91,6 +93,7 @@ subShootRange : SubComponent -> Float
 subShootRange sub =
     if sub.isBig then
         8.0
+
     else
         7.0
 
@@ -99,6 +102,7 @@ subShootDamage : SubComponent -> number
 subShootDamage sub =
     if sub.isBig then
         4
+
     else
         11
 
@@ -109,6 +113,11 @@ subShootDamage sub =
 
 transformTime =
     0.5
+
+
+wing =
+    { reload = 1.0
+    }
 
 
 blimp =

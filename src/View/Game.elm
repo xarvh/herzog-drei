@@ -67,7 +67,7 @@ view viewport game =
         [ game.leftTeam, game.rightTeam ] |> List.map (viewRallyPoint game)
     , game.cosmetics |> List.map (View.Gfx.view game)
     , units |> List.map viewHealthbar
-    , units |> List.map (viewCharge game)
+    , units |> List.map (viewAnimation game)
     ]
         |> List.concat
         |> Nod []
@@ -301,9 +301,9 @@ viewHealthbar unit =
             [ View.Hud.healthBar unit.integrity ]
 
 
-viewCharge : Game -> Unit -> Node
-viewCharge game unit =
-    case unit.maybeCharge of
+viewAnimation : Game -> Unit -> Node
+viewAnimation game unit =
+    case unit.maybeAnimation of
         Just (Charging startTime) ->
             if game.time - startTime < 0.3 then
                 Nod [] []

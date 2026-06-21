@@ -33,6 +33,18 @@ type alias Model =
 -- init
 
 
+initDev : Model
+initDev =
+    { game =
+        defaultGame
+            |> Game.addMech Wing inputKeyboardAndMouseKey Nothing (vec2 0 0)
+            |> Tuple.first
+    , botStatesByKey = Dict.empty
+    , fps = [ 1 ]
+    , previousInputStatesByKey = Dict.empty
+    }
+
+
 initDemo : Random.Seed -> ValidatedMap -> Model
 initDemo seed map =
     let
@@ -102,6 +114,7 @@ threshold : Vec2 -> Vec2
 threshold v =
     if Vec2.length v > 0.1 then
         v
+
     else
         vec2 0 0
 
@@ -258,6 +271,7 @@ updateOnGamepad gamepadBlob shell model =
         keyAndMouse =
             if shell.config.useKeyboardAndMouse || Dict.size gamepadsInputByKey == 0 then
                 Dict.singleton inputKeyboardAndMouseKey (getKeyboardAndMouseInputState shell model)
+
             else
                 Dict.empty
 
@@ -290,6 +304,7 @@ updateOnGamepad gamepadBlob shell model =
         ( game, outcomes ) =
             if shell.gameIsPaused then
                 ( model.game, [] )
+
             else
                 Update.update dt pairedInputStates model.game
 
@@ -319,6 +334,7 @@ sanitizeInputState inputKey inputState =
                         Debug.log "input is NaN" ( inputKey, inputState )
                 in
                 vec2 0 0
+
             else
                 v
 
@@ -402,6 +418,7 @@ viewFps : Model -> Shell -> Html a
 viewFps model shell =
     if not shell.config.showFps then
         text ""
+
     else
         let
             fps =
